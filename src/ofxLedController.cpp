@@ -56,21 +56,26 @@ void ofxLedController::setup(const int& __id, const string & _path, const ofRect
     gui.setSize(255, 400);
 
 //    pInLed.setParent(&guiGroup);
-    gui.add(xPos.set("X", xPos, -100, static_cast<int>(ofGetWidth()/2)));
-    gui.add(yPos.set("Y", yPos, -100, static_cast<int>(ofGetHeight()/2)));
-    gui.add(width.set("W", width,0,ofGetWidth()));
-    gui.add(height.set("H", height,0,ofGetHeight()));
-    gui.add(pixelsInLed.set( "PixInLed", 5.f, 1.f, 100.f ));
-    gui.add(ledType.set("LedType", 0,0,4));
-    gui.add(bDoubleLine.set("Double Line", false));
-    gui.add(bUdpSend.set("UDP", false));
-    gui.add(ipAddress.set("IP", RPI_IP));
-    gui.add(port.set("Port", RPI_PORT, RPI_PORT, RPI_PORT+6));
-    gui.add(bDmxSend.set("DMX", false));
-    gui.add(dmxChannel.set("DMX Chan", 1, 0, 512));
-
+//    gui.add(xPos.set("X", xPos, -100, static_cast<int>(ofGetWidth()/2)));
+//    gui.add(yPos.set("Y", yPos, -100, static_cast<int>(ofGetHeight()/2)));
+//    gui.add(width.set("W", width,0,ofGetWidth()));
+//    gui.add(height.set("H", height,0,ofGetHeight()));
+    guiGroup.add(pixelsInLed.set( "PixInLed", 5.f, 1.f, 100.f ));
+    guiGroup.add(ledType.set("LedType", 0,0,4));
+    guiGroup.add(bDoubleLine.set("Double Line", false));
+    guiGroup.add(bUdpSend.set("UDP", false));
+    guiGroup.add(ipAddress.set("IP", RPI_IP));
+    guiGroup.add(port.set("Port", RPI_PORT, RPI_PORT, RPI_PORT+6));
+    guiGroup.add(bDmxSend.set("DMX", false));
+    guiGroup.add(dmxChannel.set("DMX Chan", 1, 0, 512));
+    
+    gui.add(guiGroup);
 //
-    gui.setPosition(ofGetWidth()-250,100+_id*200);
+    if (_id<8) {
+        gui.setPosition(ofGetWidth()-250,50+_id*100);
+    } else {
+        gui.setPosition(10+(_id-7)*250, 600+(_id%2==0?100:0));
+    }
     gui.setWidthElements(255);
     gui.minimizeAll();
     load(path);
@@ -80,6 +85,9 @@ void ofxLedController::setup(const int& __id, const string & _path, const ofRect
     ipText.bounds.height = 20;
     ipText.bounds.width = 200;
 
+//    bDmxSend.addListener(this, &ofxLedController::notifyParameterChanged);
+//    bUdpSend.addListener(this, &ofxLedController::notifyParameterChanged);
+//    pixelsInLed.addListener(this, &ofxLedController::notifyParameterChanged);
 //    gui.addListener(this, &ofxLedController::notifyParameterChanged);
 
     ofAddListener(ofEvents().mousePressed, this, &ofxLedController::mousePressed);
@@ -102,20 +110,21 @@ void ofxLedController::setup(const int& __id, const string & _path, const ofRect
 }
 
 void ofxLedController::setupUdp(string host, unsigned int port) {
-    //    if (udpHost != host || udpPort != port) {
-    udpConnection.Close();
-    udpConnection.Create();
-    if (udpConnection.Connect(host.c_str(), port)) {
-        ofLogVerbose("UDP connect to "+host);
+    if (bUdpSend || udpHost != host || udpPort != port) {
+        udpConnection.Close();
+        udpConnection.Create();
+        if (udpConnection.Connect(host.c_str(), port)) {
+            ofLogVerbose("UDP connect to "+host);
+        }
+        udpConnection.SetSendBufferSize(4096*3);
+        udpConnection.SetNonBlocking(true);
+        //    }
+        udpHost = host;
+        udpPort = port;
+        bSetuped = bUdpSetup = true;
     }
-    udpConnection.SetSendBufferSize(4096*3);
-    udpConnection.SetNonBlocking(true);
-    //    }
-    udpHost = host;
-    udpPort = port;
-    bSetuped = bUdpSetup = true;
     //    ((ofxUITextInput*)gui->getWidget("host"))
-    
+
 }
 
 void ofxLedController::setupDmx(string serialName){
@@ -266,12 +275,12 @@ void ofxLedController::keyPressed(ofKeyEventArgs& data){
         case OF_KEY_SHIFT:
             bRecordCircles = true;
             break;
-        case 's':
-            save(path);
-            break;
-        case 'l':
-            load(path);
-            break;
+//        case 's':
+//            save(path);
+//            break;
+//        case 'l':
+//            load(path);
+//            break;
         case OF_KEY_ESC :
             bSelected = false;
         default:
@@ -408,6 +417,7 @@ void ofxLedController::sendUdp(const ofPixels &sidesGrabImg) {
 void ofxLedController::sendUdp() {
     if (!bUdpSend || !bUdpSetup) return;
     
+//    if (ofGetFrameNum()%2!=0) return;
     char to_leds [totalLeds*3];
 //    int cntr = 0;
     for (int i = 0; i<totalLeds*3;i++) {
@@ -490,7 +500,7 @@ void ofxLedController::load(string path) {
         gui.saveToFile(path+"/ofxLedController-"+ofToString(_id));
        return;
     }
-    gui.loadFromFile(path+"/ofxLedController-"+ofToString(_id));
+    gui.loadFromFile(file.path());
 
     ipText.text = ipAddress;
     if (bUdpSend) setupUdp(ipText.text, port);

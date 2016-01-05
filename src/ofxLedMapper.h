@@ -14,7 +14,7 @@
 #include "ofxGui.h"
 #include "ofxLedController.h"
 
-typedef shared_ptr<ofxLedController> ofxLedController_ptr;
+//typedef unique_ptr<ofxLedController> ofxLedController_ptr;
 
 class ofxLedMapper {
 
@@ -31,10 +31,14 @@ public:
     
     void notifyParameterChanged(ofAbstractParameter & param);
 
+    void keyPressed(ofKeyEventArgs& data);
+    void keyReleased(ofKeyEventArgs& data);
+    
 private:
 
-    vector<ofxLedController_ptr> Controllers;
-
+//    vector<ofxLedController_ptr> Controllers;
+    vector<ofxLedController*> Controllers;
+    unsigned int currentCtrl;
     ofxXmlSettings XML;
     ofDirectory dir;
     

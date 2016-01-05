@@ -11,7 +11,7 @@
 
 #include "ofMain.h"
 
-#define POINT_RAD 10
+#define POINT_RAD 3
 
 enum {
     GRAB_OBJ,
@@ -75,7 +75,7 @@ public:
     int toX;
     int toY;
     int pixelsInObject;
-    bool bSelected, bSelectedFrom, bSelectedTo;
+    bool bSelected, bSelectedFrom, bSelectedTo, bDoubleLine;
     bool lineClicked;
     unsigned int objID;
 };
@@ -87,14 +87,16 @@ public:
     ofxLedGrabLine(int _fromX=0, int _fromY=0, int _toX=0, int _toY=0){
         fromX = _fromX; fromY = _fromY;
         toX = _toX; toY = _toY;
-        pixelsInLed = 5.f;
-        lineClicked = false;
+        pixelsInLed = 2.f;
+        lineClicked = bSelected =  bSelectedFrom = bSelectedTo = bDoubleLine= false;
         updatePoints();
     }
     ofxLedGrabLine(const ofxLedGrabObject & _line){
         fromX = _line.toX; fromY = _line.toY;
         toX = _line.fromX; toY = _line.fromY;
         pixelsInLed = _line.pixelsInLed;
+        bDoubleLine = _line.bDoubleLine;
+        lineClicked = bSelected =  bSelectedFrom = bSelectedTo = false;
         lineClicked = false;
         updatePoints();
     }
@@ -168,6 +170,13 @@ public:
                 float step = static_cast<float>(tmp_num/pixelsInObject);
                 points.push_back(vert1.getInterpolated(vert2, step));
             }
+//        if (bDoubleLine) {
+//            for (int pix_num=0;pix_num<pixelsInObject; pix_num++) {
+//                float tmp_num = static_cast<float>(pix_num);
+//                float step = static_cast<float>(tmp_num/pixelsInObject);
+//                points.push_back(vert2.getInterpolated(vert1, step));
+//            }
+//        }
 //        }
     }
     void save(ofxXmlSettings & XML){
@@ -198,6 +207,7 @@ public:
         lineClicked = false;
         pixelsInLed = 5.f;
         startAngle = -90.f;
+        lineClicked = bSelected =  bSelectedFrom = bSelectedTo = false;
         bClockwise = true;
         updatePoints();
     }

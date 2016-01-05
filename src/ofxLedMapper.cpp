@@ -18,11 +18,14 @@ ofxLedMapper::ofxLedMapper(int __id) {
     gui.setup("ledMapper"+ofToString(_id)); // most of the time you don't need a name but don't forget to call setup
     //    gui.setName("control");
     gui.setSize(255, 400);
-    
+    currentCtrl == 0;
     gui.add(bAdd.set("Add", false));
     gui.add(bShowControllers.set("Show Controllers", true));
     gui.setPosition(ofGetWidth()-255, 0);
 
+    ofAddListener(ofEvents().keyPressed, this, &ofxLedMapper::keyPressed);
+    ofAddListener(ofEvents().keyReleased, this, &ofxLedMapper::keyReleased);
+    
     bSetup=true;
 }
 
@@ -38,10 +41,17 @@ void ofxLedMapper::draw() {
     }
 
     gui.draw();
-    if (bShowControllers)
-        for (auto &ctrl : Controllers ) {
-            ctrl->draw();
-            ctrl->sendUdp();
+    int cntr;
+    
+    if (Controllers.size()>0)
+        if (bShowControllers) {
+            for (auto &ctrl : Controllers ) {
+                ctrl->draw();
+                ctrl->sendUdp();
+            }
+        } else if (currentCtrl<Controllers.size()){
+            Controllers[currentCtrl]->draw();
+            Controllers[currentCtrl]->sendUdp();
         }
 }
 
@@ -53,7 +63,8 @@ void ofxLedMapper::update(const ofPixels &grabImg){
 
 bool ofxLedMapper::add() {
     string folder_path = "Ctrls"+ofToString(_id);
-    ofxLedController_ptr ledCtrl(new ofxLedController());
+    ofxLedController * ledCtrl = new ofxLedController();
+//    ofxLedController_ptr ledCtrl(new ofxLedController());
     ledCtrl->setup(Controllers.size(), folder_path, ofRectangle(0, 0, ofGetWidth(), ofGetHeight()));
     //            ledCtrl->setupUdp(RPI_HOST+ofToString(1), RPI_PORT);
     //            ledCtrl->load();
@@ -82,7 +93,8 @@ bool ofxLedMapper::load() {
     for(int i = 0; i < (int)dir.size(); i++){
         string pth = dir.getPath(i);
         if (dir.getPath(i).find("ofxLedController") != string::npos) {
-            ofxLedController_ptr ledCtrl(new ofxLedController());
+//            ofxLedController_ptr ledCtrl(new ofxLedController());
+            ofxLedController * ledCtrl =new ofxLedController();
             ledCtrl->setup(Controllers.size(), folder_path, ofRectangle(0, 0, ofGetWidth(), ofGetHeight()));
 //            ledCtrl->setupUdp(RPI_HOST+ofToString(1), RPI_PORT);
 //            ledCtrl->load();
@@ -103,4 +115,19 @@ bool ofxLedMapper::save() {
     }
 
     return true;
+}
+
+void ofxLedMapper::keyPressed(ofKeyEventArgs& data) {
+    switch (data.key) {
+        case OF_KEY_LEFT:
+                currentCtrl--;
+            break;
+        case OF_KEY_RIGHT:
+            currentCtrl++;
+            if (currentCtrl>=Controllers.size()) currentCtrl=Controllers.size()-1;
+            break;
+    }
+}
+void ofxLedMapper::keyReleased(ofKeyEventArgs& data) {
+    
 }
