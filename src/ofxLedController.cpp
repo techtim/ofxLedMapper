@@ -68,13 +68,13 @@ void ofxLedController::setup(const int& __id, const string & _path, const ofRect
     guiGroup.add(port.set("Port", RPI_PORT, RPI_PORT, RPI_PORT+6));
     guiGroup.add(bDmxSend.set("DMX", false));
     guiGroup.add(dmxChannel.set("DMX Chan", 1, 0, 512));
-    
+
     gui.add(guiGroup);
 //
     if (_id<8) {
-        gui.setPosition(ofGetWidth()-250,50+_id*100);
+        gui.setPosition(ofGetWidth()-255,50+_id*100);
     } else {
-        gui.setPosition(10+(_id-7)*250, 600+(_id%2==0?100:0));
+        gui.setPosition(10+(_id-7)*255, 600+(_id%2==0?100:0));
     }
     gui.setWidthElements(255);
     gui.minimizeAll();
@@ -85,8 +85,8 @@ void ofxLedController::setup(const int& __id, const string & _path, const ofRect
     ipText.bounds.height = 20;
     ipText.bounds.width = 200;
 
-//    bDmxSend.addListener(this, &ofxLedController::notifyParameterChanged);
-//    bUdpSend.addListener(this, &ofxLedController::notifyParameterChanged);
+    bDmxSend.addListener(this, &ofxLedController::notifyDMXChanged);
+    bUdpSend.addListener(this, &ofxLedController::notifyUDPChanged);
 //    pixelsInLed.addListener(this, &ofxLedController::notifyParameterChanged);
 //    gui.addListener(this, &ofxLedController::notifyParameterChanged);
 
@@ -305,24 +305,24 @@ void ofxLedController::keyReleased(ofKeyEventArgs& data){
 }
 
 
-void ofxLedController::notifyParameterChanged(ofAbstractParameter & param){
-    if (param.getName() == "PixInLed"){
-        for(vector<ofxLedGrabObject *>::iterator  i = Lines.begin(); i != Lines.end(); i++)
-            (*i)->setPixelsInLed(pixelsInLed);
-    }
-    if (param.getName() == "DMX Chan"){
-        for(vector<ofxLedGrabObject *>::iterator  i = Lines.begin(); i != Lines.end(); i++)
-            (*i)->setPixelsInLed(pixelsInLed);
-    }
-    if (param.getName() == "UDP"){
-        ipAddress = ipText.text;
-        if (bUdpSend) setupUdp(ipAddress, port);
-    }
-    if (param.getName() == "DMX"){
-        if (bDmxSend) setupDmx("");
-    }
+void ofxLedController::notifyUDPChanged(bool & param){
     ipAddress = ipText.text;
+    if (bUdpSend) setupUdp(ipAddress, port);
+    //    if (param.getName() == "PixInLed"){
+//        for(vector<ofxLedGrabObject *>::iterator  i = Lines.begin(); i != Lines.end(); i++)
+//            (*i)->setPixelsInLed(pixelsInLed);
+//    }
+//    if (param.getName() == "DMX Chan"){
+//        for(vector<ofxLedGrabObject *>::iterator  i = Lines.begin(); i != Lines.end(); i++)
+//            (*i)->setPixelsInLed(pixelsInLed);
+//    }
+
 }
+
+void ofxLedController::notifyDMXChanged(bool & param){
+    if (bDmxSend) setupDmx("");
+}
+
 
 unsigned int ofxLedController::getTotalLeds() const {
     return totalLeds;
@@ -415,6 +415,8 @@ void ofxLedController::sendUdp(const ofPixels &sidesGrabImg) {
 }
 
 void ofxLedController::sendUdp() {
+    if (!bUdpSend) return;
+    setupUdp(ipAddress, port);
     if (!bUdpSend || !bUdpSetup) return;
     
 //    if (ofGetFrameNum()%2!=0) return;

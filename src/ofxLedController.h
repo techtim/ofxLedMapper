@@ -89,6 +89,8 @@ public:
     
     void parseXml (ofxXmlSettings & XML);
     
+    void notifyDMXChanged(bool & param);
+    void notifyUDPChanged(bool & param);
     
 private:
     ofRectangle region;
