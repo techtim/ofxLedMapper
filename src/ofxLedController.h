@@ -14,15 +14,18 @@
 #include "ofxNetwork.h"
 #include "ofxGui.h"
 #include "ofxTextInputField.h"
-#include "ofxDmx.h"
+
+
 
 #ifdef USE_DMX_FTDI
-#include "ofxDmxFtdi.h"
+    #include "ofxDmxFtdi.h"
+#elif USE_DMX
+    #include "ofxDmx.h"
 #endif
+
 
 #include "ofxLedGrabObject.h"
 
-#define POINT_RAD 10
 #define RPI_IP "192.168.2.10"
 #define RPI_PORT 3000
 
@@ -31,7 +34,7 @@ enum {
     LED_RBG,
     LED_BRG,
     LED_GRB,
-    LED_GBR
+    LED_GBR,
 };
 
 
@@ -119,8 +122,11 @@ private:
     ofxUDPManager udpConnection;
     
     // DMX
+    #ifdef USE_DMX
     ofxDmx dmx;
-//    ofxDmxFtdi dmxFtdi;
+    #elif USE_DMX_FTDI
+    ofxDmxFtdi dmxFtdi;
+    #endif
     unsigned char dmxFtdiVal[513];
 
     unsigned char *output;

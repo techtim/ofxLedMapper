@@ -43,16 +43,17 @@ void ofxLedMapper::draw() {
     gui.draw();
     int cntr;
     
-    if (Controllers.size()>0)
+    if (Controllers.size()>0) {
         if (bShowControllers) {
             for (auto &ctrl : Controllers ) {
                 ctrl->draw();
                 ctrl->sendUdp();
             }
-        } else if (currentCtrl<Controllers.size()){
+        } else if (currentCtrl<Controllers.size()) {
             Controllers[currentCtrl]->draw();
             Controllers[currentCtrl]->sendUdp();
         }
+    }
 }
 
 void ofxLedMapper::update(const ofPixels &grabImg){

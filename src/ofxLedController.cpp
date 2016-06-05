@@ -66,13 +66,15 @@ void ofxLedController::setup(const int& __id, const string & _path, const ofRect
     guiGroup.add(bUdpSend.set("UDP", false));
     guiGroup.add(ipAddress.set("IP", RPI_IP));
     guiGroup.add(port.set("Port", RPI_PORT, RPI_PORT, RPI_PORT+6));
+#if defined(USE_DMX_FTDI) && (USE_DMX)
     guiGroup.add(bDmxSend.set("DMX", false));
     guiGroup.add(dmxChannel.set("DMX Chan", 1, 0, 512));
-
+#endif
+    
     gui.add(guiGroup);
 //
     if (_id<8) {
-        gui.setPosition(ofGetWidth()-255,50+_id*100);
+        gui.setPosition(ofGetWidth()-255,60+_id*110);
     } else {
         gui.setPosition(10+(_id-7)*255, 600+(_id%2==0?100:0));
     }
@@ -85,7 +87,7 @@ void ofxLedController::setup(const int& __id, const string & _path, const ofRect
     ipText.bounds.height = 20;
     ipText.bounds.width = 200;
 
-    bDmxSend.addListener(this, &ofxLedController::notifyDMXChanged);
+//    bDmxSend.addListener(this, &ofxLedController::notifyDMXChanged);
     bUdpSend.addListener(this, &ofxLedController::notifyUDPChanged);
 //    pixelsInLed.addListener(this, &ofxLedController::notifyParameterChanged);
 //    gui.addListener(this, &ofxLedController::notifyParameterChanged);
@@ -128,6 +130,11 @@ void ofxLedController::setupUdp(string host, unsigned int port) {
 }
 
 void ofxLedController::setupDmx(string serialName){
+#ifdef USE_DMX_FTDI
+    else if (dmxFtdi.open()) {
+        ofLog(OF_LOG_NOTICE, "******** DMX FDI SETUP ********");
+    }
+#elif USE_DMX
     if (serialName == "" && dmx.connect(0, 512)) {
         ofLog(OF_LOG_NOTICE, "******** DMX PRO Default SETUP ********");
     }
@@ -135,15 +142,9 @@ void ofxLedController::setupDmx(string serialName){
         dmx.update(true); // black on startup
         ofLog(OF_LOG_NOTICE, "******** DMX PRO "+serialName+" SETUP ********");
     }
-#ifdef USE_DMX_FTDI
-    else if (dmxFtdi.open()) {
-        ofLog(OF_LOG_NOTICE, "******** DMX FDI SETUP ********");
-    }
-
-        ((ofxUITextInput*)gui->getWidget("host"))
 #endif
-    
 }
+
 
 void ofxLedController::draw() {
     if (pixelsInLed != curPixelsInLed) {
@@ -162,11 +163,11 @@ void ofxLedController::draw() {
         
         if(bSelected) {
             ofSetColor(255);
-            ofRect(gui.getShape());
+            ofDrawRectangle(gui.getShape());
         }
         ofSetColor(200,200,200,200);
         ofNoFill();
-        ofRect(region);
+        ofDrawRectangle(region);
         ofFill();
         for(vector<ofxLedGrabObject *>::iterator  i = Lines.begin(); i != Lines.end(); i++){
             ofSetColor(lineColor,150);
@@ -416,7 +417,7 @@ void ofxLedController::sendUdp(const ofPixels &sidesGrabImg) {
 
 void ofxLedController::sendUdp() {
     if (!bUdpSend) return;
-    setupUdp(ipAddress, port);
+//    setupUdp(ipAddress, port);
     if (!bUdpSend || !bUdpSetup) return;
     
 //    if (ofGetFrameNum()%2!=0) return;

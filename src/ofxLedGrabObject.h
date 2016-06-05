@@ -146,10 +146,10 @@ public:
     void draw() {
         ofSetColor(200, 200, 200,200);
         ofSetColor(200, 200, 200, 150);
-        ofLine(fromX, fromY, toX, toY);
+        ofDrawLine(fromX, fromY, toX, toY);
         if (lineClicked) {
             for(vector<ofVec2f>::iterator  i = points.begin(); i != points.end(); i ++ ){
-                ofCircle((*i), pixelsInLed/2);
+                ofDrawCircle((*i), pixelsInLed/2);
             }
         }
         ofDrawBitmapString(ofToString(static_cast<int>(points.size())), ofVec2f(fromX, fromY).getInterpolated(ofVec2f(toX, toY),.5));
@@ -255,13 +255,13 @@ public:
     void draw() {
         ofSetColor(200, 200, 200,200);
         ofFill();
-        ofCircle(fromX, fromY, 3);
+        ofDrawCircle(fromX, fromY, 3);
         ofNoFill();
-        ofCircle(fromX, fromY, radius);
+        ofDrawCircle(fromX, fromY, radius);
         ofSetColor(200, 200, 200, 250);
         ofFill();
         for(vector<ofVec2f>::iterator  i = points.begin(); i != points.end(); i ++ ){
-            ofCircle((*i), pixelsInLed/2);
+            ofDrawCircle((*i), pixelsInLed/2);
             ofSetColor(200, 200, 200, 150);
         }
         ofDrawBitmapString(ofToString(static_cast<int>(points.size())), ofVec2f(fromX, fromY).getInterpolated(ofVec2f(toX, toY),.5));
