@@ -11,10 +11,16 @@
 #include "ofMain.h"
 #include "ofxXmlSettings.h"
 #include "ofxNetwork.h"
-#include "ofxGui.h"
+#include "ofxDatGui.h"
 #include "ofxLedController.h"
 
 //typedef unique_ptr<ofxLedController> ofxLedController_ptr;
+
+#define LM_GUI_WIDTH 200
+
+#define LMGUIListControllers "Controllers"
+#define LMGUIToggleDebug "Debug controller"
+#define LMGUIButtonAdd "Add Controller"
 
 class ofxLedMapper {
 
@@ -30,14 +36,17 @@ public:
     bool add();
     
     void notifyParameterChanged(ofAbstractParameter & param);
+    void onScrollViewEvent(ofxDatGuiScrollViewEvent e);
+    void onButtonClick(ofxDatGuiButtonEvent e);
 
+    void setGuiPosition(int x, int y);
+    
     void keyPressed(ofKeyEventArgs& data);
     void keyReleased(ofKeyEventArgs& data);
-    
+    void windowResized(ofResizeEventArgs &args);
 private:
 
-//    vector<ofxLedController_ptr> Controllers;
-    vector<ofxLedController*> Controllers;
+    vector<unique_ptr<ofxLedController>> Controllers;
     unsigned int currentCtrl;
     ofxXmlSettings XML;
     ofDirectory dir;
@@ -45,17 +54,11 @@ private:
     int _id;
     bool bSetup = false;
     // GUI
-    ofxPanel gui;
-    ofParameterGroup guiGroup;
-    ofParameter<ofColor> color;
-    ofParameter<float> pixelsInLed;
-    ofParameter<bool> bAdd;
-    ofParameter<bool> bBlend;
-    ofParameter<bool> bShowControllers;
-    ofParameter<int> xPos, yPos;
-    ofParameter<int> width, height;
-    
-    float curPixelsInLed , curXPos, curYPos;
+    unique_ptr<ofxDatGui> gui;
+    unique_ptr<ofxDatGuiScrollView> listControllers;
+    ofxDatGuiToggle * toggleDebugController;
+    bool bAdd;
+    bool bShowControllers;
 };
 
 

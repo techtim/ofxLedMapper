@@ -7,9 +7,9 @@
 //
 
 #include "ofxLedController.h"
+#include <regex>
 
-
-ofxLedController::ofxLedController():
+ofxLedController::ofxLedController(const int& __id, const string & _path):
 bSelected(false),
 bSetuped(false),
 bRecordCircles(false),
@@ -25,72 +25,47 @@ pixelsInLed(1),
 pointsCount(0),
 totalLeds(0)
 {
-    ipText.setup();
     output = new unsigned char [9];
-    path = "Ctrls";
-}
-
-ofxLedController::~ofxLedController() {
-    gui.saveToFile("ofxLedController-"+ofToString(_id));
-    delete [] output;
-    Lines.clear();
-}
-
-void ofxLedController::setup(const int& __id, const string & _path, const ofRectangle& _region, int _maxWidth, int _maxHeight) {
-    region = _region;
     _id = __id;
-    xPos = curXPos =region.x;
-    yPos = curYPos = region.y;
-    width = region.width;
-    height = region.height;
-    pixelsInLed = curPixelsInLed = 5.f;
-    maxWidth = _maxWidth ? _maxWidth : ofGetScreenWidth();
-    maxHeight = _maxHeight? _maxHeight : ofGetScreenHeight();
+    pixelsInLed = 5.f;
+    ledType = LED_TYPE::LED_RGB;
     path = _path;
+    cur_udpIpAddress = "";
+    cur_udpPort = 0;
+    udpPort = RPI_PORT;
+    udpIpAddress = RPI_IP;
     
     lineColor = ofColor(ofRandom(50, 255), ofRandom(50, 255),ofRandom(50, 255));
-    
-    ofxGuiSetDefaultWidth(200);
-    gui.setup("ledCtrl-"+ofToString(_id)); // most of the time you don't need a name but don't forget to call setup
-//    gui.setName("control");
-    gui.setSize(255, 400);
-
-//    pInLed.setParent(&guiGroup);
-//    gui.add(xPos.set("X", xPos, -100, static_cast<int>(ofGetWidth()/2)));
-//    gui.add(yPos.set("Y", yPos, -100, static_cast<int>(ofGetHeight()/2)));
-//    gui.add(width.set("W", width,0,ofGetWidth()));
-//    gui.add(height.set("H", height,0,ofGetHeight()));
-    guiGroup.add(pixelsInLed.set( "PixInLed", 5.f, 1.f, 100.f ));
-    guiGroup.add(ledType.set("LedType", 0,0,4));
-    guiGroup.add(bDoubleLine.set("Double Line", false));
-    guiGroup.add(bUdpSend.set("UDP", false));
-    guiGroup.add(ipAddress.set("IP", RPI_IP));
-    guiGroup.add(port.set("Port", RPI_PORT, RPI_PORT, RPI_PORT+6));
-#if defined(USE_DMX_FTDI) && (USE_DMX)
-    guiGroup.add(bDmxSend.set("DMX", false));
-    guiGroup.add(dmxChannel.set("DMX Chan", 1, 0, 512));
-#endif
-    
-    gui.add(guiGroup);
-//
-    if (_id<8) {
-        gui.setPosition(ofGetWidth()-255,60+_id*110);
-    } else {
-        gui.setPosition(10+(_id-7)*255, 600+(_id%2==0?100:0));
-    }
-    gui.setWidthElements(255);
-    gui.minimizeAll();
+    Lines.clear();
     load(path);
 
-    ipText.bounds.x = gui.getPosition().x;
-    ipText.bounds.y = gui.getPosition().y+gui.getHeight();
-    ipText.bounds.height = 20;
-    ipText.bounds.width = 200;
+    gui = make_unique<ofxDatGui>(ofxDatGuiAnchor::TOP_RIGHT);
+    gui->addHeader("Ctrl "+ofToString(_id));
+    gui->setWidth(LC_GUI_WIDTH);
 
-//    bDmxSend.addListener(this, &ofxLedController::notifyDMXChanged);
-    bUdpSend.addListener(this, &ofxLedController::notifyUDPChanged);
-//    pixelsInLed.addListener(this, &ofxLedController::notifyParameterChanged);
-//    gui.addListener(this, &ofxLedController::notifyParameterChanged);
+    auto toggle = gui->addToggle(LCGUIButtonSend, false);
+    toggle->bind(bUdpSend);
+    toggle->onButtonEvent(this, &ofxLedController::onButtonEvent);
+    auto slider = gui->addSlider(LCGUISliderPix, 1, 50);
+    slider->bind(pixelsInLed);
+    slider->onSliderEvent(this, &ofxLedController::onSliderEvent);
+    
+    auto dropDown = gui->addDropdown(LCGUIDropLedType, ledTypes);
+    dropDown->select(ledType);
+    dropDown->onDropdownEvent(this, &ofxLedController::onDropdownEvent);
+//    toggle = gui->addToggle(LCGUIButtonDoubleLine, false);
+//    toggle->bind(bDoubleLine);
+    auto textInput = gui->addTextInput(LCGUITextIP, udpIpAddress);
+    textInput->onTextInputEvent(this, &ofxLedController::onTextInputEvent);
+    textInput = gui->addTextInput(LCGUITextPort, ofToString(udpPort));
+    textInput->onTextInputEvent(this, &ofxLedController::onTextInputEvent);
+
+#if defined(USE_DMX_FTDI) && (USE_DMX)
+    toggle = gui->addToggle(LCGUIButtonDmx, false);
+    toggle->bind(bDmxSend);
+    slider = gui->addSlider("DMX Chan", 1, 0, 512);
+    slider->bind(dmxChannel);
+#endif
 
     ofAddListener(ofEvents().mousePressed, this, &ofxLedController::mousePressed);
     ofAddListener(ofEvents().mouseReleased, this, &ofxLedController::mouseReleased);
@@ -98,235 +73,47 @@ void ofxLedController::setup(const int& __id, const string & _path, const ofRect
     ofAddListener(ofEvents().keyPressed, this, &ofxLedController::keyPressed);
     ofAddListener(ofEvents().keyReleased, this, &ofxLedController::keyReleased);
 
-    region.height = height;
-    //    region.y = ofGetScreenHeight() - region.height - yPos;
     // LINES
     
     offsetBegin = static_cast<unsigned int>(offBeg);
     offsetEnd = static_cast<unsigned int>(offEnd);
-    grabImg.allocate(region.width, region.height, OF_IMAGE_COLOR);
+    grabImg.allocate(50, 50, OF_IMAGE_COLOR);
     
     udpConnection.Create();
 
     bSetuped = true;
 }
 
-void ofxLedController::setupUdp(string host, unsigned int port) {
-    if (bUdpSend || udpHost != host || udpPort != port) {
-        udpConnection.Close();
-        udpConnection.Create();
-        if (udpConnection.Connect(host.c_str(), port)) {
-            ofLogVerbose("UDP connect to "+host);
-        }
-        udpConnection.SetSendBufferSize(4096*3);
-        udpConnection.SetNonBlocking(true);
-        //    }
-        udpHost = host;
-        udpPort = port;
-        bSetuped = bUdpSetup = true;
-    }
-    //    ((ofxUITextInput*)gui->getWidget("host"))
-
+ofxLedController::~ofxLedController() {
+    //    gui.saveToFile("ofxLedController-"+ofToString(_id));
+    delete [] output;
+    Lines.clear();
 }
-
-void ofxLedController::setupDmx(string serialName){
-#ifdef USE_DMX_FTDI
-    else if (dmxFtdi.open()) {
-        ofLog(OF_LOG_NOTICE, "******** DMX FDI SETUP ********");
-    }
-#elif USE_DMX
-    if (serialName == "" && dmx.connect(0, 512)) {
-        ofLog(OF_LOG_NOTICE, "******** DMX PRO Default SETUP ********");
-    }
-    else if (dmx.connect(serialName, 512)) { //DMX_MODULES * DMX_CHANNELS);
-        dmx.update(true); // black on startup
-        ofLog(OF_LOG_NOTICE, "******** DMX PRO "+serialName+" SETUP ********");
-    }
-#endif
-}
-
 
 void ofxLedController::draw() {
-    if (pixelsInLed != curPixelsInLed) {
-        curPixelsInLed = pixelsInLed;
-        for(vector<ofxLedGrabObject *>::iterator  i = Lines.begin(); i != Lines.end(); i++)
-            (*i)->setPixelsInLed(pixelsInLed);
-    }
     if (bSetuped && bShowGui) {
-        region.x = xPos;
-        region.y = yPos;
-        region.width = width;
-        region.height = height;
-        
+
         ofPushMatrix();
         //    ofTranslate(ofGetWidth()-SCREEN_W, ofGetHeight()-SCREEN_H);
         
         if(bSelected) {
             ofSetColor(255);
-            ofDrawRectangle(gui.getShape());
+            gui->update();
+            gui->draw();
+            grabImg.draw(gui->getPosition().x,gui->getPosition().y+gui->getHeight(), 50, 50);
         }
-        ofSetColor(200,200,200,200);
-        ofNoFill();
-        ofDrawRectangle(region);
-        ofFill();
-        for(vector<ofxLedGrabObject *>::iterator  i = Lines.begin(); i != Lines.end(); i++){
+
+        for(auto &line : Lines){
             ofSetColor(lineColor,150);
-            (*i)->draw();
-            ofSetColor(255, 255, 255,255);
-//            ofDrawBitmapString(ofToString(static_cast<int>(vert1.distance(vert2)/pixelsInLed)), vert1.getInterpolated(vert2,.5));
-            
+            line->draw();
         }
-        ofSetColor(255, 255, 255,255);
-        //            grabImg.draw(region.x,region.y-maxHeight/region.width, region.width, maxHeight/region.width);
 
-        grabImg.draw(gui.getPosition().x,gui.getPosition().y+gui.getShape().height+20, 50, 50);
         ofPopMatrix();
-//        
-//        ipText.bounds.x = gui.getPosition().x+32;
-//        ipText.bounds.y = gui.getPosition().y+gui.getShape().height-21;
 
-        gui.draw();
-        ipText.bounds.x = gui.getPosition().x;
-        ipText.bounds.y = gui.getPosition().y+gui.getHeight();
-        ipText.draw();
-        if (ipText.getIsEditing()) {
-            ipAddress = ipText.text;
-        }
     } else {
         ;;
     }
     
-}
-
-void ofxLedController::mousePressed(ofMouseEventArgs & args){
-    int x = args.x, y = args.y;
-    
-    if (gui.getShape().inside(x, y)) {
-        bSelected = true;
-        return;
-    }
-    
-    if (!bSelected) return;
-    
-    unsigned int linesCntr = 0;
-    for(vector<ofxLedGrabObject *>::iterator  i = Lines.begin(); i != Lines.end(); i++){
-        if ((*i)->mousePressed(args)) {
-            if (bDeletePoints) { Lines.erase(i); i--; continue;  }
-        }
-        if (bDeletePoints) (*i)->setObjectId(linesCntr);
-        linesCntr++;
-    }
-    //    bSelected = true;
-    posClicked = ofVec2f(x,y);
-    
-    if (bRecordPoints) {
-        if (pointsCount == 0) {
-            pointsCount++;
-            ofxLedGrabLine *tmpLine = new ofxLedGrabLine(x, y, 0,0);
-            tmpLine->setObjectId(Lines.size());
-            Lines.push_back(tmpLine);
-        } else {
-            pointsCount=0;
-            if (Lines.size()>0)Lines[Lines.size()-1]->setTo(x, y);
-            if (bDoubleLine) {
-                ofxLedGrabLine *tmpLine = new ofxLedGrabLine(*Lines[Lines.size()-1]);
-                Lines.push_back(tmpLine);
-            }
-        }
-    }
-    
-    if (bRecordCircles) {
-        
-        ofxLedGrabCircle *tmpCircle = new ofxLedGrabCircle(x, y, x+20, y+20);
-        tmpCircle->setObjectId(Lines.size());
-        Lines.push_back(tmpCircle);
-    }
-}
-
-void ofxLedController::mouseDragged(ofMouseEventArgs & args){
-    int x = args.x, y = args.y;
-    if (bSelected) {
-        
-        bool lineClicked = false;
-        for(vector<ofxLedGrabObject *>::iterator  i = Lines.begin(); i != Lines.end(); i++){
-            if ((*i)->mouseDragged(args)) {
-                break;
-            }
-        }
-
-    }
-}
-
-void ofxLedController::mouseReleased(ofMouseEventArgs & args){
-    int x = args.x, y = args.y;
-    for(vector<ofxLedGrabObject *>::iterator  i = Lines.begin(); i != Lines.end(); i++){
-        (*i)->mouseReleased(args);
-    }
-}
-
-void ofxLedController::keyPressed(ofKeyEventArgs& data){
-    
-    switch (data.key) {
-        case OF_KEY_COMMAND:
-            bRecordPoints = true;
-            break;
-        case OF_KEY_BACKSPACE:
-            bDeletePoints = true;
-            break;
-        case OF_KEY_SHIFT:
-            bRecordCircles = true;
-            break;
-//        case 's':
-//            save(path);
-//            break;
-//        case 'l':
-//            load(path);
-//            break;
-        case OF_KEY_ESC :
-            bSelected = false;
-        default:
-            break;
-    }
-}
-
-void ofxLedController::keyReleased(ofKeyEventArgs& data){
-    //    int key = data.key;
-    
-    switch (data.key) {
-        case OF_KEY_COMMAND:
-            bRecordPoints = false;
-            break;
-        case OF_KEY_SHIFT:
-            bRecordCircles = false;
-            break;
-        case OF_KEY_BACKSPACE:
-            bDeletePoints = false;
-            break;
-    }
-}
-
-
-void ofxLedController::notifyUDPChanged(bool & param){
-    ipAddress = ipText.text;
-    if (bUdpSend) setupUdp(ipAddress, port);
-    //    if (param.getName() == "PixInLed"){
-//        for(vector<ofxLedGrabObject *>::iterator  i = Lines.begin(); i != Lines.end(); i++)
-//            (*i)->setPixelsInLed(pixelsInLed);
-//    }
-//    if (param.getName() == "DMX Chan"){
-//        for(vector<ofxLedGrabObject *>::iterator  i = Lines.begin(); i != Lines.end(); i++)
-//            (*i)->setPixelsInLed(pixelsInLed);
-//    }
-
-}
-
-void ofxLedController::notifyDMXChanged(bool & param){
-    if (bDmxSend) setupDmx("");
-}
-
-
-unsigned int ofxLedController::getTotalLeds() const {
-    return totalLeds;
 }
 
 void ofxLedController::updatePixels(const ofPixels &sidesGrabImg) {
@@ -334,25 +121,19 @@ void ofxLedController::updatePixels(const ofPixels &sidesGrabImg) {
     if (!bSetuped) return;
 
     totalLeds = 0;
-    for(vector<ofxLedGrabObject *>::iterator  i = Lines.begin(); i != Lines.end(); i++){
+    for(auto &line : Lines){
         ofSetColor(255, 255, 255);
-        totalLeds += (*i)->points.size();
-        +(offsetBegin*Lines.size());
+        totalLeds += line->points.size();
         //        ofDrawBitmapString(ofToString(j)+": leds "+ofToString(totalLeds), vert1.getInterpolated(vert2,.5));
     }
+
     delete []output;
     output = new unsigned char [totalLeds*3]; // (unsigned char*)(sidesImageMat.data);
     
     unsigned int cntr = 0;
     int byte_count = 0;
     unsigned int loop_cntr = 0;
-    for(vector<ofxLedGrabObject *>::iterator  i = Lines.begin(); i != Lines.end(); i++){
-        //     //        ofVec2f vert1 = j%2 == 0 ? ofVec2f(Lines[j].fromX, Lines[j].fromY) : ofVec2f(Lines[j].toX, Lines[j].toY);
-        //     //        ofVec2f vert2 = j%2 == 0 ? ofVec2f(Lines[j].toX, Lines[j].toY) : ofVec2f(Lines[j].fromX, Lines[j].fromY);
-        
-        //     ofVec2f vert1 = ofVec2f(Lines[j].fromX, Lines[j].fromY);
-        //     ofVec2f vert2 = ofVec2f(Lines[j].toX, Lines[j].toY);
-        //
+    for(auto &line : Lines){
         if (loop_cntr%2 == 1)
             for (int pix_num=0;pix_num<offsetBegin; pix_num++) {
                 output[byte_count++] = 0;
@@ -360,8 +141,8 @@ void ofxLedController::updatePixels(const ofPixels &sidesGrabImg) {
                 output[byte_count++] = 0;
             }
         
-        for (int pix_num=0;pix_num<(*i)->points.size(); pix_num++) {
-            ofColor col = sidesGrabImg.getColor((*i)->points[pix_num].x, (*i)->points[pix_num].y);
+        for (int pix_num=0; pix_num<line->points.size(); pix_num++) {
+            ofColor col = sidesGrabImg.getColor(line->points[pix_num].x, line->points[pix_num].y);
             
             switch (ledType) {
                 case LED_RGB:
@@ -393,8 +174,6 @@ void ofxLedController::updatePixels(const ofPixels &sidesGrabImg) {
                 default:
                     break;
             }
-            
-            
         }
         
         if (loop_cntr%2 == 0 || loop_cntr==0)
@@ -410,25 +189,53 @@ void ofxLedController::updatePixels(const ofPixels &sidesGrabImg) {
     grabImg.setFromPixels(output, 50, totalLeds>50?static_cast<int>(totalLeds/50):1, OF_IMAGE_COLOR);
 }
 
+void ofxLedController::setupUdp(string host, unsigned int port) {
+    if (bUdpSend || cur_udpIpAddress != host || cur_udpPort != port) {
+        udpConnection.Close();
+        udpConnection.Create();
+        if (udpConnection.Connect(host.c_str(), port)) {
+            ofLogVerbose("UDP connect to "+host);
+        }
+        udpConnection.SetSendBufferSize(4096*3);
+        udpConnection.SetNonBlocking(true);
+        //    }
+        cur_udpIpAddress = host;
+        cur_udpPort = port;
+        bSetuped = bUdpSetup = true;
+    }
+}
+
 void ofxLedController::sendUdp(const ofPixels &sidesGrabImg) {
     updatePixels(sidesGrabImg);
     sendUdp();
 }
 
 void ofxLedController::sendUdp() {
-    if (!bUdpSend) return;
-//    setupUdp(ipAddress, port);
     if (!bUdpSend || !bUdpSetup) return;
     
-//    if (ofGetFrameNum()%2!=0) return;
     char to_leds [totalLeds*3];
-//    int cntr = 0;
+
     for (int i = 0; i<totalLeds*3;i++) {
         to_leds[i] = (char)output[i];
-//        to_leds[cntr++] = (char)output[i];
     }
 
     udpConnection.Send(to_leds, totalLeds*3);
+}
+
+void ofxLedController::setupDmx(string serialName){
+#ifdef USE_DMX_FTDI
+    else if (dmxFtdi.open()) {
+        ofLog(OF_LOG_NOTICE, "******** DMX FDI SETUP ********");
+    }
+#elif USE_DMX
+    if (serialName == "" && dmx.connect(0, 512)) {
+        ofLog(OF_LOG_NOTICE, "******** DMX PRO Default SETUP ********");
+    }
+    else if (dmx.connect(serialName, 512)) { //DMX_MODULES * DMX_CHANNELS);
+        dmx.update(true); // black on startup
+        ofLog(OF_LOG_NOTICE, "******** DMX PRO "+serialName+" SETUP ********");
+    }
+#endif
 }
 
 void ofxLedController::sendDmx(const ofPixels &sidesGrabImg) {
@@ -452,73 +259,81 @@ void ofxLedController::sendDmx(const ofPixels &sidesGrabImg) {
 //        }
 //        dmxFtdi.writeDmx(dmxFtdiVal, 513);
 //    }
-//
-//
 //    if (!dmx.isConnected() && !dmxFtdi.isOpen()) {
 ////        ofSetColor(255,0,0);
 //        ofLogVerbose("NO USB->DMX");
 //    }
 }
 
-const ofPixels & ofxLedController::getPixels(){
-    return grabImg.getPixels();
+void ofxLedController::setSelected(bool state) {
+    bSelected = state;
+    if (bSelected) gui->focus();
+}
+
+void ofxLedController::setGuiPosition(int x, int y) {
+    gui->setPosition(x, y);
 }
 
 void ofxLedController::setPixels(const ofPixels & _pix) {
     delete []output;
     grabImg = _pix;
     output = new unsigned char [totalLeds*3];
-
+    
     for (int i=0; (i<_pix.size()*3 && i<totalLeds*3); i++) {
         output[i] = _pix[i];
-//        output[i+1] = _pix[i].g;
     }
 }
-    
-void ofxLedController::addLine(ofxLedGrabObject * tmpLine) {
-    Lines.push_back(tmpLine);
-};
 
-void ofxLedController::addLine(int x1, int y1, int x2, int y2) {
-    ofxLedGrabLine *tmpLine = new ofxLedGrabLine(x1, y1, x2, y2);
-    Lines.push_back(tmpLine);
-};
+const ofPixels & ofxLedController::getPixels(){
+    return grabImg.getPixels();
+}
 
+unsigned int ofxLedController::getTotalLeds() const {
+    return totalLeds;
+}
+
+//
+// --- Load & Save
+//
 void ofxLedController::save(string path) {
-    ipAddress = ipText.text;
-    gui.saveToFile(path+"/ofxLedController-"+ofToString(_id));
+//    ipAddress = ipText.text;
+//    gui.saveToFile(path+"/ofxLedController-"+ofToString(_id));
     XML.clear();
+    
+    int tagNum = XML.addTag("CONF");
+    XML.setValue("CONF:LedType", ledType, tagNum);
+    XML.setValue("CONF:PixInLed", pixelsInLed, tagNum);
+    XML.setValue("CONF:UdpSend", bUdpSend, tagNum);
+    XML.setValue("CONF:IpAddress", udpIpAddress, tagNum);
+    XML.setValue("CONF:Port", udpPort, tagNum);
+    XML.popTag();
+    
     int lastStrokeNum = XML.addTag("STROKE");
-    for(vector<ofxLedGrabObject *>::iterator  i = Lines.begin(); i != Lines.end(); i++) {
-        //        if ((*i)->getType() == GRAB_LINE){
+    for(auto &line : Lines)
         if( XML.pushTag("STROKE", lastStrokeNum) )
-            (*i)->save(XML);
-    }
-    XML.save(path+"/ColLines-"+ofToString(_id)+".xml");
+            line->save(XML);
+    XML.save(path+"/"+LCFileName+ofToString(_id)+".xml");
 }
 
 void ofxLedController::load(string path) {
-    ofFile file = ofFile(path+"/ofxLedController-"+ofToString(_id));
-    if (!file.exists()){
-        gui.saveToFile(path+"/ofxLedController-"+ofToString(_id));
-       return;
-    }
-    gui.loadFromFile(file.path());
-
-    ipText.text = ipAddress;
-    if (bUdpSend) setupUdp(ipText.text, port);
+    if(!XML.loadFile(path+"/"+LCFileName+ofToString(_id)+".xml") ) return;
+    
+    XML.pushTag("CONF",0);
+    ledType = getLedType(XML.getValue("LedType", 0, 0));
+    pixelsInLed = XML.getValue("PixInLed", 1.f, 0);
+    bUdpSend = XML.getValue("UdpSend", false, 0);
+    udpIpAddress = XML.getValue("IpAddress", RPI_IP, 0);
+    udpPort = XML.getValue("Port", RPI_PORT, 0);
+    XML.popTag();
+    
+    if (bUdpSend) setupUdp(udpIpAddress, udpPort);
     if (bDmxSend) setupDmx("");
-
-    region.x = xPos;
-    region.y = yPos;
-    if( XML.loadFile(path+"/ColLines-"+ofToString(_id)+".xml") ){
-        parseXml(XML);
-    }
-    for(vector<ofxLedGrabObject *>::iterator  i = Lines.begin(); i != Lines.end(); i++)
-        (*i)->setPixelsInLed(pixelsInLed);
+    parseXml(XML);
+    for(auto &line : Lines)
+        line->setPixelsInLed(pixelsInLed);
 }
 
-void ofxLedController::parseXml (ofxXmlSettings & XML) {
+void ofxLedController::parseXml(ofxXmlSettings & XML) {
     int numDragTags = XML.getNumTags("STROKE:LN");
     if(numDragTags > 0) {
         Lines.clear();
@@ -526,35 +341,32 @@ void ofxLedController::parseXml (ofxXmlSettings & XML) {
         //this temporarirly treats the tag as
         //the document root.
         XML.pushTag("STROKE", numDragTags-1);
-//        XML.pushTag("STROKE", numDragTags-1);
         
         //we see how many points we have stored in <PT> tags
         int numPtTags = XML.getNumTags("LN");
         
         if(numPtTags > 0){
-            
             //            int totalToRead = MIN(numPtTags, LINES_NUM);
             //            Lines = new grabLine[totalToRead];
-            
             for(int i = 0; i < numPtTags; i++){
                 //the last argument of getValue can be used to specify
                 //which tag out of multiple tags you are refering to.
-                ofxLedGrabObject * tmpObj;
+                unique_ptr<ofxLedGrabObject> tmpObj;
                 if (XML.getValue("LN:TYPE", 2,i) == GRAB_LINE) {
-                    tmpObj = new ofxLedGrabLine(
+                    tmpObj = make_unique<ofxLedGrabLine>(
                         XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i),
                         XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i)
                     );
                     tmpObj->load(XML, i);
                 } else if (XML.getValue("LN:TYPE", 2,i) == GRAB_CIRCLE) {
-                    tmpObj = new ofxLedGrabCircle(
+                    tmpObj = make_unique<ofxLedGrabCircle>(
                                 XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i),
                                 XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i)
                     );
                     tmpObj->load(XML, i);
                 }
                 tmpObj->setObjectId(i);
-                Lines.push_back(tmpObj);
+                Lines.push_back(move(tmpObj));
             }
         }
         XML.popTag();
@@ -562,63 +374,151 @@ void ofxLedController::parseXml (ofxXmlSettings & XML) {
 
 }
 
-//void ofxLedController::guiEvent(ofParameterGroup &e){
 //
-//    if (e.widget->getName() == "h") {
-//        region.height = ((ofxUINumberDialer*)e.widget)->getValue();
-//    }
-//    else if (e.widget->getName() == "x") {
-//        float x_diff = region.x;
-//        region.x = ((ofxUINumberDialer*)e.widget)->getValue();
-//        x_diff -= region.x;
-//        //        region.height = ((ofxUINumberDialer*)e.widget)->getValue();
-//        for (int i=0;i<Lines.size(); i++) {
-//            if (i % 2 == 0) {
-//                Lines[i].fromX -= x_diff;
-//                Lines[i].toX -= x_diff;
-//            }
-//            else {
-//                Lines[i].toX -= x_diff;
-//                Lines[i].fromX -= x_diff;
-//            };
-//        }
-//    }
-//    else if (e.widget->getName() == "y") {
-//        float y_diff = region.y;
-//        region.y = ((ofxUINumberDialer*)e.widget)->getValue();
-//        y_diff -= region.y;
-//        //        region.height = ((ofxUINumberDialer*)e.widget)->getValue();
-//        for (int i=0;i<Lines.size(); i++) {
-//            if (i % 2 == 0) {
-//                Lines[i].fromY -= y_diff;
-//                Lines[i].toY -= y_diff;
-//            }
-//            else {
-//                Lines[i].toY -= y_diff;
-//                Lines[i].fromY -= y_diff;
-//            };
-//        }
-//    }
-//    else if (e.widget->getName() == "w") {
-//        region.width = ((ofxUINumberDialer*)e.widget)->getValue();
-//        for (int i=0;i<Lines.size(); i++) {
-//            //            Lines[i].fromX = region.x+(region.width/(LINES_NUM+1))*(i+1);
-//            //            Lines[i].toX = region.x+(region.width/(LINES_NUM+1))*(i+1);
-//        }
-//    }
-//    else if (e.widget->getName() =="offBeg") {
-//        offsetBegin = ((ofxUINumberDialer*)e.widget)->getValue();
-//    }
-//    else if (e.widget->getName() =="offEnd") {
-//        offsetEnd = ((ofxUINumberDialer*)e.widget)->getValue();
-//    }
-//    else if (e.widget->getName() =="send") {
-//        if (((ofxUIToggle*)e.widget)->getValue())
-//            setupUdp(udpHost, udpPort);
-//    }
-//    else if (e.widget->getName() =="LedType") {
-//        ledType = static_cast<int>(((ofxUINumberDialer*)e.widget)->getValue());
-//    }
+// --- Event handlers ---
 //
-//}
+void ofxLedController::mousePressed(ofMouseEventArgs & args){
+    int x = args.x, y = args.y;
+    
+    if (!bSelected) return;
+    
+    unsigned int linesCntr = 0;
+    for(auto it = Lines.begin(); it != Lines.end();){
+        if ((*it)->mousePressed(args)) {
+            if (bDeletePoints) {
+                it = Lines.erase(it);
+                continue;
+            }
+        }
+        if (bDeletePoints) (*it)->setObjectId(linesCntr);
+        linesCntr++;
+        it++;
+    }
+    //    bSelected = true;
+    posClicked = ofVec2f(x,y);
+    
+    if (bRecordPoints) {
+        if (pointsCount == 0) {
+            pointsCount++;
+            unique_ptr<ofxLedGrabLine> tmpLine = make_unique<ofxLedGrabLine>(x, y, x, y, pixelsInLed, bDoubleLine);
+            tmpLine->setObjectId(Lines.size());
+            Lines.push_back(move(tmpLine));
+        } else {
+            pointsCount=0;
+            if (!Lines.empty()) Lines[Lines.size()-1]->setTo(x, y);
+        }
+    }
+    
+    if (bRecordCircles) {
+        
+        unique_ptr<ofxLedGrabCircle> tmpCircle = make_unique<ofxLedGrabCircle>(x, y, x+20, y+20);
+        tmpCircle->setObjectId(Lines.size());
+        Lines.push_back(move(tmpCircle));
+    }
+}
+
+void ofxLedController::mouseDragged(ofMouseEventArgs & args){
+    int x = args.x, y = args.y;
+    if (!bSelected) return;
+    bool lineClicked = false;
+    if (!Lines.empty())
+        for(auto &line : Lines)
+            if (line->mouseDragged(args))
+                break;
+}
+
+void ofxLedController::mouseReleased(ofMouseEventArgs & args){
+    int x = args.x, y = args.y;
+    if (!Lines.empty()) {
+        for(auto &line : Lines)
+            line->mouseReleased(args);
+    }
+}
+
+void ofxLedController::keyPressed(ofKeyEventArgs& data){
+    
+    switch (data.key) {
+        case OF_KEY_COMMAND:
+            bRecordPoints = true;
+            break;
+        case OF_KEY_BACKSPACE:
+            bDeletePoints = true;
+            break;
+        case OF_KEY_SHIFT:
+            bRecordCircles = true;
+            break;
+        case OF_KEY_ESC :
+            bSelected = false;
+        default:
+            break;
+    }
+}
+
+void ofxLedController::keyReleased(ofKeyEventArgs& data){
+    switch (data.key) {
+        case OF_KEY_COMMAND:
+            bRecordPoints = false;
+            break;
+        case OF_KEY_SHIFT:
+            bRecordCircles = false;
+            break;
+        case OF_KEY_BACKSPACE:
+            bDeletePoints = false;
+            break;
+    }
+}
+
+void ofxLedController::onDropdownEvent(ofxDatGuiDropdownEvent e) {
+    ofLogVerbose("Drop DOwn " +ofToString(e.child));
+    ledType = getLedType(e.child);
+    e.target->collapse();
+}
+
+void ofxLedController::onButtonEvent(ofxDatGuiButtonEvent e) {
+    if (e.target->getName() == LCGUIButtonSend) {
+        if (bUdpSend) setupUdp(udpIpAddress, udpPort);
+    }
+    if (e.target->getName() == LCGUIButtonDmx) {
+        if (bDmxSend) setupDmx("");
+    }
+}
+
+void ofxLedController::onTextInputEvent(ofxDatGuiTextInputEvent e) {
+    if (e.target->getName() == LCGUITextIP) {
+        std::smatch base_match;
+        regex ip_addr("(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})"); // ([^\\.]+)
+        std::regex_match(e.target->getText(), base_match, ip_addr);
+        if (base_match.size() > 0) {
+            udpIpAddress = e.target->getText();
+        }
+        setupUdp(udpIpAddress, udpPort);
+    } else if (e.target->getName() == LCGUITextPort) {
+        udpPort = ofToInt(e.target->getText());
+        setupUdp(udpIpAddress, udpPort);
+    }
+}
+
+void ofxLedController::onSliderEvent(ofxDatGuiSliderEvent e) {
+    if (e.target->getName() == LCGUISliderPix) {
+        for(auto &line : Lines)
+            line->setPixelsInLed(pixelsInLed);
+    }
+}
+
+LED_TYPE ofxLedController::getLedType(int num) {
+    switch (num) {
+        case LED_RGB:
+            return LED_RGB;
+        case LED_RBG:
+            return LED_RBG;
+        case LED_BRG:
+            return LED_BRG;
+        case LED_GRB:
+            return LED_GRB;
+        case LED_GBR:
+            return LED_GBR;
+        default:
+            return LED_RGB;
+    }
+}
 

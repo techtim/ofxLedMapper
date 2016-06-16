@@ -6,5 +6,4 @@ meta:
 	ADDON_URL = https://github.com/techtim/ofxLedMapper
 
 osx:
-	
-	ADDON_FRAMEWORKS = OpenCL
+	#ADDON_FRAMEWORKS = OpenCL

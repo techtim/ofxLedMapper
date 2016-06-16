@@ -12,10 +12,7 @@
 #include "ofMain.h"
 #include "ofxXmlSettings.h"
 #include "ofxNetwork.h"
-#include "ofxGui.h"
-#include "ofxTextInputField.h"
-
-
+#include "ofxDatGui.h"
 
 #ifdef USE_DMX_FTDI
     #include "ofxDmxFtdi.h"
@@ -23,27 +20,37 @@
     #include "ofxDmx.h"
 #endif
 
-
 #include "ofxLedGrabObject.h"
 
 #define RPI_IP "192.168.2.10"
 #define RPI_PORT 3000
 
-enum {
+#define LC_GUI_WIDTH 200
+
+#define LCGUIButtonSend "Send"
+#define LCGUIButtonDoubleLine "Double Line"
+#define LCGUITextIP "IP"
+#define LCGUITextPort "Port"
+#define LCGUISliderPix "Pix in led"
+#define LCGUIDropLedType "Led Type"
+#define LCGUIButtonDmx "DMX"
+#define LCFileName "Ctrl-"
+
+enum LED_TYPE {
     LED_RGB,
     LED_RBG,
     LED_BRG,
+    LED_BGR,
     LED_GRB,
-    LED_GBR,
+    LED_GBR
 };
 
-
+static vector<string> ledTypes = {"RGB","RBG","BRG","BGR","GRB","GBR"};
 
 class ofxLedController {
 public:
-    ofxLedController();
+    ofxLedController(const int& __id, const string & _path);
     ~ofxLedController();
-    void setup(const int& __id, const string & _path, const ofRectangle& _region, int _maxWidth=0, int _maxHeight=0);
     
     void save(string path);
     void load(string path);
@@ -55,12 +62,12 @@ public:
     void keyPressed(ofKeyEventArgs& data);
     void keyReleased(ofKeyEventArgs& data);
     
+    void onDropdownEvent(ofxDatGuiDropdownEvent e);
+    void onButtonEvent(ofxDatGuiButtonEvent e);
+    void onTextInputEvent(ofxDatGuiTextInputEvent e);
+    void onSliderEvent(ofxDatGuiSliderEvent e);
     void notifyParameterChanged(ofAbstractParameter & param);
-    
-    void addLine(ofxLedGrabObject * tmpObj);
-    void addLine(int x1, int y1, int x2, int y2);
-    
-    unsigned int getLedsCount() { return totalLeds; };
+   
     unsigned int getTotalLeds() const;
     unsigned char * getOutput();
     bool bSetuped;
@@ -81,35 +88,27 @@ public:
     void setPixelsBetweenLeds(float dist) { pixelsInLed = dist; };
 //    void guiEvent(ofParameterGroup &e);
     
-    void setSelected(bool state) {bSelected = state;};
+    void setSelected(bool state);
 
-
+    void setGuiPosition(int x, int y);
     
     ofImage grabImg;
-    vector<ofxLedGrabObject *> Lines;
-    
-    ofxTextInputField ipText;
+    vector<unique_ptr<ofxLedGrabObject>> Lines;
     
     void parseXml (ofxXmlSettings & XML);
-    
+    LED_TYPE getLedType(int num);
     void notifyDMXChanged(bool & param);
-    void notifyUDPChanged(bool & param);
     
 private:
-    ofRectangle region;
-//    float height, xPos, yPos;
+    
     ofColor lineColor;
 //    unsigned int offsetBegin, offsetEnd;
     float offBeg, offEnd;
     
     unsigned int totalLeds, pointsCount;
-    int maxWidth, maxHeight;
     
     unsigned int _id;
-    float fLedType;
-
-    string udpHost;
-    unsigned int udpPort;
+    
     bool bSelected, bShowGui;
     bool bRecordPoints, bDeletePoints, bRecordCircles;
     bool bUdpSetup, bDmxSetup;
@@ -118,42 +117,33 @@ private:
     
     ofVec2f posClicked;
 //    float pixelsInLed, ledOffset;
-    
+
     ofxUDPManager udpConnection;
-    
-    // DMX
-    #ifdef USE_DMX
-    ofxDmx dmx;
-    #elif USE_DMX_FTDI
-    ofxDmxFtdi dmxFtdi;
-    #endif
-    unsigned char dmxFtdiVal[513];
 
     unsigned char *output;
-    
+
     ofxXmlSettings XML;
     string path;
+
     // GUI
-    ofxPanel gui;
-    ofParameterGroup guiGroup;
-    ofParameter<ofColor> color;
-    ofParameter<float> pixelsInLed;
-    ofParameter<float> Alpha;
-    ofParameter<ofColor> color2;
-    ofParameter<bool> bUdpSend;
-    ofParameter<bool> bDmxSend;
-    ofParameter<bool> bDoubleLine;
-    ofParameter<int> xPos, yPos;
-    ofParameter<int> width, height;
-    ofParameter<int> ledType;
-    ofParameter<bool> record;
-    ofParameter<int> offsetBegin;
-    ofParameter<int> offsetEnd;
-    ofParameter<string> ipAddress;
-    ofParameter<int> port;
-    ofParameter<int> dmxChannel;
+    unique_ptr<ofxDatGui> gui;
+
+    LED_TYPE ledType;
+    float pixelsInLed;
+    bool bUdpSend, bDmxSend, bDoubleLine;
+    int xPos, yPos, width, height;
+    int offsetBegin, offsetEnd;
+    int dmxChannel;
+    string udpIpAddress, cur_udpIpAddress;
+    int udpPort, cur_udpPort;
     
-    float curPixelsInLed , curXPos, curYPos;
+    // DMX
+#ifdef USE_DMX
+    ofxDmx dmx;
+#elif USE_DMX_FTDI
+    ofxDmxFtdi dmxFtdi;
+#endif
+    unsigned char dmxFtdiVal[513];
 };
 
 #endif /* defined(ofx__ledGipsy__LedController__) */

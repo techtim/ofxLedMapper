@@ -22,7 +22,7 @@ enum {
 class ofxLedGrabObject {
     static const int type = GRAB_OBJ;
 public:
-    
+//    virtual ~ofxLedGrabObject() = 0;
     virtual void updatePoints() = 0;
     virtual void draw() = 0;
     virtual bool mousePressed(ofMouseEventArgs & args) = 0;
@@ -49,6 +49,14 @@ public:
     virtual void setTo(int _toX, int _toY) {
         toX = _toX; toY = _toY;
         updatePoints();
+    }
+    
+    virtual ofVec2f getFrom() {
+        return ofVec2f(fromX, fromY);
+    }
+
+    virtual ofVec2f getTo() {
+        return ofVec2f(toX, toY);
     }
     
     void setPixelsInLed(float _pixs){
@@ -84,16 +92,17 @@ public:
 class ofxLedGrabLine: public ofxLedGrabObject {
     static const int type = GRAB_LINE;
 public:
-    ofxLedGrabLine(int _fromX=0, int _fromY=0, int _toX=0, int _toY=0){
+    ofxLedGrabLine(int _fromX=0, int _fromY=0, int _toX=0, int _toY=0, float pixInLed = 2.f, bool _bDouble=false){
         fromX = _fromX; fromY = _fromY;
         toX = _toX; toY = _toY;
-        pixelsInLed = 2.f;
+        pixelsInLed = pixInLed;
+        bDoubleLine = _bDouble;
         lineClicked = bSelected =  bSelectedFrom = bSelectedTo = bDoubleLine= false;
         updatePoints();
     }
     ofxLedGrabLine(const ofxLedGrabObject & _line){
-        fromX = _line.toX; fromY = _line.toY;
-        toX = _line.fromX; toY = _line.fromY;
+        fromX = _line.fromX; fromY = _line.fromY;
+        toX = _line.toX; toY = _line.toY;
         pixelsInLed = _line.pixelsInLed;
         bDoubleLine = _line.bDoubleLine;
         lineClicked = bSelected =  bSelectedFrom = bSelectedTo = false;
