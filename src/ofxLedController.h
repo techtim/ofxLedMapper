@@ -55,6 +55,7 @@ public:
     void save(string path);
     void load(string path);
     
+    void setupGui();
     void draw();
     void mousePressed(ofMouseEventArgs & args);
     void mouseDragged(ofMouseEventArgs & args);
@@ -68,6 +69,7 @@ public:
     void onSliderEvent(ofxDatGuiSliderEvent e);
     void notifyParameterChanged(ofAbstractParameter & param);
    
+    unsigned int getId() const;
     unsigned int getTotalLeds() const;
     unsigned char * getOutput();
     bool bSetuped;
@@ -84,49 +86,40 @@ public:
 
     const ofPixels & getPixels();
     void setPixels(const ofPixels & _pix);
-
     void setPixelsBetweenLeds(float dist) { pixelsInLed = dist; };
-//    void guiEvent(ofParameterGroup &e);
     
     void setSelected(bool state);
 
     void setGuiPosition(int x, int y);
     
     ofImage grabImg;
-    vector<unique_ptr<ofxLedGrabObject>> Lines;
     
     void parseXml (ofxXmlSettings & XML);
     LED_TYPE getLedType(int num);
     void notifyDMXChanged(bool & param);
     
 private:
-    
+    unsigned int _id;
     ofColor lineColor;
-//    unsigned int offsetBegin, offsetEnd;
     float offBeg, offEnd;
-    
+    unsigned char *output;
     unsigned int totalLeds, pointsCount;
     
-    unsigned int _id;
+    vector<unique_ptr<ofxLedGrabObject>> Lines;
+    int currentLine;
     
     bool bSelected, bShowGui;
     bool bRecordPoints, bDeletePoints, bRecordCircles;
-    bool bUdpSetup, bDmxSetup;
-    
-    int currentLine;
+    bool bSetupGui, bUdpSetup, bDmxSetup;
     
     ofVec2f posClicked;
-//    float pixelsInLed, ledOffset;
-
-    ofxUDPManager udpConnection;
-
-    unsigned char *output;
 
     ofxXmlSettings XML;
     string path;
 
+    ofxUDPManager udpConnection;
     // GUI
-    unique_ptr<ofxDatGui> gui;
+    ofxDatGui* gui;
 
     LED_TYPE ledType;
     float pixelsInLed;

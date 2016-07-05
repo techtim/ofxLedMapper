@@ -20,7 +20,10 @@
 
 #define LMGUIListControllers "Controllers"
 #define LMGUIToggleDebug "Debug controller"
+#define LMGUITogglePlay "Play"
+#define LMGUISliderFps "FPS"
 #define LMGUIButtonAdd "Add Controller"
+#define LMCtrlsFolderPath "Ctrls"
 
 class ofxLedMapper {
 
@@ -31,19 +34,26 @@ public:
 
     void update(const ofPixels &grabImg);
     void draw();
+    bool add();
+    bool add(unsigned int _ctrlId);
+    bool remove(unsigned int _ctrlId);
     bool load();
     bool save();
-    bool add();
     
-    void notifyParameterChanged(ofAbstractParameter & param);
+    bool checkUniqueId(unsigned int _ctrlId);
+
+    void setupGui();
+    void setGuiPosition(int x, int y);
+    void setCurrentController(unsigned int _curCtrl);
+    
     void onScrollViewEvent(ofxDatGuiScrollViewEvent e);
     void onButtonClick(ofxDatGuiButtonEvent e);
-
-    void setGuiPosition(int x, int y);
+    void onSliderEvent(ofxDatGuiSliderEvent e);
     
     void keyPressed(ofKeyEventArgs& data);
     void keyReleased(ofKeyEventArgs& data);
     void windowResized(ofResizeEventArgs &args);
+
 private:
 
     vector<unique_ptr<ofxLedController>> Controllers;
@@ -54,9 +64,11 @@ private:
     int _id;
     bool bSetup = false;
     // GUI
-    unique_ptr<ofxDatGui> gui;
-    unique_ptr<ofxDatGuiScrollView> listControllers;
+    ofxDatGui* gui;
+    ofxDatGuiScrollView* listControllers;
     ofxDatGuiToggle * toggleDebugController;
+    ofxDatGuiToggle * togglePlay;
+    ofxDatGuiSlider * fpsSlider;
     bool bAdd;
     bool bShowControllers;
 };
