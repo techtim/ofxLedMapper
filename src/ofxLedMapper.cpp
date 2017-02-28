@@ -114,7 +114,7 @@ void ofxLedMapper::setupGui() {
     
     togglePlay = gui->addToggle(LMGUITogglePlay, true);
     togglePlay->onButtonEvent(this, &ofxLedMapper::onButtonClick);
-    fpsSlider = gui->addSlider(LMGUISliderFps, 10, 30);
+    fpsSlider = gui->addSlider(LMGUISliderFps, 10, 60);
     fpsSlider->onSliderEvent(this, &ofxLedMapper::onSliderEvent);
 
     toggleDebugController = gui->addToggle(LMGUIToggleDebug, false);

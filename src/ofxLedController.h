@@ -32,20 +32,20 @@
 #define LCGUITextIP "IP"
 #define LCGUITextPort "Port"
 #define LCGUISliderPix "Pix in led"
-#define LCGUIDropLedType "Led Type"
+#define LCGUIDropColorType "Color Type"
 #define LCGUIButtonDmx "DMX"
 #define LCFileName "Ctrl-"
 
-enum LED_TYPE {
-    LED_RGB,
-    LED_RBG,
-    LED_BRG,
-    LED_BGR,
-    LED_GRB,
-    LED_GBR
+enum COLOR_TYPE {
+    RGB = 0,
+    RBG = 1,
+    BRG = 2,
+    BGR = 3,
+    GRB = 4,
+    GBR = 5
 };
 
-static vector<string> ledTypes = {"RGB","RBG","BRG","BGR","GRB","GBR"};
+static vector<string> colorTypes = {"RGB","RBG","BRG","BGR","GRB","GBR"};
 
 class ofxLedController {
 public:
@@ -73,7 +73,7 @@ public:
     unsigned int getTotalLeds() const;
     unsigned char * getOutput();
     bool bSetuped;
-    bool isSelected() {return bSelected; }
+    bool isSelected() const { return bSelected; }
     void setupUdp(string host, unsigned int port);
     void sendUdp();
     void sendUdp(const ofPixels &sidesGrabImg);
@@ -95,15 +95,22 @@ public:
     ofImage grabImg;
     
     void parseXml (ofxXmlSettings & XML);
-    LED_TYPE getLedType(int num);
+
+    COLOR_TYPE getColorType(int num) const;
+    void setColorType(COLOR_TYPE);
+    
     void notifyDMXChanged(bool & param);
     
 private:
     unsigned int _id;
     ofColor lineColor;
     float offBeg, offEnd;
-    unsigned char *output;
+    
+    vector<char> output;
+    
     unsigned int totalLeds, pointsCount;
+
+    std::function<void(vector<char> &output, ofColor &color)> colorUpdator;
     
     vector<unique_ptr<ofxLedGrabObject>> Lines;
     int currentLine;
@@ -121,7 +128,7 @@ private:
     // GUI
     ofxDatGui* gui;
 
-    LED_TYPE ledType;
+    COLOR_TYPE colorType;
     float pixelsInLed;
     bool bUdpSend, bDmxSend, bDoubleLine;
     int xPos, yPos, width, height;
