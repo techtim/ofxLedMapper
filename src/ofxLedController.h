@@ -12,7 +12,10 @@
 #include "ofMain.h"
 #include "ofxXmlSettings.h"
 #include "ofxNetwork.h"
+
+#ifndef LED_MAPPER_NO_GUI
 #include "ofxDatGui.h"
+#endif
 
 #ifdef USE_DMX_FTDI
     #include "ofxDmxFtdi.h"
@@ -36,19 +39,19 @@
 #define LCGUIButtonDmx "DMX"
 #define LCFileName "Ctrl-"
 
-enum COLOR_TYPE {
-    RGB = 0,
-    RBG = 1,
-    BRG = 2,
-    BGR = 3,
-    GRB = 4,
-    GBR = 5
-};
 
-static vector<string> colorTypes = {"RGB","RBG","BRG","BGR","GRB","GBR"};
 
 class ofxLedController {
 public:
+    enum COLOR_TYPE {
+        RGB = 0,
+        RBG = 1,
+        BRG = 2,
+        BGR = 3,
+        GRB = 4,
+        GBR = 5
+    };
+    
     ofxLedController(const int& __id, const string & _path);
     ~ofxLedController();
     
@@ -62,12 +65,13 @@ public:
     void mouseReleased(ofMouseEventArgs & args);
     void keyPressed(ofKeyEventArgs& data);
     void keyReleased(ofKeyEventArgs& data);
-    
+
+#ifndef LED_MAPPER_NO_GUI
     void onDropdownEvent(ofxDatGuiDropdownEvent e);
     void onButtonEvent(ofxDatGuiButtonEvent e);
     void onTextInputEvent(ofxDatGuiTextInputEvent e);
     void onSliderEvent(ofxDatGuiSliderEvent e);
-    void notifyParameterChanged(ofAbstractParameter & param);
+#endif
    
     unsigned int getId() const;
     unsigned int getTotalLeds() const;
@@ -116,8 +120,10 @@ private:
     int currentLine;
     
     bool bSelected, bShowGui;
-    bool bRecordPoints, bDeletePoints, bRecordCircles;
+    bool bDeletePoints;
     bool bSetupGui, bUdpSetup, bDmxSetup;
+
+    ofxLedGrabObject::GRAB_TYPE m_recordGrabType;
     
     ofVec2f posClicked;
 
@@ -126,8 +132,9 @@ private:
 
     ofxUDPManager udpConnection;
     // GUI
+#ifndef LED_MAPPER_NO_GUI
     ofxDatGui* gui;
-
+#endif
     COLOR_TYPE colorType;
     float pixelsInLed;
     bool bUdpSend, bDmxSend, bDoubleLine;

@@ -29,36 +29,45 @@ ofxLedMapper::ofxLedMapper(int __id) {
 ofxLedMapper::~ofxLedMapper() {
     ofLogVerbose("[ofxLedMapper] Detor: clear controllers + remove event listeners");
     Controllers.clear();
+
+#ifndef LED_MAPPER_NO_GUI
     listControllers->clear();
     gui->clear();
     delete gui;
     delete listControllers;
-
+#endif
+    
     ofRemoveListener(ofEvents().keyPressed, this, &ofxLedMapper::keyPressed);
     ofRemoveListener(ofEvents().keyReleased, this, &ofxLedMapper::keyReleased);
     ofRemoveListener(ofEvents().windowResized, this, &ofxLedMapper::windowResized);
 }
 
 void ofxLedMapper::draw() {
-
+    
+#ifndef LED_MAPPER_NO_GUI
     gui->update();
     gui->draw();
     listControllers->update();
     listControllers->draw();
     fpsSlider->getValue();
-    
+#endif
     if (!Controllers.empty()) {
         // If no debug toggled show lines from all controllers
-        if (!toggleDebugController->getChecked()) {
-            for (auto &ctrl : Controllers ) {
-                ctrl->draw();
-                
-                if (togglePlay->getChecked())  ctrl->sendUdp();
-            }
-        // If debug toggled show lines from selected controller and its gui
-        } else if (currentCtrl<Controllers.size()) {
+#ifndef LED_MAPPER_NO_GUI
+        if (toggleDebugController->getChecked() && currentCtrl<Controllers.size()) {
             Controllers[currentCtrl]->draw();
             Controllers[currentCtrl]->sendUdp();
+        // If debug toggled show lines from selected controller and its gui
+        } else
+#endif
+        {
+            for (auto &ctrl : Controllers ) {
+                ctrl->draw();
+#ifndef LED_MAPPER_NO_GUI
+                if (togglePlay->getChecked())
+#endif
+                    ctrl->sendUdp();
+            }
         }
     }
 }
@@ -81,8 +90,10 @@ bool ofxLedMapper::add(unsigned int _ctrlId) {
         ctrlId++;
     }
     Controllers.push_back(make_unique<ofxLedController>(ctrlId, folder_path));
+#ifndef LED_MAPPER_NO_GUI
     Controllers[Controllers.size()-1]->setGuiPosition(listControllers->getX(), listControllers->getY()+listControllers->getHeight());
     listControllers->add(ofToString(ctrlId));
+#endif
     return true;
 }
 
@@ -106,6 +117,7 @@ bool ofxLedMapper::checkUniqueId(unsigned int _ctrlId) {
 // ------------------------------ GUI ------------------------------
 //
 void ofxLedMapper::setupGui() {
+#ifndef LED_MAPPER_NO_GUI
     gui = new ofxDatGui(ofxDatGuiAnchor::TOP_RIGHT);
     gui->setWidth(LM_GUI_WIDTH);
 
@@ -127,11 +139,14 @@ void ofxLedMapper::setupGui() {
     listControllers->setWidth(LM_GUI_WIDTH);
     listControllers->setPosition(gui->getPosition().x, gui->getPosition().y+gui->getHeight());
     listControllers->setBackgroundColor(ofColor(0));
+#endif
 }
 
 void ofxLedMapper::setGuiPosition(int x, int y) {
+#ifndef LED_MAPPER_NO_GUI
     gui->setPosition(x, y);
     listControllers->setPosition(gui->getPosition().x, gui->getPosition().y+gui->getHeight());
+#endif
 }
 
 void ofxLedMapper::setCurrentController(unsigned int _curCtrl) {
@@ -139,10 +154,11 @@ void ofxLedMapper::setCurrentController(unsigned int _curCtrl) {
 
     currentCtrl = _curCtrl;
     if (currentCtrl>=Controllers.size()) currentCtrl=Controllers.size()-1;
-
-    for (int i=0; i<listControllers->getNumItems(); listControllers->get(i++)->setBackgroundColor(ofColor(0)));
     
+#ifndef LED_MAPPER_NO_GUI
+    for (int i=0; i<listControllers->getNumItems(); listControllers->get(i++)->setBackgroundColor(ofColor(0)));
     listControllers->get(currentCtrl)->setBackgroundColor(ofColor(75));
+#endif
     
     for (auto &ctrl:Controllers) ctrl->setSelected(false);
     Controllers[currentCtrl]->setSelected(true);
@@ -163,7 +179,9 @@ bool ofxLedMapper::load() {
 
     if (!Controllers.empty()) {
         Controllers.clear();
+#ifndef LED_MAPPER_NO_GUI
         listControllers->clear();
+#endif
     }
     
     regex ctrl_name(".*"+ofToString(LCFileName)+"([0-9]+).*"); // ([^\\.]+)
@@ -199,6 +217,7 @@ bool ofxLedMapper::save() {
 //
 // ------------------------------ EVENTS ------------------------------
 //
+#ifndef LED_MAPPER_NO_GUI
 void ofxLedMapper::onScrollViewEvent(ofxDatGuiScrollViewEvent e) {
     if (e.parent->getName() == LMGUIListControllers) {
         // check if item from list selected
@@ -217,6 +236,7 @@ void ofxLedMapper::onSliderEvent(ofxDatGuiSliderEvent e) {
         ofSetFrameRate(e.target->getValue());
     }
 }
+#endif
 
 void ofxLedMapper::keyPressed(ofKeyEventArgs& data) {
     switch (data.key) {
@@ -234,7 +254,10 @@ void ofxLedMapper::keyReleased(ofKeyEventArgs& data) {
 }
 
 void ofxLedMapper::windowResized(ofResizeEventArgs &args) {
+#ifndef LED_MAPPER_NO_GUI
     listControllers->setPosition(args.width-LM_GUI_WIDTH, gui->getPosition().y+gui->getHeight());
     Controllers[currentCtrl]->setGuiPosition(args.width-LM_GUI_WIDTH, listControllers->getY()+listControllers->getHeight());
+#endif
 }
+
 
