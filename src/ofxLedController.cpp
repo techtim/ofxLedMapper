@@ -280,8 +280,10 @@ void ofxLedController::save(string path)
 
 void ofxLedController::load(string path)
 {
-    if (!XML.loadFile(path + "/" + LCFileName + ofToString(_id) + ".xml"))
+    if (!XML.loadFile(path + LCFileName + ofToString(_id) + ".xml")){
+        ofLogError("[ofxLedController] No config with path: " + path);
         return;
+    }
     
     ofLogVerbose("[ofxLedController] Load");
     

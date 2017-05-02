@@ -84,7 +84,7 @@ bool ofxLedMapper::add() {
 }
 
 bool ofxLedMapper::add(unsigned int _ctrlId) {
-    string folder_path = LMCtrlsFolderPath+ofToString(_id);
+    string folder_path = LMCtrlsFolderPath+ofToString(_id)+"/";
     unsigned int ctrlId = _ctrlId;
     while (!checkUniqueId(ctrlId)) {
         ctrlId++;
