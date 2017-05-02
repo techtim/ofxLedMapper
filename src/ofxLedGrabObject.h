@@ -191,7 +191,6 @@ public:
         
         float dist = vert1.distance(vert2);
         m_pixelsInObject = static_cast<int>(dist/m_pixelsInLed);
-        float lineOffset = (dist-m_pixelsInObject*static_cast<float>(m_pixelsInLed))/2.f; // for centering leds in line
         m_points.clear();
         m_points.reserve(m_pixelsInObject);
         for (int pix_num=0;pix_num<m_pixelsInObject; pix_num++) {
@@ -442,15 +441,13 @@ public:
         ofVec2f vert1(fromX, fromY);
         ofVec2f vert2(toX, toY);
         
-        float dist = vert1.distance(vert2);;
 //        m_columns = static_cast<int>(m_isVertical? abs(vert1.y - vert2.y) / m_pixelsInLed : abs(vert1.x - vert2.x) / m_pixelsInLed);
 //        m_rows = static_cast<int>(m_isVertical? abs(vert1.x - vert2.x) / m_pixelsInLed : abs(vert1.y - vert2.y) / m_pixelsInLed);
         m_columns = static_cast<int>(abs(vert1.x - vert2.x) / m_pixelsInLed);
         m_rows = static_cast<int>(abs(vert1.y - vert2.y) / m_pixelsInLed);
         
         int pixelsInLine = m_columns * m_rows;
-        float degreeStep = 360.f/static_cast<float>(pixelsInLine);
-        float currStep = startAngle;
+
         m_points.clear();
         m_points.reserve(pixelsInLine);
         

@@ -11,7 +11,7 @@
 #include <math.h> 
 
 ofxLedMapper::ofxLedMapper() {
-    ofxLedMapper::ofxLedMapper(1);
+    ofxLedMapper(1);
 }
 
 ofxLedMapper::ofxLedMapper(int __id) {
