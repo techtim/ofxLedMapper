@@ -443,8 +443,8 @@ public:
         
 //        m_columns = static_cast<int>(m_isVertical? abs(vert1.y - vert2.y) / m_pixelsInLed : abs(vert1.x - vert2.x) / m_pixelsInLed);
 //        m_rows = static_cast<int>(m_isVertical? abs(vert1.x - vert2.x) / m_pixelsInLed : abs(vert1.y - vert2.y) / m_pixelsInLed);
-        m_columns = static_cast<int>(abs(vert1.x - vert2.x) / m_pixelsInLed);
-        m_rows = static_cast<int>(abs(vert1.y - vert2.y) / m_pixelsInLed);
+        m_columns = static_cast<int>(m_isVertical ? abs(vert1.y - vert2.y) / m_pixelsInLed :abs(vert1.x - vert2.x) / m_pixelsInLed);
+        m_rows = static_cast<int>(m_isVertical ? abs(vert1.x - vert2.x) / m_pixelsInLed : abs(vert1.y - vert2.y) / m_pixelsInLed);
         
         int pixelsInLine = m_columns * m_rows;
 
@@ -453,9 +453,14 @@ public:
         
         if (m_isVertical) {
             for (int row = 0; row < m_rows; ++row) {
+                ofVec2f rowPos = vert1.getInterpolated(ofVec2f(vert2.x, vert1.y),
+                                                   static_cast<float>(row)/m_rows);
+//                ofLogVerbose("row/m_rows =" + ofToString(static_cast<float>(row + 1)/m_rows ) + " -> " + ofToString(rowPos));
+                
                 for (int col = 0; col < m_columns; ++col) {
-                    ofVec2f tmp = ofVec2f(row * m_pixelsInLed, col * m_pixelsInLed);
-                    tmp += vert1;
+                    ofVec2f tmp = rowPos.getInterpolated(ofVec2f(rowPos.x, vert2.y),
+                                                     static_cast<float>(col)/m_columns);
+//                    ofLogVerbose("row=" + ofToString(row) + " col=" + ofToString(col) + " : " + ofToString(tmp));
                     if (tmp.x >= 0 && tmp.y >= 0)
                         m_points.emplace_back(std::move(tmp));
                 }
