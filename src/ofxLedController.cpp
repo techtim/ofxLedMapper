@@ -40,7 +40,7 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
     lineColor = ofColor(ofRandom(50, 255), ofRandom(50, 255), ofRandom(50, 255));
     
     load(path);
-
+    
     setupGui();
     
     ofAddListener(ofEvents().mousePressed, this, &ofxLedController::mousePressed);
@@ -108,7 +108,7 @@ void ofxLedController::setupGui()
     slider = gui->addSlider("DMX Chan", 1, 0, 512);
     slider->bind(dmxChannel);
 #endif
-
+    
 #endif // LED_MAPPER_NO_GUI
     
     bSetupGui = true;
@@ -136,7 +136,7 @@ void ofxLedController::draw()
     }
 }
 
-void ofxLedController::updatePixels(const ofPixels &sidesGrabImg)
+void ofxLedController::updatePixels(const ofPixels &grabbedImg)
 {
     if (!bSetuped)
         return;
@@ -162,7 +162,7 @@ void ofxLedController::updatePixels(const ofPixels &sidesGrabImg)
             }
         size_t total_pix = line->m_points.size();
         for (int pix_num = 0; pix_num < total_pix; ++pix_num) {
-            ofColor color = sidesGrabImg.getColor(line->m_points[pix_num].x, line->m_points[pix_num].y);
+            ofColor color = grabbedImg.getColor(line->m_points[pix_num].x, line->m_points[pix_num].y);
             
             colorUpdator(output, color);
         }
@@ -203,9 +203,9 @@ void ofxLedController::setupUdp(string host, unsigned int port)
     }
 }
 
-void ofxLedController::sendUdp(const ofPixels &sidesGrabImg)
+void ofxLedController::sendUdp(const ofPixels &grabbedImg)
 {
-    updatePixels(sidesGrabImg);
+    updatePixels(grabbedImg);
     sendUdp();
 }
 
@@ -390,7 +390,7 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
     switch (m_recordGrabType) {
         case ofxLedGrabObject::GRAB_TYPE::GRAB_EMPTY:
             break;
-    
+            
         case ofxLedGrabObject::GRAB_TYPE::GRAB_LINE:
             if (pointsCount == 0) {
                 pointsCount++;
@@ -594,12 +594,12 @@ void ofxLedController::setupDmx(string serialName)
 #endif // DMX
 }
 
-void ofxLedController::sendDmx(const ofPixels &sidesGrabImg)
+void ofxLedController::sendDmx(const ofPixels &grabbedImg)
 {
     if (!bDmxSend)
         return;
     
-    updatePixels(sidesGrabImg);
+    updatePixels(grabbedImg);
     
 #ifdef USE_DMX
     if (dmx.isConnected()) {

@@ -35,15 +35,14 @@ public:
     virtual void save(ofxXmlSettings & xml) = 0;
     virtual void load(ofxXmlSettings & xml, int tagNum) = 0;
     virtual void set(int _fromX, int _fromY, int _toX, int _toY) {
-        fromX = _fromX; fromY = _fromY;
-        toX = _toX; toY = _toY;
-        updatePoints();
+        if (_fromX >= 0 && _fromY >= 0 && _toX >= 0 && _toY >= 0) {
+            fromX = _fromX; fromY = _fromY;
+            toX = _toX; toY = _toY;
+            updatePoints();
+        }
     };
     virtual void set(ofVec2f _from, ofVec2f _to){
-        fromX = _from.x; fromY = _from.y;
-        toX = _to.x; toY = _to.y;
-        updatePoints();
-        
+        set(_from.x, _from.y, _to.x, _to.y);
     };
     
     virtual void setFrom(int _fromX, int _fromY) {
@@ -463,6 +462,8 @@ public:
 //                    ofLogVerbose("row=" + ofToString(row) + " col=" + ofToString(col) + " : " + ofToString(tmp));
                     if (tmp.x >= 0 && tmp.y >= 0)
                         m_points.emplace_back(std::move(tmp));
+                    else
+                        ofLogError("Point out bounds" + ofToString(tmp));
                 }
             }
         } else {

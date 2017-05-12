@@ -83,10 +83,10 @@ public:
     void sendUdp(const ofPixels &sidesGrabImg);
     
     void setupDmx(string port_name);
-    void sendDmx(const ofPixels &sidesGrabImg);
+    void sendDmx(const ofPixels &grabbedImg);
     
     void showGui(bool _show) {bShowGui = _show; bSelected = _show;};
-    void updatePixels(const ofPixels &sidesGrabImg);
+    void updatePixels(const ofPixels &grabbedImg);
 
     const ofPixels & getPixels();
     void setPixels(const ofPixels & _pix);
