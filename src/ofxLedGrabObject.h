@@ -193,7 +193,7 @@ public:
         m_points.clear();
         m_points.reserve(m_pixelsInObject);
         for (int pix_num=0;pix_num<m_pixelsInObject; pix_num++) {
-            float tmp_num = static_cast<float>(pix_num);
+            float tmp_num = static_cast<float>(pix_num)+.5f;
             float step = static_cast<float>(tmp_num/m_pixelsInObject);
             m_points.push_back(vert1.getInterpolated(vert2, step));
         }
@@ -359,7 +359,6 @@ public:
         m_lineClicked = false;
         m_pixelsInLed = pixInLed;
         m_isVertical = isVertical;
-        startAngle = -90.f;
         m_lineClicked = m_bSelected =  m_bSelectedFrom = m_bSelectedTo = false;
         updatePoints();
     }
@@ -418,8 +417,8 @@ public:
         ofFill();
         for(auto &it : m_points){
             ofDrawCircle((it), m_pixelsInLed/8);
-            ofSetColor(200, 200, 200, 150);
         }
+        ofSetColor(200, 200, 200, 150);
         ofDrawBitmapString(ofToString(static_cast<int>(m_points.size())), ofVec2f(fromX, fromY).getInterpolated(ofVec2f(toX, toY),.5));
         ofSetColor(0, 250, 150, 250);
         ofDrawBitmapString("id"+ofToString(objID), fromX, fromY);
@@ -445,20 +444,20 @@ public:
         m_columns = static_cast<int>(m_isVertical ? abs(vert1.y - vert2.y) / m_pixelsInLed :abs(vert1.x - vert2.x) / m_pixelsInLed);
         m_rows = static_cast<int>(m_isVertical ? abs(vert1.x - vert2.x) / m_pixelsInLed : abs(vert1.y - vert2.y) / m_pixelsInLed);
         
-        int pixelsInLine = m_columns * m_rows;
+        m_pixelsInObject = m_columns * m_rows;
 
         m_points.clear();
-        m_points.reserve(pixelsInLine);
+        m_points.reserve(m_pixelsInObject);
         
         if (m_isVertical) {
             for (int row = 0; row < m_rows; ++row) {
                 ofVec2f rowPos = vert1.getInterpolated(ofVec2f(vert2.x, vert1.y),
-                                                   static_cast<float>(row)/m_rows);
+                                                   (static_cast<float>(row)+.5f)/m_rows);
 //                ofLogVerbose("row/m_rows =" + ofToString(static_cast<float>(row + 1)/m_rows ) + " -> " + ofToString(rowPos));
                 
                 for (int col = 0; col < m_columns; ++col) {
                     ofVec2f tmp = rowPos.getInterpolated(ofVec2f(rowPos.x, vert2.y),
-                                                     static_cast<float>(col)/m_columns);
+                                                     (static_cast<float>(col)+.5f)/m_columns);
 //                    ofLogVerbose("row=" + ofToString(row) + " col=" + ofToString(col) + " : " + ofToString(tmp));
                     if (tmp.x >= 0 && tmp.y >= 0)
                         m_points.emplace_back(std::move(tmp));
@@ -495,7 +494,7 @@ public:
     void load(ofxXmlSettings & xml, int tagNum){
         setNumRows(xml.getValue("LN:numRows", 1, tagNum));
         setNumColumns(xml.getValue("LN:numColumns", 1, tagNum));
-        m_isVertical = xml.getValue("LN:isVerical", true, tagNum);
+        m_isVertical = xml.getValue("LN:isVertical", true, tagNum);
         updatePoints();
     }
 };
