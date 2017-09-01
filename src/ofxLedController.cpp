@@ -9,7 +9,7 @@
 #include "ofxLedController.h"
 #include <regex>
 
-static const vector<string> colorTypes = {"RGB","RBG","BRG","BGR","GRB","GBR"};
+static const vector<string> colorTypes = { "RGB", "RBG", "BRG", "BGR", "GRB", "GBR" };
 
 ofxLedController::ofxLedController(const int &__id, const string &_path)
 : bSelected(false)
@@ -26,6 +26,8 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
 , pixelsInLed(5.f)
 , pointsCount(0)
 , totalLeds(0)
+, m_lines(0)
+, m_ledPoints(0)
 {
     _id = __id;
     
@@ -62,7 +64,7 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
 ofxLedController::~ofxLedController()
 {
     ofLogVerbose("[ofxLedMapper] Detor: clear lines + remove event listeners + remove gui");
-    Lines.clear();
+    m_lines.clear();
 #ifndef LED_MAPPER_NO_GUI
     gui->clear();
     delete gui;
@@ -82,8 +84,9 @@ void ofxLedController::setupGui()
         return;
 #ifndef LED_MAPPER_NO_GUI
     gui = new ofxDatGui(ofxDatGuiAnchor::TOP_RIGHT);
+    gui->setTheme(new LedMapper::ofxDatGuiThemeLedMapper());
     gui->addHeader("Ctrl " + ofToString(_id));
-    gui->setWidth(LC_GUI_WIDTH);
+    gui->setWidth(LM_GUI_WIDTH);
     
     auto toggle = gui->addToggle(LCGUIButtonSend, false);
     toggle->bind(bUdpSend);
@@ -127,7 +130,7 @@ void ofxLedController::draw()
             grabImg.draw(gui->getPosition().x, gui->getPosition().y + gui->getHeight(), 50, 20);
         }
 #endif
-        for (auto &line : Lines) {
+        for (auto &line : m_lines) {
             ofSetColor(lineColor, 150);
             line->draw();
         }
@@ -142,8 +145,8 @@ void ofxLedController::updatePixels(const ofPixels &grabbedImg)
         return;
     
     totalLeds = 0;
-    for (auto &line : Lines) {
-        totalLeds += line->m_points.size();
+    for (auto &line : m_lines) {
+        totalLeds += line->points().size();
     }
     
     if (output.size() < totalLeds * 3) {
@@ -153,16 +156,17 @@ void ofxLedController::updatePixels(const ofPixels &grabbedImg)
     output.clear();
     
     unsigned int loop_cntr = 0;
-    for (auto &line : Lines) {
+    for (auto &line : m_lines) {
         if (loop_cntr % 2 == 1)
             for (int pix_num = 0; pix_num < offsetBegin; pix_num++) {
                 output.emplace_back(0);
                 output.emplace_back(0);
                 output.emplace_back(0);
             }
-        size_t total_pix = line->m_points.size();
+        size_t total_pix = line->points().size();
         for (int pix_num = 0; pix_num < total_pix; ++pix_num) {
-            ofColor color = grabbedImg.getColor(line->m_points[pix_num].x, line->m_points[pix_num].y);
+            ofColor color
+            = grabbedImg.getColor(line->points()[pix_num].x, line->points()[pix_num].y);
             
             colorUpdator(output, color);
         }
@@ -261,8 +265,10 @@ unsigned int ofxLedController::getTotalLeds() const { return totalLeds; }
 //
 void ofxLedController::save(string path)
 {
-    XML.clear();
+    m_ledPoints.clear();
+    m_ledPoints.reserve(totalLeds);
     
+    XML.clear();
     int tagNum = XML.addTag("CONF");
     XML.setValue("CONF:colorType", colorType, tagNum);
     XML.setValue("CONF:PixInLed", pixelsInLed, tagNum);
@@ -272,15 +278,31 @@ void ofxLedController::save(string path)
     XML.popTag();
     
     int lastStrokeNum = XML.addTag("STROKE");
-    for (auto &line : Lines)
+    for (auto &line : m_lines)
+    {
+        /// xml
         if (XML.pushTag("STROKE", lastStrokeNum))
             line->save(XML);
+        /// json
+        auto linePoints = line->getLedPoints();
+        m_ledPoints.insert(m_ledPoints.end(), linePoints.begin(), linePoints.end());
+    }
+
+    ofJson config;
+    config["ipAddress"] = udpIpAddress;
+    config["port"] = udpPort;
+    config["colorType"] = colorType;
+    config["points"] = m_ledPoints;
+    ofstream jsonFile(path+ofToString(_id)+".json");
+    jsonFile << config.dump(4);
+    jsonFile.close();
+    
     XML.save(path + "/" + LCFileName + ofToString(_id) + ".xml");
 }
 
 void ofxLedController::load(string path)
 {
-    if (!XML.loadFile(path + LCFileName + ofToString(_id) + ".xml")){
+    if (!XML.loadFile(path + LCFileName + ofToString(_id) + ".xml")) {
         ofLogError("[ofxLedController] No config with path: " + path);
         return;
     }
@@ -304,7 +326,7 @@ void ofxLedController::load(string path)
     
     parseXml(XML);
     
-    for (auto &line : Lines)
+    for (auto &line : m_lines)
         line->setPixelsInLed(pixelsInLed);
 }
 
@@ -312,8 +334,8 @@ void ofxLedController::parseXml(ofxXmlSettings &XML)
 {
     int numDragTags = XML.getNumTags("STROKE:LN");
     if (numDragTags > 0) {
-        if (!Lines.empty()) {
-            Lines.clear();
+        if (!m_lines.empty()) {
+            m_lines.clear();
             ofLogVerbose("[ofxLedController] Clear lines");
         }
         ofLogVerbose("[ofxLedController] Load lines from XML");
@@ -331,28 +353,27 @@ void ofxLedController::parseXml(ofxXmlSettings &XML)
                 // which tag out of multiple tags you are refering to.
                 unique_ptr<ofxLedGrabObject> tmpObj;
                 if (XML.getValue("LN:TYPE", 2, i) == ofxLedGrabObject::GRAB_TYPE::GRAB_LINE) {
-                    tmpObj = make_unique<ofxLedGrabLine>(XML.getValue("LN:fromX", 0, i),
-                                                         XML.getValue("LN:fromY", 0, i),
-                                                         XML.getValue("LN:toX", 0, i),
-                                                         XML.getValue("LN:toY", 0, i));
+                    tmpObj = make_unique<ofxLedGrabLine>(
+                                                         XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i),
+                                                         XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i));
                     tmpObj->load(XML, i);
                 }
-                else if (XML.getValue("LN:TYPE", 2, i) == ofxLedGrabObject::GRAB_TYPE::GRAB_CIRCLE) {
-                    tmpObj = make_unique<ofxLedGrabCircle>(XML.getValue("LN:fromX", 0, i),
-                                                           XML.getValue("LN:fromY", 0, i),
-                                                           XML.getValue("LN:toX", 0, i),
-                                                           XML.getValue("LN:toY", 0, i));
+                else if (XML.getValue("LN:TYPE", 2, i)
+                         == ofxLedGrabObject::GRAB_TYPE::GRAB_CIRCLE) {
+                    tmpObj = make_unique<ofxLedGrabCircle>(
+                                                           XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i),
+                                                           XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i));
                     tmpObj->load(XML, i);
                 }
-                else if (XML.getValue("LN:TYPE", 2, i) == ofxLedGrabObject::GRAB_TYPE::GRAB_MATRIX) {
-                    tmpObj = make_unique<ofxLedGrabMatrix>(XML.getValue("LN:fromX", 0, i),
-                                                           XML.getValue("LN:fromY", 0, i),
-                                                           XML.getValue("LN:toX", 0, i),
-                                                           XML.getValue("LN:toY", 0, i));
+                else if (XML.getValue("LN:TYPE", 2, i)
+                         == ofxLedGrabObject::GRAB_TYPE::GRAB_MATRIX) {
+                    tmpObj = make_unique<ofxLedGrabMatrix>(
+                                                           XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i),
+                                                           XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i));
                     tmpObj->load(XML, i);
                 }
                 tmpObj->setObjectId(i);
-                Lines.push_back(move(tmpObj));
+                m_lines.push_back(move(tmpObj));
             }
         }
         XML.popTag();
@@ -370,12 +391,12 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
         return;
     
     unsigned int linesCntr = 0;
-    for (auto it = Lines.begin(); it != Lines.end();) {
+    for (auto it = m_lines.begin(); it != m_lines.end();) {
         if ((*it) == nullptr)
             continue;
         if ((*it)->mousePressed(args)) {
             if (bDeletePoints) {
-                it = Lines.erase(it);
+                it = m_lines.erase(it);
                 continue;
             }
         }
@@ -394,35 +415,38 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
         case ofxLedGrabObject::GRAB_TYPE::GRAB_LINE:
             if (pointsCount == 0) {
                 pointsCount++;
-                unique_ptr<ofxLedGrabLine> tmpLine = make_unique<ofxLedGrabLine>(x, y, x, y, pixelsInLed, bDoubleLine);
-                tmpLine->setObjectId(Lines.size());
-                Lines.push_back(move(tmpLine));
+                unique_ptr<ofxLedGrabLine> tmpLine
+                = make_unique<ofxLedGrabLine>(x, y, x, y, pixelsInLed, bDoubleLine);
+                tmpLine->setObjectId(m_lines.size());
+                m_lines.push_back(move(tmpLine));
             }
             else {
                 pointsCount = 0;
-                if (!Lines.empty())
-                    Lines[Lines.size() - 1]->setTo(x, y);
+                if (!m_lines.empty())
+                    m_lines[m_lines.size() - 1]->setTo(x, y);
             }
             break;
             
         case ofxLedGrabObject::GRAB_TYPE::GRAB_MATRIX:
             if (pointsCount == 0) {
                 pointsCount++;
-                unique_ptr<ofxLedGrabMatrix> tmpLine = make_unique<ofxLedGrabMatrix>(x, y, x, y, pixelsInLed);
-                tmpLine->setObjectId(Lines.size());
-                Lines.push_back(move(tmpLine));
+                unique_ptr<ofxLedGrabMatrix> tmpLine
+                = make_unique<ofxLedGrabMatrix>(x, y, x, y, pixelsInLed);
+                tmpLine->setObjectId(m_lines.size());
+                m_lines.push_back(move(tmpLine));
             }
             else {
                 pointsCount = 0;
-                if (!Lines.empty())
-                    Lines.back()->setTo(x, y);
+                if (!m_lines.empty())
+                    m_lines.back()->setTo(x, y);
             }
             break;
             
         case ofxLedGrabObject::GRAB_TYPE::GRAB_CIRCLE:
-            unique_ptr<ofxLedGrabCircle> tmpCircle = make_unique<ofxLedGrabCircle>(x, y, x + 20, y + 20, pixelsInLed);
-            tmpCircle->setObjectId(Lines.size());
-            Lines.push_back(move(tmpCircle));
+            unique_ptr<ofxLedGrabCircle> tmpCircle
+            = make_unique<ofxLedGrabCircle>(x, y, x + 20, y + 20, pixelsInLed);
+            tmpCircle->setObjectId(m_lines.size());
+            m_lines.push_back(move(tmpCircle));
     }
 }
 
@@ -432,8 +456,8 @@ void ofxLedController::mouseDragged(ofMouseEventArgs &args)
     if (!bSelected)
         return;
     bool lineClicked = false;
-    if (!Lines.empty())
-        for (auto &line : Lines)
+    if (!m_lines.empty())
+        for (auto &line : m_lines)
             if (line->mouseDragged(args))
                 break;
 }
@@ -441,8 +465,8 @@ void ofxLedController::mouseDragged(ofMouseEventArgs &args)
 void ofxLedController::mouseReleased(ofMouseEventArgs &args)
 {
     int x = args.x, y = args.y;
-    if (!Lines.empty()) {
-        for (auto &line : Lines)
+    if (!m_lines.empty()) {
+        for (auto &line : m_lines)
             line->mouseReleased(args);
     }
 }
@@ -518,7 +542,7 @@ void ofxLedController::onTextInputEvent(ofxDatGuiTextInputEvent e)
 void ofxLedController::onSliderEvent(ofxDatGuiSliderEvent e)
 {
     if (e.target->getName() == LCGUISliderPix) {
-        for (auto &line : Lines)
+        for (auto &line : m_lines)
             line->setPixelsInLed(pixelsInLed);
     }
 }

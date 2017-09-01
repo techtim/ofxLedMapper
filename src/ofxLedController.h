@@ -13,9 +13,7 @@
 #include "ofxXmlSettings.h"
 #include "ofxNetwork.h"
 
-#ifndef LED_MAPPER_NO_GUI
-#include "ofxDatGui.h"
-#endif
+#include "Common.h"
 
 #ifdef USE_DMX_FTDI
     #include "ofxDmxFtdi.h"
@@ -24,22 +22,6 @@
 #endif
 
 #include "ofxLedGrabObject.h"
-
-#define RPI_IP "192.168.2.10"
-#define RPI_PORT 3000
-
-#define LC_GUI_WIDTH 200
-
-#define LCGUIButtonSend "Send"
-#define LCGUIButtonDoubleLine "Double Line"
-#define LCGUITextIP "IP"
-#define LCGUITextPort "Port"
-#define LCGUISliderPix "Pix in led"
-#define LCGUIDropColorType "Color Type"
-#define LCGUIButtonDmx "DMX"
-#define LCFileName "Ctrl-"
-
-
 
 class ofxLedController {
 public:
@@ -116,7 +98,8 @@ private:
 
     std::function<void(vector<char> &output, ofColor &color)> colorUpdator;
     
-    vector<unique_ptr<ofxLedGrabObject>> Lines;
+    vector<unique_ptr<ofxLedGrabObject>> m_lines;
+    vector<LedMapper::Point> m_ledPoints;
     int currentLine;
     
     bool bSelected, bShowGui;

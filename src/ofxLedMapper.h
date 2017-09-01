@@ -12,22 +12,9 @@
 #include "ofxXmlSettings.h"
 #include "ofxNetwork.h"
 #include "ofxLedController.h"
-
-#ifndef LED_MAPPER_NO_GUI
-
-#include "ofxDatGui.h"
-#define LM_GUI_WIDTH 200
-#define LMGUIListControllers "Controllers"
-#define LMGUIToggleDebug "Debug controller"
-#define LMGUITogglePlay "Play"
-#define LMGUISliderFps "FPS"
-#define LMGUIButtonAdd "Add Controller"
-
-#endif
+#include "Common.h"
 
 //typedef unique_ptr<ofxLedController> ofxLedController_ptr;
-
-#define LMCtrlsFolderPath "Ctrls"
 
 class ofxLedMapper {
 
@@ -38,8 +25,8 @@ public:
 
     void update(const ofPixels &grabImg);
     void draw();
-    bool add();
-    bool add(unsigned int _ctrlId);
+    bool add(string folder_path);
+    bool add(unsigned int _ctrlId, string folder_path);
     bool remove(unsigned int _ctrlId);
     bool load();
     bool save();
@@ -66,7 +53,7 @@ private:
     unsigned int currentCtrl;
     ofxXmlSettings XML;
     ofDirectory dir;
-    
+    string configFolderPath;
     int _id;
     bool bSetup = false;
 #ifndef LED_MAPPER_NO_GUI
