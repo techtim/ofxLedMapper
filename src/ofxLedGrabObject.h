@@ -135,6 +135,7 @@ public:
         toY = _toY;
         m_pixelsInLed = pixInLed;
         m_bSelected = m_bSelectedFrom = m_bSelectedTo = m_bDoubleLine = m_bSelected = false;
+        m_bDoubleLine = true;
         updatePoints();
     }
     
@@ -262,14 +263,12 @@ public:
             float step = static_cast<float>(tmp_num/m_pixelsInObject);
             m_points.push_back(vert1.getInterpolated(vert2, step));
         }
-        //        TODO:
-        //        if (bDoubleLine) {
-        //            for (int pix_num=0;pix_num<m_pixelsInObject; pix_num++) {
-        //                float tmp_num = static_cast<float>(pix_num);
-        //                float step = static_cast<float>(tmp_num/m_pixelsInObject);
-        //                m_points.push_back(vert2.getInterpolated(vert1, step));
-        //            }
-        //        }
+
+        if (m_bDoubleLine) {
+            auto tmpPoints = m_points;
+            std::reverse(tmpPoints.begin(), tmpPoints.end());
+            m_points.insert(m_points.end(), tmpPoints.begin(), tmpPoints.end());
+        }
         
     }
     void updateBounds() override {
@@ -285,10 +284,11 @@ public:
         XML.setValue("LN:fromY", fromY, tagNum);
         XML.setValue("LN:toX", toX, tagNum);
         XML.setValue("LN:toY", toY, tagNum);
+        XML.setValue("LN:bDouble", m_bDoubleLine, tagNum);
         XML.popTag();
     }
-    void load(ofxXmlSettings & xml, int tagNum) override{
-        
+    void load(ofxXmlSettings & xml, int tagNum) override {
+        m_bDoubleLine = xml.getValue("LN:bDouble", false, tagNum);
     }
     
 };

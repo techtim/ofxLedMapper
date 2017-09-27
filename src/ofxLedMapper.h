@@ -15,6 +15,8 @@
 #include "Common.h"
 
 //typedef unique_ptr<ofxLedController> ofxLedController_ptr;
+class ofxLedMapper;
+using ofxLedMapperPtr = unique_ptr<ofxLedMapper>;
 
 class ofxLedMapper {
 
@@ -36,7 +38,8 @@ public:
     void setupGui();
     void setGuiPosition(int x, int y);
     void setCurrentController(unsigned int _curCtrl);
-
+    void updateControllersListGui();
+    
 #ifndef LED_MAPPER_NO_GUI
     void onScrollViewEvent(ofxDatGuiScrollViewEvent e);
     void onButtonClick(ofxDatGuiButtonEvent e);

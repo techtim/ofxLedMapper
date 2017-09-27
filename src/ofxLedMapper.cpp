@@ -8,23 +8,22 @@
 
 #include "ofxLedMapper.h"
 #include <regex>
-#include <math.h> 
+#include <math.h>
 
 ofxLedMapper::ofxLedMapper() {
     ofxLedMapper(1);
 }
 
-ofxLedMapper::ofxLedMapper(int __id) {
-    _id = __id;
-    
-    configFolderPath = LedMapper::CONFIG_PATH+LedMapper::APP_NAME+"/";
-
+ofxLedMapper::ofxLedMapper(int __id)
+: _id(__id)
+, configFolderPath(LedMapper::CONFIG_PATH+LedMapper::APP_NAME+"/")
+{
     setupGui();
     
     ofAddListener(ofEvents().keyPressed, this, &ofxLedMapper::keyPressed);
     ofAddListener(ofEvents().keyReleased, this, &ofxLedMapper::keyReleased);
     ofAddListener(ofEvents().windowResized, this, &ofxLedMapper::windowResized);
-
+    
     bSetup=true;
 }
 
@@ -89,11 +88,17 @@ bool ofxLedMapper::add(unsigned int _ctrlId, string folder_path) {
     while (!checkUniqueId(ctrlId)) {
         ctrlId++;
     }
-    Controllers.push_back(make_unique<ofxLedController>(ctrlId, folder_path));
+    auto ctrl = make_unique<ofxLedController>(ctrlId, folder_path);
+    
 #ifndef LED_MAPPER_NO_GUI
-    Controllers[Controllers.size()-1]->setGuiPosition(listControllers->getX(), listControllers->getY()+listControllers->getHeight());
+    function<void(void)> fnc = [this](void){this->updateControllersListGui();};
+    ctrl->setOnControllerStatusChange(fnc);
+    ctrl->setGuiPosition(listControllers->getX(), listControllers->getY()+listControllers->getHeight());
     listControllers->add(ofToString(ctrlId));
 #endif
+    
+    Controllers.emplace_back(move(ctrl));
+    
     return true;
 }
 
@@ -139,7 +144,7 @@ void ofxLedMapper::setupGui() {
     listControllers->onScrollViewEvent(this, &ofxLedMapper::onScrollViewEvent);
     listControllers->setWidth(LM_GUI_WIDTH);
     listControllers->setPosition(gui->getPosition().x, gui->getPosition().y+gui->getHeight());
-    listControllers->setBackgroundColor(ofColor(0));
+    listControllers->setBackgroundColor(ofColor(10));
 #endif
 }
 
@@ -155,14 +160,26 @@ void ofxLedMapper::setCurrentController(unsigned int _curCtrl) {
 
     currentCtrl = _curCtrl;
     if (currentCtrl>=Controllers.size()) currentCtrl=Controllers.size()-1;
-    
-#ifndef LED_MAPPER_NO_GUI
-    for (int i=0; i<listControllers->getNumItems(); listControllers->get(i++)->setBackgroundColor(ofColor(0)));
-    listControllers->get(currentCtrl)->setBackgroundColor(ofColor(75));
-#endif
-    
+
     for (auto &ctrl:Controllers) ctrl->setSelected(false);
     Controllers[currentCtrl]->setSelected(true);
+
+    updateControllersListGui();
+}
+
+void ofxLedMapper::updateControllersListGui() {
+#ifndef LED_MAPPER_NO_GUI
+    for (int i=0; i<listControllers->getNumItems(); ++i){
+        listControllers->get(i)->setBackgroundColor(Controllers[i]->isStatusOk()
+                                                    ? ofColor::fromHex(LedMapper::LM_COLOR_GREEN_DARK)
+                                                    : ofColor::fromHex(LedMapper::LM_COLOR_RED_DARK));
+    }
+    listControllers->get(currentCtrl)->setBackgroundColor(Controllers[currentCtrl]->isStatusOk()
+                                                          ? ofColor::fromHex(LedMapper::LM_COLOR_GREEN)
+                                                          : ofColor::fromHex(LedMapper::LM_COLOR_RED));
+    
+#endif
+
 }
 
 //

@@ -23,6 +23,8 @@
 
 #include "ofxLedGrabObject.h"
 
+using OnControllerStatusChange = function<void(void)>;
+
 class ofxLedController {
 public:
     enum COLOR_TYPE {
@@ -33,8 +35,12 @@ public:
         GRB = 4,
         GBR = 5
     };
-    
+    enum LED_TYPE{
+        DATA,
+        DATACLOCK
+    };
     ofxLedController(const int& __id, const string & _path);
+    void setOnControllerStatusChange(function<void(void)> callback);
     ~ofxLedController();
     
     void save(string path);
@@ -60,6 +66,7 @@ public:
     unsigned char * getOutput();
     bool bSetuped;
     bool isSelected() const { return bSelected; }
+    bool isStatusOk() const { return m_statusOk; }
     void setupUdp(string host, unsigned int port);
     void sendUdp();
     void sendUdp(const ofPixels &sidesGrabImg);
@@ -84,7 +91,7 @@ public:
 
     COLOR_TYPE getColorType(int num) const;
     void setColorType(COLOR_TYPE);
-    
+    void setCurrentChannel(int);
     void notifyDMXChanged(bool & param);
     
 private:
@@ -97,15 +104,20 @@ private:
     unsigned int totalLeds, pointsCount;
 
     std::function<void(vector<char> &output, ofColor &color)> colorUpdator;
+
+    function<void(void)> m_statusChanged;
     
     vector<unique_ptr<ofxLedGrabObject>> m_lines;
+    vector<vector<unique_ptr<ofxLedGrabObject>>> m_channelGrabObjects;
+    size_t m_currentChannel;
+    
     vector<LedMapper::Point> m_ledPoints;
     int currentLine;
     
     bool bSelected, bShowGui;
     bool bDeletePoints;
     bool bSetupGui, bUdpSetup, bDmxSetup;
-
+    
     ofxLedGrabObject::GRAB_TYPE m_recordGrabType;
     
     ofVec2f posClicked;
@@ -116,11 +128,12 @@ private:
     ofxUDPManager udpConnection;
     // GUI
 #ifndef LED_MAPPER_NO_GUI
-    ofxDatGui* gui;
+    shared_ptr<ofxDatGui> gui;
+    shared_ptr<ofxDatGui> grabObjGui;
 #endif
     COLOR_TYPE colorType;
     float pixelsInLed;
-    bool bUdpSend, bDmxSend, bDoubleLine;
+    bool bUdpSend, bDmxSend, bDoubleLine, m_statusOk;
     int xPos, yPos, width, height;
     int offsetBegin, offsetEnd;
     int dmxChannel;

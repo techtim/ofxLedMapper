@@ -9,7 +9,8 @@
 #include "ofxLedController.h"
 #include <regex>
 
-static const vector<string> colorTypes = { "RGB", "RBG", "BRG", "BGR", "GRB", "GBR" };
+static const vector<string> s_colorTypes = { "RGB", "RBG", "BRG", "BGR", "GRB", "GBR" };
+static const vector<string> s_channelList = {"channel 1", "channel 2"};
 
 ofxLedController::ofxLedController(const int &__id, const string &_path)
 : bSelected(false)
@@ -18,6 +19,7 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
 , m_recordGrabType(ofxLedGrabObject::GRAB_TYPE::GRAB_EMPTY)
 , bSetupGui(false)
 , bUdpSend(true)
+, m_statusOk(false)
 , bUdpSetup(false)
 , bDmxSetup(false)
 , bShowGui(true)
@@ -27,6 +29,8 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
 , pointsCount(0)
 , totalLeds(0)
 , m_lines(0)
+, m_channelGrabObjects(s_channelList.size())
+, m_currentChannel(0)
 , m_ledPoints(0)
 {
     _id = __id;
@@ -67,7 +71,6 @@ ofxLedController::~ofxLedController()
     m_lines.clear();
 #ifndef LED_MAPPER_NO_GUI
     gui->clear();
-    delete gui;
 #endif
     udpConnection.Close();
     
@@ -78,12 +81,18 @@ ofxLedController::~ofxLedController()
     ofRemoveListener(ofEvents().keyReleased, this, &ofxLedController::keyReleased);
 }
 
+void ofxLedController::setOnControllerStatusChange(function<void(void)> callback) {
+    m_statusChanged = callback;	
+}
+
 void ofxLedController::setupGui()
 {
     if (bSetupGui)
         return;
+
 #ifndef LED_MAPPER_NO_GUI
-    gui = new ofxDatGui(ofxDatGuiAnchor::TOP_RIGHT);
+    
+    gui = make_shared<ofxDatGui>(ofxDatGuiAnchor::TOP_RIGHT);
     gui->setTheme(new LedMapper::ofxDatGuiThemeLedMapper());
     gui->addHeader("Ctrl " + ofToString(_id));
     gui->setWidth(LM_GUI_WIDTH);
@@ -95,7 +104,7 @@ void ofxLedController::setupGui()
     slider->bind(pixelsInLed);
     slider->onSliderEvent(this, &ofxLedController::onSliderEvent);
     
-    auto dropDown = gui->addDropdown(LCGUIDropColorType, colorTypes);
+    auto dropDown = gui->addDropdown(LCGUIDropColorType, s_colorTypes);
     dropDown->select(colorType);
     dropDown->onDropdownEvent(this, &ofxLedController::onDropdownEvent);
     //    toggle = gui->addToggle(LCGUIButtonDoubleLine, false);
@@ -104,6 +113,10 @@ void ofxLedController::setupGui()
     textInput->onTextInputEvent(this, &ofxLedController::onTextInputEvent);
     textInput = gui->addTextInput(LCGUITextPort, ofToString(udpPort));
     textInput->onTextInputEvent(this, &ofxLedController::onTextInputEvent);
+    
+    dropDown = gui->addDropdown(LCGUIDropChannelNum, s_channelList);
+    dropDown->select(colorType);
+    dropDown->onDropdownEvent(this, &ofxLedController::onDropdownEvent);
     
 #if defined(USE_DMX_FTDI) && (USE_DMX)
     toggle = gui->addToggle(LCGUIButtonDmx, false);
@@ -148,35 +161,41 @@ void ofxLedController::updatePixels(const ofPixels &grabbedImg)
     for (auto &line : m_lines) {
         totalLeds += line->points().size();
     }
+
+    output.clear();
     
     if (output.size() < totalLeds * 3) {
         output.resize(totalLeds * 3);
     }
-    
-    output.clear();
-    
+
     unsigned int loop_cntr = 0;
     for (auto &line : m_lines) {
-        if (loop_cntr % 2 == 1)
-            for (int pix_num = 0; pix_num < offsetBegin; pix_num++) {
-                output.emplace_back(0);
-                output.emplace_back(0);
-                output.emplace_back(0);
-            }
+//        if (loop_cntr % 2 == 1)
+//            for (int pix_num = 0; pix_num < offsetBegin; pix_num++) {
+//                output.emplace_back(0);
+//                output.emplace_back(0);
+//                output.emplace_back(0);
+//                ofLogWarning() << "add point for offsetBegin";
+//            }
         size_t total_pix = line->points().size();
         for (int pix_num = 0; pix_num < total_pix; ++pix_num) {
+            if  (line->points()[pix_num].x > grabbedImg.getWidth()
+                || line->points()[pix_num].y > grabbedImg.getHeight())
+                ofLogWarning() << "add point for offsetBegin";
+
             ofColor color
-            = grabbedImg.getColor(line->points()[pix_num].x, line->points()[pix_num].y);
+                = grabbedImg.getColor(line->points()[pix_num].x, line->points()[pix_num].y);
             
             colorUpdator(output, color);
         }
-        
-        if (loop_cntr % 2 == 0 || loop_cntr == 0)
-            for (int pix_num = 0; pix_num < offsetBegin; pix_num++) {
-                output.emplace_back(0);
-                output.emplace_back(0);
-                output.emplace_back(0);
-            }
+//        
+//        if (loop_cntr % 2 == 0 || loop_cntr == 0)
+//            for (int pix_num = 0; pix_num < offsetEnd; pix_num++) {
+//                output.emplace_back(0);
+//                output.emplace_back(0);
+//                output.emplace_back(0);
+//                ofLogWarning() << "add point for offsetEnd";
+//            }
         
         loop_cntr++;
     };
@@ -218,13 +237,10 @@ void ofxLedController::sendUdp()
     if (!bUdpSend || !bUdpSetup)
         return;
     
-    udpConnection.Send(output.data(), output.size());
-    
-    //    char to_leds [totalLeds*3];
-    //    for (int i = 0; i<totalLeds*3;i++) {
-    //        to_leds[i] = static_cast<char>(output[i]);
-    //    }
-    //    udpConnection.Send(to_leds, totalLeds*3);
+    bool prevStatus = m_statusOk;
+    m_statusOk = (udpConnection.Send(output.data(), output.size()) != -1);
+    if (m_statusOk != prevStatus)
+        m_statusChanged();
 }
 
 void ofxLedController::setSelected(bool state)
@@ -244,15 +260,15 @@ void ofxLedController::setGuiPosition(int x, int y)
 #endif
 }
 
-void ofxLedController::setPixels(const ofPixels &_pix)
-{
-    grabImg = _pix;
-    output.resize(_pix.size() * 3);
-    
-    for (int i = 0; i < _pix.size() * 3; ++i) {
-        output[i] = _pix[i];
-    }
-}
+//void ofxLedController::setPixels(const ofPixels &_pix)
+//{
+//    grabImg = _pix;
+//    output.resize(_pix.size() * 3);
+//    
+//    for (int i = 0; i < _pix.size() * 3; ++i) {
+//        output[i] = _pix[i];
+//    }
+//}
 
 unsigned int ofxLedController::getId() const { return _id; }
 
@@ -503,8 +519,13 @@ void ofxLedController::keyReleased(ofKeyEventArgs &data)
 #ifndef LED_MAPPER_NO_GUI
 void ofxLedController::onDropdownEvent(ofxDatGuiDropdownEvent e)
 {
-    ofLogVerbose("Drop DOwn " + ofToString(e.child));
-    setColorType(getColorType(e.child));
+    if (e.target->getName() == LCGUIDropColorType) {
+        ofLogVerbose("Drop Down " + ofToString(e.child));
+        setColorType(getColorType(e.child));
+    }
+    if (e.target->getName() == LCGUIDropChannelNum) {
+        setCurrentChannel(e.child);
+    }
 }
 
 void ofxLedController::onButtonEvent(ofxDatGuiButtonEvent e)
@@ -550,7 +571,7 @@ void ofxLedController::onSliderEvent(ofxDatGuiSliderEvent e)
 
 ofxLedController::COLOR_TYPE ofxLedController::getColorType(int num) const
 {
-    return num < colorTypes.size() ? static_cast<COLOR_TYPE>(num) : COLOR_TYPE::RGB;
+    return num < s_colorTypes.size() ? static_cast<COLOR_TYPE>(num) : COLOR_TYPE::RGB;
 }
 
 void ofxLedController::setColorType(COLOR_TYPE type)
@@ -592,6 +613,7 @@ void ofxLedController::setColorType(COLOR_TYPE type)
                 output.emplace_back(color.r);
             };
             break;
+        case RGB:
         default: // RGB
             colorUpdator = [](vector<char> &output, ofColor &color) {
                 output.emplace_back(color.r);
@@ -600,6 +622,10 @@ void ofxLedController::setColorType(COLOR_TYPE type)
             };
             break;
     }
+}
+
+void ofxLedController::setCurrentChannel(int chan) {
+    m_currentChannel = chan;
 }
 
 /// ----------- DMX ------------
