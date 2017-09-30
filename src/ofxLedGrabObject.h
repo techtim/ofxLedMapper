@@ -31,7 +31,7 @@ public:
     
     virtual ~ofxLedGrabObject() {;;};
     virtual void updatePoints() = 0;
-    virtual void draw() = 0;
+    virtual void draw(const ofColor &color = ofColor(200, 200, 200, 150)) = 0;
     virtual void drawGui() = 0;
     virtual void updateBounds() = 0;
     virtual bool mousePressed(ofMouseEventArgs & args) = 0;
@@ -72,6 +72,10 @@ public:
         updatePoints();
     };
     
+    void setChannel(int _channel) { m_channel = _channel; }
+    int getChannel() const { return m_channel; }
+    void setActive(bool active) { m_isActive = active; }
+    bool isActive() const { return m_isActive; }
     void setObjectId(unsigned int _objID) { objID=_objID; };
     unsigned int getObjectId() const {return objID;};
     
@@ -84,7 +88,6 @@ public:
     const vector<ofVec2f> &points() const { return m_points; }
 
     vector<LedMapper::Point> getLedPoints() {
-        
         vector<LedMapper::Point> ledPoints;
         ledPoints.reserve(m_points.size());
         for_each(m_points.begin(), m_points.end(), [&ledPoints](const ofVec2f &point){
@@ -102,9 +105,9 @@ private:
     ofVec2f m_clickedPos;
     float m_pixelsInLed;
     float startAngle;
-    int m_pixelsInObject;
+    int m_channel, m_pixelsInObject;
     
-    bool m_bSelected, m_bSelectedFrom, m_bSelectedTo;
+    bool m_bSelected, m_bSelectedFrom, m_bSelectedTo, m_isActive = false;
     
     vector<ofVec2f> m_points;
     
@@ -229,10 +232,10 @@ public:
         return true;
     }
     
-    void draw() {
-        ofSetColor(200, 200, 200, 150);
+    void draw(const ofColor &color = ofColor(200, 200, 200, 150)) override {
+        ofSetColor(color);
         ofDrawLine(fromX, fromY, toX, toY);
-        if (m_bSelected) {
+        if (m_bSelected || isActive()) {
             for(vector<ofVec2f>::iterator  i = m_points.begin(); i != m_points.end(); i ++ ){
                 ofDrawCircle((*i), m_pixelsInLed/2);
             }
@@ -280,6 +283,7 @@ public:
     void save(ofxXmlSettings & XML) override{
         int tagNum = XML.addTag("LN");
         XML.setValue("LN:TYPE", type, tagNum);
+        XML.setValue("LN:CHANNEL", m_channel, tagNum);
         XML.setValue("LN:fromX", fromX, tagNum);
         XML.setValue("LN:fromY", fromY, tagNum);
         XML.setValue("LN:toX", toX, tagNum);
@@ -356,15 +360,15 @@ public:
         return true;
     }
     
-    void draw() {
-        ofSetColor(200, 200, 200,200);
+    void draw(const ofColor &color = ofColor(200, 200, 200, 150)) override {
+        ofSetColor(color);
         ofFill();
         ofDrawCircle(fromX, fromY, 3);
         ofNoFill();
         ofDrawCircle(fromX, fromY, m_radius);
         ofSetColor(200, 200, 200, 250);
         ofFill();
-        if (m_bSelected) {
+        if (m_bSelected || isActive()) {
             for(vector<ofVec2f>::iterator  i = m_points.begin(); i != m_points.end(); i ++ ){
                 ofDrawCircle((*i), m_pixelsInLed/2);
                 ofSetColor(200, 200, 200, 150);
@@ -415,6 +419,7 @@ public:
     void save(ofxXmlSettings & XML){
         int tagNum = XML.addTag("LN");
         XML.setValue("LN:TYPE", type, tagNum);
+        XML.setValue("LN:CHANNEL", m_channel, tagNum);
         XML.setValue("LN:fromX", fromX, tagNum);
         XML.setValue("LN:fromY", fromY, tagNum);
         XML.setValue("LN:toX", toX, tagNum);
@@ -504,15 +509,15 @@ public:
         return true;
     }
     
-    void draw() override {
+    void draw(const ofColor &color = ofColor(200, 200, 200, 150)) override {
         ofSetColor(0, 191, 165, 200);
         ofFill();
         ofDrawCircle(fromX, fromY, 3);
         ofDrawCircle(toX, toY, 3);
     
         ofNoFill();
-        if (m_bSelected) {
-            ofSetColor(200, 200, 200, 200);
+        if (m_bSelected || isActive()) {
+            ofSetColor(color);
             ofFill();
 //            unsigned ctr=0;
             for(auto &it : m_points){
@@ -522,7 +527,7 @@ public:
             }
             
         }
-        ofSetColor(200, 200, 200, 100);
+        ofSetColor(100, 100, 100, 100);
         ofDrawRectangle(m_bounds);
         ofSetColor(200, 200, 200, 150);
         ofDrawBitmapString(ofToString(static_cast<int>(m_points.size())), ofVec2f(fromX, fromY).getInterpolated(ofVec2f(toX, toY),.5));
@@ -608,6 +613,7 @@ public:
     void save(ofxXmlSettings & XML){
         int tagNum = XML.addTag("LN");
         XML.setValue("LN:TYPE", type, tagNum);
+        XML.setValue("LN:CHANNEL", m_channel, tagNum);
         XML.setValue("LN:fromX", fromX, tagNum);
         XML.setValue("LN:fromY", fromY, tagNum);
         XML.setValue("LN:toX", toX, tagNum);

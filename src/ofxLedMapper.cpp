@@ -16,13 +16,21 @@ ofxLedMapper::ofxLedMapper() {
 
 ofxLedMapper::ofxLedMapper(int __id)
 : _id(__id)
-, configFolderPath(LedMapper::CONFIG_PATH+LedMapper::APP_NAME+"/")
+#ifdef WIN32
+, configFolderPath(LedMapper::CONFIG_PATH + LedMapper::APP_NAME + "\\")
+#elif defined(__APPLE__)
+, configFolderPath(LedMapper::CONFIG_PATH + LedMapper::APP_NAME + "/")
+#endif
 {
     setupGui();
     
     ofAddListener(ofEvents().keyPressed, this, &ofxLedMapper::keyPressed);
     ofAddListener(ofEvents().keyReleased, this, &ofxLedMapper::keyReleased);
     ofAddListener(ofEvents().windowResized, this, &ofxLedMapper::windowResized);
+    
+    /// add default ctrl
+    add(0, configFolderPath);
+    setCurrentController(0);
     
     bSetup=true;
 }
@@ -56,26 +64,25 @@ void ofxLedMapper::draw() {
 #ifndef LED_MAPPER_NO_GUI
         if (toggleDebugController->getChecked() && currentCtrl<Controllers.size()) {
             Controllers[currentCtrl]->draw();
-            Controllers[currentCtrl]->sendUdp();
         // If debug toggled show lines from selected controller and its gui
         } else
 #endif
         {
-            for (auto &ctrl : Controllers ) {
+            for (auto &ctrl : Controllers )
                 ctrl->draw();
-#ifndef LED_MAPPER_NO_GUI
-                if (togglePlay->getChecked())
-#endif
-                    ctrl->sendUdp();
-            }
         }
     }
 }
 
 void ofxLedMapper::update(const ofPixels &grabImg) {
-     for (auto &ctrl : Controllers ) {
-         ctrl->updatePixels(grabImg);
-     }
+#ifndef LED_MAPPER_NO_GUI
+    if (togglePlay->getChecked())
+#endif
+    {
+        for (auto &ctrl : Controllers ) {
+             ctrl->sendUdp(grabImg);
+        }
+    }
 }
 
 bool ofxLedMapper::add(string folder_path) {
@@ -151,19 +158,23 @@ void ofxLedMapper::setupGui() {
 void ofxLedMapper::setGuiPosition(int x, int y) {
 #ifndef LED_MAPPER_NO_GUI
     gui->setPosition(x, y);
-    listControllers->setPosition(gui->getPosition().x, gui->getPosition().y+gui->getHeight());
+    listControllers->setPosition(x, y+gui->getHeight());
+    if (currentCtrl < Controllers.size())
+        Controllers[currentCtrl]->setGuiPosition(listControllers->getX()-LM_GUI_WIDTH, listControllers->getY());
 #endif
+
 }
 
 void ofxLedMapper::setCurrentController(unsigned int _curCtrl) {
     if (Controllers.empty()) return;
 
     currentCtrl = _curCtrl;
-    if (currentCtrl>=Controllers.size()) currentCtrl=Controllers.size()-1;
+    if (currentCtrl >= Controllers.size()) currentCtrl=Controllers.size()-1;
 
     for (auto &ctrl:Controllers) ctrl->setSelected(false);
     Controllers[currentCtrl]->setSelected(true);
-
+    Controllers[currentCtrl]->setGuiPosition(listControllers->getX()-LM_GUI_WIDTH, listControllers->getY());
+    
     updateControllersListGui();
 }
 
@@ -186,15 +197,15 @@ void ofxLedMapper::updateControllersListGui() {
 // ------------------------------ SAVE & LOAD ------------------------------
 //
 bool ofxLedMapper::load() {
-    string folder_path = LedMapper::CONFIG_PATH+LedMapper::APP_NAME+"/";
-    dir.open(folder_path);
+    dir.open(configFolderPath);
     // check if dir exists, if not create dir and return
     if (!dir.exists()) {
-        dir.createDirectory(folder_path);
+        dir.createDirectory(configFolderPath);
         return false;
     }
-    dir.sort();
+    dir.listDir();
 
+    /// clear current ctrls
     if (!Controllers.empty()) {
         Controllers.clear();
 #ifndef LED_MAPPER_NO_GUI
@@ -203,15 +214,14 @@ bool ofxLedMapper::load() {
     }
     
     regex ctrl_name(".*"+ofToString(LCFileName)+"([0-9]+).*"); // ([^\\.]+)
-
     smatch base_match;
     for(int i = 0; i < (int)dir.size(); i++){
         string pth = dir.getPath(i);
 
-        regex_match(dir.getPath(i), base_match, ctrl_name);
+        regex_match(pth, base_match, ctrl_name);
         if (base_match.size() > 1) {
-            ofLogVerbose("[ofxLedMapper] Load: add controller "+ base_match[1].str());
-            add(ofToInt(base_match[1].str()), folder_path);
+            ofLogNotice("[ofxLedMapper] Load: add controller "+ base_match[1].str());
+            add(ofToInt(base_match[1].str()), configFolderPath);
 
         }
     }
@@ -224,8 +234,7 @@ bool ofxLedMapper::load() {
 }
 
 bool ofxLedMapper::save() {
-//    string folder_path = LMCtrlsFolderPath+ofToString(_id);
-//    string folder_path = LedMapper::CONFIG_PATH+LedMapper::APP_NAME+"/";
+
     dir.open(configFolderPath);
     // check if dir exists, if not create dir and return
     if (!dir.exists()) {
@@ -278,10 +287,11 @@ void ofxLedMapper::keyReleased(ofKeyEventArgs& data) {
 }
 
 void ofxLedMapper::windowResized(ofResizeEventArgs &args) {
-#ifndef LED_MAPPER_NO_GUI
-    listControllers->setPosition(args.width-LM_GUI_WIDTH, gui->getPosition().y+gui->getHeight());
-    Controllers[currentCtrl]->setGuiPosition(args.width-LM_GUI_WIDTH, listControllers->getY()+listControllers->getHeight());
-#endif
+//#ifndef LED_MAPPER_NO_GUI
+//    listControllers->setPosition(args.width-LM_GUI_WIDTH, gui->getPosition().y+gui->getHeight());
+//    if (currentCtrl < Controllers.size())
+//        Controllers[currentCtrl]->setGuiPosition(listControllers->getX()-LM_GUI_WIDTH, listControllers->getY());
+//#endif
 }
 
 

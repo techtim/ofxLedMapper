@@ -14,9 +14,6 @@
 #include "ofxLedController.h"
 #include "Common.h"
 
-//typedef unique_ptr<ofxLedController> ofxLedController_ptr;
-class ofxLedMapper;
-using ofxLedMapperPtr = unique_ptr<ofxLedMapper>;
 
 class ofxLedMapper {
 

@@ -39,6 +39,8 @@ public:
         DATA,
         DATACLOCK
     };
+    ofxLedController() = delete;
+    ofxLedController(const ofxLedController &) = delete;
     ofxLedController(const int& __id, const string & _path);
     void setOnControllerStatusChange(function<void(void)> callback);
     ~ofxLedController();
@@ -97,19 +99,18 @@ public:
 private:
     unsigned int _id;
     ofColor lineColor;
-    float offBeg, offEnd;
     
-    vector<char> output;
+    vector<char> m_output;
     
-    unsigned int totalLeds, pointsCount;
+    unsigned int totalLeds, pointsCount, m_outputHeaderOffset;
 
     std::function<void(vector<char> &output, ofColor &color)> colorUpdator;
 
     function<void(void)> m_statusChanged;
     
-    vector<unique_ptr<ofxLedGrabObject>> m_lines;
     vector<vector<unique_ptr<ofxLedGrabObject>>> m_channelGrabObjects;
-    size_t m_currentChannel;
+    vector<unique_ptr<ofxLedGrabObject>> *m_currentChannel;
+    size_t m_currentChannelNum;
     
     vector<LedMapper::Point> m_ledPoints;
     int currentLine;
