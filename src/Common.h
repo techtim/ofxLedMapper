@@ -37,14 +37,16 @@
 #define RPI_IP "192.168.2.10"
 #define RPI_PORT 3000
 
+#ifdef WIN32
 #include "ofJson.h"
+#endif
 
 namespace LedMapper {
     
 static const std::string APP_NAME = "LedMapper";
 
 #ifdef WIN32
-static const std::string CONFIG_PATH = "C:\\Program Files (x86)\\Resolume\\";
+static const std::string CONFIG_PATH = "C:\\Users\\Public\\Documents\\";
 #elif defined(__APPLE__)
 static const std::string CONFIG_PATH = "/Users/Shared/";
 #endif

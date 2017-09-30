@@ -129,37 +129,28 @@ void ofxLedController::setupGui()
 
 void ofxLedController::draw()
 {
-    if (bSetuped && bShowGui) {
-        
-        ofPushMatrix();
+    if (!bSetuped || !bShowGui)
+        return;
+
 #ifndef LED_MAPPER_NO_GUI
-        if (bSelected && bSetupGui) {
-            ofSetColor(255);
-            gui->update();
-            gui->draw();
-            
-            
-            
-            
-            
-            
-            
-            
-        }
-#endif
-        int chanNum = 0;
-        for (auto &channelGrabs : m_channelGrabObjects) {
-            for (auto &grab : channelGrabs) {
-                if (chanNum == m_currentChannelNum)
-                    grab->draw(ofColor(0, lineColor.g, lineColor.b, 200));
-                else
-                    grab->draw(ofColor(lineColor.r, lineColor.g, 0, 200));
-            }
-            ++chanNum;
-        }
-        
-        ofPopMatrix();
+    if (bSelected && bSetupGui) {
+        ofSetColor(255);
+        gui->update();
+        gui->draw();
     }
+#endif
+    
+    int chanNum = 0;
+    for (auto &channelGrabs : m_channelGrabObjects) {
+        for (auto &grab : channelGrabs) {
+            if (chanNum == m_currentChannelNum)
+                grab->draw(ofColor(0, lineColor.g, lineColor.b, 200));
+            else
+                grab->draw(ofColor(lineColor.r, lineColor.g, 0, 200));
+        }
+        ++chanNum;
+    }
+
 }
 
 void ofxLedController::updatePixels(const ofPixels &grabbedImg)
