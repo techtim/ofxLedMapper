@@ -79,10 +79,10 @@ static const int LM_COLOR_GREEN_LIGHT = 0x6BE6B4;
 static const int LM_COLOR_RED = 0xbf093a;
 static const int LM_COLOR_RED_DARK = 0x870427;
     
-class ofxDatGuiThemeLedMapper : public ofxDatGuiTheme{
+class ofxDatGuiThemeLM : public ofxDatGuiTheme{
 public:
     
-    ofxDatGuiThemeLedMapper()
+    ofxDatGuiThemeLM()
     {
         stripe.visible = false;
         color.label = hex(0x9C9DA1);
@@ -105,5 +105,5 @@ public:
         init();
     }
 };
-
+    
 } // LedMapper

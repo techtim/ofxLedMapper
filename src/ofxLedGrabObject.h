@@ -242,11 +242,12 @@ public:
             ofNoFill();
             ofDrawRectangle(m_bounds);
             ofFill();
+            ofSetColor(0, 250, 150, 250);
+            ofDrawBitmapString("id"+ofToString(objID), fromX, fromY);
         }
         ofSetColor(107, 230, 180, 250);
         ofDrawBitmapString(ofToString(static_cast<int>(m_points.size())), ofVec2f(fromX, fromY).getInterpolated(ofVec2f(toX, toY),.5));
-        ofSetColor(0, 250, 150, 250);
-        ofDrawBitmapString("id"+ofToString(objID), fromX, fromY);
+
     }
     
     void drawGui() override {
@@ -374,10 +375,10 @@ public:
                 ofSetColor(200, 200, 200, 150);
             }
             ofDrawRectangle(m_bounds);
+            ofSetColor(0, 250, 150, 250);
+            ofDrawBitmapString("id"+ofToString(objID), fromX, fromY);
         }
         ofDrawBitmapString(ofToString(static_cast<int>(m_points.size())), ofVec2f(fromX, fromY).getInterpolated(ofVec2f(toX, toY),.5));
-        ofSetColor(0, 250, 150, 250);
-        ofDrawBitmapString("id"+ofToString(objID), fromX, fromY);
         
     }
     
@@ -525,18 +526,18 @@ public:
 //                ofDrawBitmapString(ofToString(ctr), it);
 //                ++ctr;
             }
+            ofSetColor(0, 250, 150, 250);
+            ofDrawBitmapString("id"+ofToString(objID), fromX, fromY);
             
+            ofSetColor(0, 250, 150, 250);
+            ofDrawBitmapString("w="+ofToString(m_isVertical ? m_rows : m_columns), (fromX+toX)*.5, fromY);
+            ofDrawBitmapString("h="+ofToString(m_isVertical ? m_columns : m_rows), fromX, (fromY+toY)*.5);
         }
         ofSetColor(100, 100, 100, 100);
         ofDrawRectangle(m_bounds);
+
         ofSetColor(200, 200, 200, 150);
         ofDrawBitmapString(ofToString(static_cast<int>(m_points.size())), ofVec2f(fromX, fromY).getInterpolated(ofVec2f(toX, toY),.5));
-        ofSetColor(0, 250, 150, 250);
-        ofDrawBitmapString("id"+ofToString(objID), fromX, fromY);
-        
-        ofSetColor(0, 250, 150, 250);
-        ofDrawBitmapString("w="+ofToString(m_isVertical ? m_rows : m_columns), (fromX+toX)*.5, fromY);
-        ofDrawBitmapString("h="+ofToString(m_isVertical ? m_columns : m_rows), fromX, (fromY+toY)*.5);
     }
     
     void drawGui() override {
@@ -568,7 +569,7 @@ public:
             for (int row = 0; row < m_rows; ++row) {
                 ofVec2f rowPos = vert1.getInterpolated(ofVec2f(vert2.x, vert1.y),
                                                        (static_cast<float>(row)+.5f)/m_rows);
-                //                ofLogVerbose("row/m_rows =" + ofToString(static_cast<float>(row + 1)/m_rows ) + " -> " + ofToString(rowPos));
+                // ofLogVerbose("row/m_rows =" + ofToString(static_cast<float>(row + 1)/m_rows ) + " -> " + ofToString(rowPos));
                 int cntr, maxCntr, increment;
                 // on zigzag start not %2 from opposite side
                 if (m_isZigzag && row % 2 == 1) {
@@ -587,8 +588,8 @@ public:
 //                    ofLogVerbose("row=" + ofToString(row) + " col=" + ofToString(cntr) + " : " + ofToString(tmp));
                     if (tmp.x >= 0 && tmp.y >= 0)
                         m_points.emplace_back(std::move(tmp));
-                    else
-                        ofLogError("Point out bounds" + ofToString(tmp));
+//                    else
+//                        ofLogError("Point out bounds" + ofToString(tmp));
                     cntr += increment;
                 }
             }

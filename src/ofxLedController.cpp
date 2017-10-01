@@ -90,7 +90,8 @@ void ofxLedController::setupGui()
 #ifndef LED_MAPPER_NO_GUI
     
     gui = make_shared<ofxDatGui>(ofxDatGuiAnchor::TOP_RIGHT);
-    gui->setTheme(new LedMapper::ofxDatGuiThemeLedMapper());
+    guiTheme = make_unique<LedMapper::ofxDatGuiThemeLM>();
+    gui->setTheme(guiTheme.get());
     gui->addHeader("Ctrl " + ofToString(_id));
     gui->setWidth(LM_GUI_WIDTH);
     
@@ -317,7 +318,7 @@ void ofxLedController::load(string path)
         return;
     }
     
-    ofLogVerbose("[ofxLedController] Load");
+    ofLogVerbose("[ofxLedController] Load" + ofToString(_id));
     
     XML.pushTag("CONF", 0);
     

@@ -131,6 +131,7 @@ private:
 #ifndef LED_MAPPER_NO_GUI
     shared_ptr<ofxDatGui> gui;
     shared_ptr<ofxDatGui> grabObjGui;
+    unique_ptr<ofxDatGuiTheme> guiTheme;
 #endif
     COLOR_TYPE colorType;
     float pixelsInLed;
