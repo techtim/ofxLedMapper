@@ -25,8 +25,9 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
 , bShowGui(true)
 , pixelsInLed(5.f)
 , pointsCount(0)
-, totalLeds(0)
+, m_totalLeds(0)
 , m_channelGrabObjects(s_channelList.size())
+, m_channelTotalLeds(s_channelList.size(), 0)
 , m_currentChannelNum(0)
 , m_ledPoints(0)
 {
@@ -154,45 +155,54 @@ void ofxLedController::draw()
 
 }
 
+void ofxLedController::updateGrabPoints() {
+    if (!bSetuped && !m_bDirtyPoints)
+        return;
+
+    m_bDirtyPoints = false;
+    m_totalLeds = 0;
+    m_ledPoints.clear();
+    
+    for (size_t i = 0; i < m_channelGrabObjects.size(); ++i) {
+        m_channelTotalLeds[i] = 0;
+        for (auto &object : m_channelGrabObjects[i]) {
+            m_channelTotalLeds[i] += object->points().size();
+            auto grabPoints = object->getLedPoints();
+            m_ledPoints.insert(m_ledPoints.end(), grabPoints.begin(), grabPoints.end());
+        }
+        m_totalLeds += m_channelTotalLeds[i];
+    }
+    
+}
+
 void ofxLedController::updatePixels(const ofPixels &grabbedImg)
 {
     if (!bSetuped)
         return;
     
-    vector<uint16_t> chanTotalLeds(m_channelGrabObjects.size(), 0);
-    totalLeds = 0;
+    updateGrabPoints();
+    
     m_output.clear();
     for (size_t i = 0; i < m_channelGrabObjects.size(); ++i) {
-        for (auto &object : m_channelGrabObjects[i]) {
-            chanTotalLeds[i] += object->points().size();
-        }
-        totalLeds += chanTotalLeds[i];
         // uint16_t number of leds per chan
-        m_output.push_back(chanTotalLeds[i] & 0xff);
-        m_output.push_back(chanTotalLeds[i] >> 8);
+        m_output.push_back(m_channelTotalLeds[i] & 0xff);
+        m_output.push_back(m_channelTotalLeds[i] >> 8);
     }
     /// mark end of header (num leds per channel)
     m_output.emplace_back(0xff);
     m_output.emplace_back(0xff);
     m_outputHeaderOffset = 2 * m_channelGrabObjects.size() + 2;
     /// 2 * uint8 = uint16 leds number x 2 + grab points size
-    m_output.reserve(m_outputHeaderOffset + totalLeds * 3);
+    m_output.reserve(m_outputHeaderOffset + m_totalLeds * 3);
     
-    for (auto &channelGrabs : m_channelGrabObjects) {
-        for (auto &grab : channelGrabs) {
-            size_t total_pix = grab->points().size();
-            for (int pix_num = 0; pix_num < total_pix; ++pix_num) {
-                if (grab->points()[pix_num].x >= grabbedImg.getWidth()
-                    || grab->points()[pix_num].y >= grabbedImg.getHeight())
-                    ofLogWarning() << "add point outside of texture";
-                
-                ofColor color
-                = grabbedImg.getColor(grab->points()[pix_num].x, grab->points()[pix_num].y);
-                colorUpdator(m_output, color);
-            }
-        }
+    for (auto &point : m_ledPoints) {
+        if (point.x >= grabbedImg.getWidth()
+            || point.y >= grabbedImg.getHeight())
+            ofLogWarning() << "add point outside of texture";
+        
+        ofColor color = grabbedImg.getColor(point.x, point.y);
+        colorUpdator(m_output, color);
     }
-    
 }
 
 void ofxLedController::setupUdp(string host, unsigned int port)
@@ -264,7 +274,7 @@ unsigned int ofxLedController::getId() const { return _id; }
 
 const ofPixels &ofxLedController::getPixels() { return grabImg.getPixels(); }
 
-unsigned int ofxLedController::getTotalLeds() const { return totalLeds; }
+unsigned int ofxLedController::getTotalLeds() const { return m_totalLeds; }
 
 //
 // --- Load & Save ---
@@ -272,7 +282,7 @@ unsigned int ofxLedController::getTotalLeds() const { return totalLeds; }
 void ofxLedController::save(string path)
 {
     m_ledPoints.clear();
-    m_ledPoints.reserve(totalLeds);
+    m_ledPoints.reserve(m_totalLeds);
     
     XML.clear();
     int tagNum = XML.addTag("CONF");
@@ -467,6 +477,8 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
             tmpCircle->setChannel(m_currentChannelNum);
             m_currentChannel->emplace_back(move(tmpCircle));
     }
+    /// TODO call only when change objects
+    markDirtyGrabPoints();
 }
 
 void ofxLedController::mouseDragged(ofMouseEventArgs &args)
@@ -478,6 +490,10 @@ void ofxLedController::mouseDragged(ofMouseEventArgs &args)
         for (auto &grab : *m_currentChannel)
             if (grab->mouseDragged(args))
                 break;
+
+    /// TODO call only when change objects
+    markDirtyGrabPoints();
+
 }
 
 void ofxLedController::mouseReleased(ofMouseEventArgs &args)
@@ -487,6 +503,9 @@ void ofxLedController::mouseReleased(ofMouseEventArgs &args)
         for (auto &grab : *m_currentChannel)
             grab->mouseReleased(args);
     }
+    
+    /// TODO call only when change objects
+    markDirtyGrabPoints();
 }
 
 void ofxLedController::keyPressed(ofKeyEventArgs &data)
@@ -568,6 +587,9 @@ void ofxLedController::onSliderEvent(ofxDatGuiSliderEvent e)
         for (auto &channelGrabs : m_channelGrabObjects)
             for (auto &grab : channelGrabs)
                 grab->setPixelsInLed(pixelsInLed);
+
+        /// TODO call only when change objects
+        markDirtyGrabPoints();
     }
 }
 #endif // LED_MAPPER_NO_GUI

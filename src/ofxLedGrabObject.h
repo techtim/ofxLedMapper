@@ -244,10 +244,9 @@ public:
             ofFill();
             ofSetColor(0, 250, 150, 250);
             ofDrawBitmapString("id"+ofToString(objID), fromX, fromY);
+            ofSetColor(107, 230, 180, 250);
+            ofDrawBitmapString(ofToString(static_cast<int>(m_points.size())), ofVec2f(fromX, fromY).getInterpolated(ofVec2f(toX, toY),.5));
         }
-        ofSetColor(107, 230, 180, 250);
-        ofDrawBitmapString(ofToString(static_cast<int>(m_points.size())), ofVec2f(fromX, fromY).getInterpolated(ofVec2f(toX, toY),.5));
-
     }
     
     void drawGui() override {
@@ -377,8 +376,8 @@ public:
             ofDrawRectangle(m_bounds);
             ofSetColor(0, 250, 150, 250);
             ofDrawBitmapString("id"+ofToString(objID), fromX, fromY);
+            ofDrawBitmapString(ofToString(static_cast<int>(m_points.size())), ofVec2f(fromX, fromY).getInterpolated(ofVec2f(toX, toY),.5));
         }
-        ofDrawBitmapString(ofToString(static_cast<int>(m_points.size())), ofVec2f(fromX, fromY).getInterpolated(ofVec2f(toX, toY),.5));
         
     }
     
@@ -532,12 +531,12 @@ public:
             ofSetColor(0, 250, 150, 250);
             ofDrawBitmapString("w="+ofToString(m_isVertical ? m_rows : m_columns), (fromX+toX)*.5, fromY);
             ofDrawBitmapString("h="+ofToString(m_isVertical ? m_columns : m_rows), fromX, (fromY+toY)*.5);
+
+            ofSetColor(200, 200, 200, 150);
+            ofDrawBitmapString(ofToString(static_cast<int>(m_points.size())), ofVec2f(fromX, fromY).getInterpolated(ofVec2f(toX, toY),.5));
         }
         ofSetColor(100, 100, 100, 100);
         ofDrawRectangle(m_bounds);
-
-        ofSetColor(200, 200, 200, 150);
-        ofDrawBitmapString(ofToString(static_cast<int>(m_points.size())), ofVec2f(fromX, fromY).getInterpolated(ofVec2f(toX, toY),.5));
     }
     
     void drawGui() override {

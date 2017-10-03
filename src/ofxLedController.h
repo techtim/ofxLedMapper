@@ -76,7 +76,10 @@ public:
     void setupDmx(string port_name);
     void sendDmx(const ofPixels &grabbedImg);
     
-    void showGui(bool _show) {bShowGui = _show; bSelected = _show;};
+    void showGui(bool _show) { bShowGui = _show; bSelected = _show; }
+    
+    void markDirtyGrabPoints() { m_bDirtyPoints = true; }
+    void updateGrabPoints();
     void updatePixels(const ofPixels &grabbedImg);
 
     const ofPixels & getPixels();
@@ -102,7 +105,7 @@ private:
     
     vector<char> m_output;
     
-    unsigned int totalLeds, pointsCount, m_outputHeaderOffset;
+    unsigned int m_totalLeds, pointsCount, m_outputHeaderOffset;
 
     std::function<void(vector<char> &output, ofColor &color)> colorUpdator;
 
@@ -111,7 +114,7 @@ private:
     vector<vector<unique_ptr<ofxLedGrabObject>>> m_channelGrabObjects;
     vector<unique_ptr<ofxLedGrabObject>> *m_currentChannel;
     size_t m_currentChannelNum;
-    
+    vector<uint16_t> m_channelTotalLeds;
     vector<LedMapper::Point> m_ledPoints;
     int currentLine;
     
@@ -135,9 +138,9 @@ private:
 #endif
     COLOR_TYPE colorType;
     float pixelsInLed;
-    bool bUdpSend, bDmxSend, bDoubleLine, m_statusOk;
+    bool bUdpSend, bDmxSend, bDoubleLine, m_statusOk, m_bDirtyPoints;
     int xPos, yPos, width, height;
-    int offsetBegin, offsetEnd;
+
     int dmxChannel;
     string udpIpAddress, cur_udpIpAddress;
     int udpPort, cur_udpPort;
