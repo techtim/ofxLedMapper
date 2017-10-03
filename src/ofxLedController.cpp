@@ -565,10 +565,11 @@ void ofxLedController::onTextInputEvent(ofxDatGuiTextInputEvent e)
 {
     if (e.target->getName() == LCGUITextIP) {
         std::smatch base_match;
+		auto ip = e.target->getText();
         regex ip_addr("(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})"); // ([^\\.]+)
-        std::regex_match(e.target->getText(), base_match, ip_addr);
+        std::regex_match(ip, base_match, ip_addr);
         if (base_match.size() > 0) {
-            udpIpAddress = e.target->getText();
+            udpIpAddress = ip;
             setupUdp(udpIpAddress, udpPort);
         }
         else {
