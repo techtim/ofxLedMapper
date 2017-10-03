@@ -91,7 +91,7 @@ public:
         vector<LedMapper::Point> ledPoints;
         ledPoints.reserve(m_points.size());
         for_each(m_points.begin(), m_points.end(), [&ledPoints](const ofVec2f &point){
-            ledPoints.push_back({static_cast<uint8_t>(point.x), static_cast<uint8_t>(point.y)});
+            ledPoints.push_back({static_cast<uint16_t>(point.x), static_cast<uint16_t>(point.y)});
         });
         
         return ledPoints;
