@@ -114,7 +114,7 @@ void ofxLedController::setupGui()
     textInput->onTextInputEvent(this, &ofxLedController::onTextInputEvent);
     
     dropDown = gui->addDropdown(LCGUIDropChannelNum, s_channelList);
-    dropDown->select(colorType);
+    dropDown->select(m_currentChannelNum);
     dropDown->onDropdownEvent(this, &ofxLedController::onDropdownEvent);
     
 #if defined(USE_DMX_FTDI) && (USE_DMX)
@@ -168,7 +168,9 @@ void ofxLedController::updateGrabPoints() {
         for (auto &object : m_channelGrabObjects[i]) {
             m_channelTotalLeds[i] += object->points().size();
             auto grabPoints = object->getLedPoints();
-            m_ledPoints.insert(m_ledPoints.end(), grabPoints.begin(), grabPoints.end());
+            m_ledPoints.reserve(m_ledPoints.size() + grabPoints.size());
+            std::move(grabPoints.begin(), grabPoints.end(), std::back_inserter(m_ledPoints));
+//            m_ledPoints.insert(m_ledPoints.end(), grabPoints.begin(), grabPoints.end());
         }
         m_totalLeds += m_channelTotalLeds[i];
     }
@@ -409,10 +411,10 @@ void ofxLedController::parseXml(ofxXmlSettings &XML)
 //
 void ofxLedController::mousePressed(ofMouseEventArgs &args)
 {
-    int x = args.x, y = args.y;
-    
     if (!bSelected)
         return;
+    
+    int x = args.x, y = args.y;
     
     unsigned int linesCntr = 0;
     
