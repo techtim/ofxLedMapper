@@ -20,6 +20,26 @@ class ofxLedGrabMatrix;
 using ofxDatGuiRef = shared_ptr<ofxDatGui>;
 
 class ofxLedGrabObject {
+    unsigned int objID;
+
+    int fromX, fromY, toX, toY;
+    bool m_bActive, m_bSelected, m_bSelectedFrom, m_bSelectedTo;
+
+    float m_pixelsInLed;
+    ofVec2f m_clickedPos;
+    float startAngle;
+    int m_channel, m_pixelsInObject;
+
+    vector<ofVec2f> m_points;
+    ofRectangle m_bounds;
+
+    static const int type = GRAB_EMPTY;
+    ofxDatGuiRef gui;
+
+    friend class ofxLedGrabLine;
+    friend class ofxLedGrabCircle;
+    friend class ofxLedGrabMatrix;
+
 public:
     enum GRAB_TYPE { GRAB_EMPTY, GRAB_LINE, GRAB_CIRCLE, GRAB_MATRIX };
 
@@ -31,9 +51,9 @@ public:
         , toY(_toY)
         , m_bActive(false)
         , m_bSelected(false)
-        , m_pixelsInLed(pixInLed)
         , m_bSelectedFrom(false)
         , m_bSelectedTo(false)
+        , m_pixelsInLed(pixInLed)
     {
     }
 
@@ -109,30 +129,6 @@ public:
 
         return ledPoints;
     }
-
-private:
-    unsigned int objID;
-
-    int fromX, fromY, toX, toY;
-
-    bool m_bSelected, m_bSelectedFrom, m_bSelectedTo, m_bActive;
-
-    ofVec2f m_clickedPos;
-    float m_pixelsInLed;
-    float startAngle;
-    int m_channel, m_pixelsInObject;
-
-    vector<ofVec2f> m_points;
-
-    ofRectangle m_bounds;
-
-    static const int type = GRAB_EMPTY;
-
-    ofxDatGuiRef gui;
-
-    friend class ofxLedGrabLine;
-    friend class ofxLedGrabCircle;
-    friend class ofxLedGrabMatrix;
 };
 
 class ofxLedGrabLine : public ofxLedGrabObject {
