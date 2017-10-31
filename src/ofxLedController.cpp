@@ -170,8 +170,6 @@ void ofxLedController::updateGrabPoints()
             auto grabPoints = object->getLedPoints();
             m_ledPoints.reserve(m_ledPoints.size() + grabPoints.size());
             std::move(grabPoints.begin(), grabPoints.end(), std::back_inserter(m_ledPoints));
-            //            m_ledPoints.insert(m_ledPoints.end(), grabPoints.begin(),
-            //            grabPoints.end());
         }
         m_totalLeds += m_channelTotalLeds[i];
     }
