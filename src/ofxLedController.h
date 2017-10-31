@@ -24,6 +24,7 @@
 #include "ofxLedGrabObject.h"
 
 using OnControllerStatusChange = function<void(void)>;
+using ChannelsGrabObjects = vector<vector<unique_ptr<ofxLedGrabObject>>>;
 
 class ofxLedController {
 public:
@@ -63,6 +64,7 @@ public:
     void onSliderEvent(ofxDatGuiSliderEvent e);
 #endif
    
+    const ChannelsGrabObjects &peekGrabObjects() const;
     unsigned int getId() const;
     unsigned int getTotalLeds() const;
     unsigned char * getOutput();
@@ -85,9 +87,8 @@ public:
     const ofPixels & getPixels();
     void setPixels(const ofPixels & _pix);
     void setPixelsBetweenLeds(float dist) { pixelsInLed = dist; };
-    
-    void setSelected(bool state);
 
+    void setSelected(bool state);
     void setGuiPosition(int x, int y);
     
     ofImage grabImg;
@@ -99,6 +100,7 @@ public:
     void setCurrentChannel(int);
     void notifyDMXChanged(bool & param);
     
+    const ofRectangle &peekBounds() const { return m_grabBounds; }
 private:
     unsigned int _id;
     ofColor lineColor;
@@ -111,7 +113,7 @@ private:
 
     function<void(void)> m_statusChanged;
     
-    vector<vector<unique_ptr<ofxLedGrabObject>>> m_channelGrabObjects;
+    ChannelsGrabObjects m_channelGrabObjects;
     vector<unique_ptr<ofxLedGrabObject>> *m_currentChannel;
     size_t m_currentChannelNum;
     vector<uint16_t> m_channelTotalLeds;
@@ -123,7 +125,8 @@ private:
     bool bSetupGui, bUdpSetup, bDmxSetup;
     
     ofxLedGrabObject::GRAB_TYPE m_recordGrabType;
-    
+
+    ofRectangle m_grabBounds;
     ofVec2f posClicked;
 
     ofxXmlSettings XML;

@@ -133,7 +133,7 @@ void ofxLedController::draw()
 {
     if (!bSetuped || !bShowGui)
         return;
-
+    
 #ifndef LED_MAPPER_NO_GUI
     if (bSelected && bSetupGui) {
         ofSetColor(255);
@@ -152,13 +152,13 @@ void ofxLedController::draw()
         }
         ++chanNum;
     }
-
 }
 
-void ofxLedController::updateGrabPoints() {
+void ofxLedController::updateGrabPoints()
+{
     if (!bSetuped && !m_bDirtyPoints)
         return;
-
+    
     m_bDirtyPoints = false;
     m_totalLeds = 0;
     m_ledPoints.clear();
@@ -170,16 +170,25 @@ void ofxLedController::updateGrabPoints() {
             auto grabPoints = object->getLedPoints();
             m_ledPoints.reserve(m_ledPoints.size() + grabPoints.size());
             std::move(grabPoints.begin(), grabPoints.end(), std::back_inserter(m_ledPoints));
-//            m_ledPoints.insert(m_ledPoints.end(), grabPoints.begin(), grabPoints.end());
+            //            m_ledPoints.insert(m_ledPoints.end(), grabPoints.begin(),
+            //            grabPoints.end());
         }
         m_totalLeds += m_channelTotalLeds[i];
     }
     
+    ofVec2f res(0, 0);
+    for_each(m_ledPoints.begin(), m_ledPoints.end(), [&res](const LedMapper::Point &p1) {
+        if (res.x < p1.x)
+            res.x = p1.x;
+        if (res.y < p1.y)
+            res.y = p1.y;
+    });
+    m_grabBounds.set(0, 0, res.x+1, res.y+1);
 }
 
 void ofxLedController::updatePixels(const ofPixels &grabbedImg)
 {
-    if (!bSetuped)
+    if (!bSetuped || grabbedImg.size() == 0)
         return;
     
     updateGrabPoints();
@@ -198,10 +207,11 @@ void ofxLedController::updatePixels(const ofPixels &grabbedImg)
     m_output.reserve(m_outputHeaderOffset + m_totalLeds * 3);
     
     for (auto &point : m_ledPoints) {
-        if (point.x >= grabbedImg.getWidth()
-            || point.y >= grabbedImg.getHeight())
-            ofLogWarning() << "add point outside of texture";
-        
+        if (point.x >= grabbedImg.getWidth() || point.y >= grabbedImg.getHeight()) {
+            ofLogWarning() << "add point outside of texture: [" << point.x << ", " << point.y
+            << "]";
+            continue;
+        }
         ofColor color = grabbedImg.getColor(point.x, point.y);
         colorUpdator(m_output, color);
     }
@@ -236,10 +246,10 @@ void ofxLedController::sendUdp()
         return;
     
     bool prevStatus = m_statusOk;
-
-//    for (size_t i=0; i < m_output.size(); ++i)
-//        printf("%zu - %d \n", i, m_output[i]);
-
+    
+    //    for (size_t i=0; i < m_output.size(); ++i)
+    //        printf("%zu - %d \n", i, m_output[i]);
+    
     if (m_output.size() <= m_outputHeaderOffset)
         return;
     
@@ -277,6 +287,11 @@ unsigned int ofxLedController::getId() const { return _id; }
 const ofPixels &ofxLedController::getPixels() { return grabImg.getPixels(); }
 
 unsigned int ofxLedController::getTotalLeds() const { return m_totalLeds; }
+
+const ChannelsGrabObjects &ofxLedController::peekGrabObjects() const
+{
+    return m_channelGrabObjects;
+}
 
 //
 // --- Load & Save ---
@@ -352,6 +367,8 @@ void ofxLedController::load(string path)
     for (auto &channelGrabs : m_channelGrabObjects)
         for (auto &grab : channelGrabs)
             grab->setPixelsInLed(pixelsInLed);
+    
+    updateGrabPoints();
 }
 
 void ofxLedController::parseXml(ofxXmlSettings &XML)
@@ -425,6 +442,7 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
             if ((*it)->mousePressed(args)) {
                 if (bDeletePoints) {
                     it = channelGrabs.erase(it);
+                    markDirtyGrabPoints();
                     continue;
                 }
             }
@@ -478,9 +496,10 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
             tmpCircle->setObjectId(m_currentChannel->size());
             tmpCircle->setChannel(m_currentChannelNum);
             m_currentChannel->emplace_back(move(tmpCircle));
+            break;
+            
+            markDirtyGrabPoints();
     }
-    /// TODO call only when change objects
-    markDirtyGrabPoints();
 }
 
 void ofxLedController::mouseDragged(ofMouseEventArgs &args)
@@ -490,12 +509,10 @@ void ofxLedController::mouseDragged(ofMouseEventArgs &args)
     
     if (!m_currentChannel->empty())
         for (auto &grab : *m_currentChannel)
-            if (grab->mouseDragged(args))
+            if (grab->mouseDragged(args)) {
+                markDirtyGrabPoints();
                 break;
-
-    /// TODO call only when change objects
-    markDirtyGrabPoints();
-
+            }
 }
 
 void ofxLedController::mouseReleased(ofMouseEventArgs &args)
@@ -505,14 +522,10 @@ void ofxLedController::mouseReleased(ofMouseEventArgs &args)
         for (auto &grab : *m_currentChannel)
             grab->mouseReleased(args);
     }
-    
-    /// TODO call only when change objects
-    markDirtyGrabPoints();
 }
 
 void ofxLedController::keyPressed(ofKeyEventArgs &data)
 {
-    
     switch (data.key) {
         case '1':
             m_recordGrabType = ofxLedGrabObject::GRAB_TYPE::GRAB_LINE;
@@ -567,7 +580,7 @@ void ofxLedController::onTextInputEvent(ofxDatGuiTextInputEvent e)
 {
     if (e.target->getName() == LCGUITextIP) {
         std::smatch base_match;
-		auto ip = e.target->getText();
+        auto ip = e.target->getText();
         regex ip_addr("(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})"); // ([^\\.]+)
         std::regex_match(ip, base_match, ip_addr);
         if (base_match.size() > 0) {
@@ -590,7 +603,7 @@ void ofxLedController::onSliderEvent(ofxDatGuiSliderEvent e)
         for (auto &channelGrabs : m_channelGrabObjects)
             for (auto &grab : channelGrabs)
                 grab->setPixelsInLed(pixelsInLed);
-
+        
         /// TODO call only when change objects
         markDirtyGrabPoints();
     }
@@ -652,7 +665,8 @@ void ofxLedController::setColorType(COLOR_TYPE type)
     }
 }
 
-void ofxLedController::setCurrentChannel(int chan) {
+void ofxLedController::setCurrentChannel(int chan)
+{
     m_currentChannelNum = chan % s_channelList.size();
     m_currentChannel = &m_channelGrabObjects[m_currentChannelNum];
 }

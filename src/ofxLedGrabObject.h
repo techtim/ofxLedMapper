@@ -84,7 +84,7 @@ public:
     }
     
     int getType() const { return type; };
-    
+    const ofRectangle &getBounds() { return m_bounds; }
     const vector<ofVec2f> &points() const { return m_points; }
 
     vector<LedMapper::Point> getLedPoints() {
@@ -179,10 +179,7 @@ public:
         sInput->bind(toY);
     }
     
-    
     ~ofxLedGrabLine() {
-        ofLogVerbose("[ofxLedGrabLine] Detor: clear m_points");
-        m_points.clear();
     };
     
     bool mousePressed(ofMouseEventArgs & args){

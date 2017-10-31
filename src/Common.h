@@ -37,7 +37,7 @@
 #define RPI_IP "192.168.2.10"
 #define RPI_PORT 3000
 
-#ifdef WIN32
+#if defined(WIN32) || defined(TARGET_RASPBERRY_PI)
 #include "ofJson.h"
 #endif
 
@@ -61,6 +61,13 @@ struct Color {
 struct Point {
     uint16_t x;
     uint16_t y;
+    bool operator<(const Point& rhs) const {
+        if(x == rhs.x) {
+            return y < rhs.y;
+        } else {
+            return x < rhs.x;
+        }
+    }
 };
 
 static void to_json(ofJson& j, const Point& p) {
