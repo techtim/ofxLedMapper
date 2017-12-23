@@ -359,28 +359,39 @@ void ofxLedController::save(const string &path)
     jsonFile << config.dump(4);
     jsonFile.close();
 
-    XML.save(path + "/" + LCFileName + ofToString(_id) + ".xml");
+    auto xmlPath = ofFilePath::addTrailingSlash(path) + LCFileName + ofToString(_id) + ".xml";
+    ofLogNotice() << "[ofxLedController] Save config to " << xmlPath;
+    XML.save(xmlPath);
 }
 
-void ofxLedController::load(string path)
+void ofxLedController::load(const string &path)
 {
-    if (!XML.loadFile(path + LCFileName + ofToString(_id) + ".xml")) {
-        ofLogError("[ofxLedController] No config with path: " + path);
+    auto xmlPath = ofFilePath::addTrailingSlash(path) + LCFileName + ofToString(_id) + ".xml";
+
+    if (!XML.loadFile(xmlPath)) {
+        ofLogError() << "[ofxLedController] No config with path=" << xmlPath;
         return;
     }
 
-    ofLogVerbose("[ofxLedController] Load" + ofToString(_id));
+    ofLogNotice("[ofxLedController] Load file=" + xmlPath);
 
     XML.pushTag("CONF", 0);
 
     setColorType(getColorType(XML.getValue("colorType", 0, 0)));
 
     pixelsInLed = XML.getValue("PixInLed", 1.f, 0);
+    ofLogVerbose() << "UdpSend=" << (XML.getValue("UdpSend", false, 0) ? "true" : "false");
     bUdpSend = XML.getValue("UdpSend", false, 0) ? true : false;
     udpIpAddress = XML.getValue("IpAddress", RPI_IP, 0);
     udpPort = XML.getValue("Port", RPI_PORT, 0);
     XML.popTag();
 
+#ifndef LED_MAPPER_NO_GUI
+    if (m_ipInput != nullptr && m_portInput != nullptr) {
+        m_ipInput->setText(udpIpAddress);
+        m_portInput->setText(ofToString(udpPort));
+    }
+#endif
     if (bUdpSend)
         setupUdp(udpIpAddress, udpPort);
     if (bDmxSend)
