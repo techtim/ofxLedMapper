@@ -22,8 +22,8 @@
 
 #pragma once
 
-#include "Common.h"
 #include "ofMain.h"
+#include "Common.h"
 
 #define POINT_RAD 3
 
@@ -31,10 +31,8 @@ class ofxLedGrabLine;
 class ofxLedGrabCircle;
 class ofxLedGrabMatrix;
 
-using ofxDatGuiRef = shared_ptr<ofxDatGui>;
-
 class ofxLedGrabObject {
-  public:
+public:
     enum GRAB_TYPE { GRAB_EMPTY, GRAB_LINE, GRAB_CIRCLE, GRAB_MATRIX };
 
     ofxLedGrabObject(int _fromX = 0, int _fromY = 0, int _toX = 0, int _toY = 0,
@@ -123,29 +121,39 @@ class ofxLedGrabObject {
 
         return ledPoints;
     }
-    
-  private:
+
+private:
     unsigned int objID;
-    
+
     int fromX, fromY, toX, toY;
     bool m_bActive, m_bSelected, m_bSelectedFrom, m_bSelectedTo;
-    
+
     float m_pixelsInLed;
     ofVec2f m_clickedPos;
     float startAngle;
     int m_channel, m_pixelsInObject;
-    
+
     vector<ofVec2f> m_points;
     ofRectangle m_bounds;
-    
+
     static const int type = GRAB_EMPTY;
-    ofxDatGuiRef gui;
-    
+
+#ifndef LED_MAPPER_NO_GUI
+    unique_ptr<ofxDatGui> gui;
+#endif
+
     friend class ofxLedGrabLine;
     friend class ofxLedGrabCircle;
     friend class ofxLedGrabMatrix;
-    
+    friend std::ostream &operator<<(std::ostream &os, const ofxLedGrabObject &obj);
 };
+
+inline std::ostream &operator<<(std::ostream &os, const ofxLedGrabObject &obj)
+{
+    os << "Grab obj with type=" << ofToString(obj.type) << " from=" << ofVec2f(obj.fromX, obj.fromY)
+       << " to=" << ofVec2f(obj.toX, obj.toY);
+    return os;
+}
 
 class ofxLedGrabLine : public ofxLedGrabObject {
     static const int type = GRAB_LINE;
@@ -176,8 +184,8 @@ public:
 
     void setupGui()
     {
-
-        gui = make_shared<ofxDatGui>(ofxDatGuiAnchor::TOP_RIGHT);
+#ifndef LED_MAPPER_NO_GUI
+        gui = make_unique<ofxDatGui>(ofxDatGuiAnchor::TOP_RIGHT);
         gui->setAssetPath("");
         gui->setWidth(LM_GUI_WIDTH);
 
@@ -200,6 +208,7 @@ public:
         sInput->bind(toX);
         sInput = gui->addSlider("to Y", 0, 2000);
         sInput->bind(toY);
+#endif
     }
 
     ~ofxLedGrabLine(){};
@@ -322,7 +331,6 @@ public:
 
 class ofxLedGrabCircle : public ofxLedGrabObject {
     static const int type = GRAB_CIRCLE;
-    ofxDatGui gui;
     float m_radius;
     float startAngle;
     bool bClockwise;
@@ -469,7 +477,6 @@ class ofxLedGrabMatrix : public ofxLedGrabObject {
     int m_columns, m_rows;
     bool m_isVertical, m_isZigzag;
     float startAngle;
-    ofxDatGui gui;
 
 public:
     ofxLedGrabMatrix(int _fromX = 0, int _fromY = 0, int _toX = 0, int _toY = 0,

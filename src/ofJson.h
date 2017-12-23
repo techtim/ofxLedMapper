@@ -25,6 +25,8 @@ inline ofJson ofLoadJson(const std::string &filename)
     else {
         ofLogError("ofLoadJson") << "error loading json from " + filename + ": file doesn't exist";
     }
+
+    jsonFile.close();
     return json;
 }
 
@@ -36,12 +38,15 @@ inline bool ofSaveJson(const std::string &filename, ofJson &json)
     }
     catch (std::exception &e) {
         ofLogError("ofLoadJson") << "error saving json to " + filename + ": " + e.what();
+        jsonFile.close();
         return false;
     }
     catch (...) {
         ofLogError("ofLoadJson") << "error saving json to " + filename;
+        jsonFile.close();
         return false;
     }
+    jsonFile.close();
     return true;
 }
 
@@ -53,12 +58,15 @@ inline bool ofSavePrettyJson(const std::string &filename, ofJson &json)
     }
     catch (std::exception &e) {
         ofLogError("ofLoadJson") << "error saving json to " + filename + ": " + e.what();
+        jsonFile.close();
         return false;
     }
     catch (...) {
         ofLogError("ofLoadJson") << "error saving json to " + filename;
+        jsonFile.close();
         return false;
     }
+    jsonFile.close();
     return true;
 }
 

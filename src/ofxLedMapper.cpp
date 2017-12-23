@@ -24,10 +24,9 @@
 #include <math.h>
 #include <regex>
 
-ofxLedMapper::ofxLedMapper() { ofxLedMapper(1); }
-
 ofxLedMapper::ofxLedMapper(int __id)
     : _id(__id)
+    , m_bSetup(false)
 #ifdef WIN32
     , configFolderPath(LedMapper::CONFIG_PATH + LedMapper::APP_NAME + "\\")
 #elif defined(__APPLE__)
@@ -44,18 +43,12 @@ ofxLedMapper::ofxLedMapper(int __id)
     add(0, configFolderPath);
     setCurrentController(0);
 
-    bSetup = true;
+    m_bSetup = true;
 }
 
 ofxLedMapper::~ofxLedMapper()
 {
     ofLogVerbose("[ofxLedMapper] Detor: clear controllers + remove event listeners");
-    Controllers.clear();
-
-#ifndef LED_MAPPER_NO_GUI
-    m_listControllers->clear();
-    m_gui->clear();
-#endif
 
     ofRemoveListener(ofEvents().keyPressed, this, &ofxLedMapper::keyPressed);
     ofRemoveListener(ofEvents().keyReleased, this, &ofxLedMapper::keyReleased);
@@ -64,7 +57,8 @@ ofxLedMapper::~ofxLedMapper()
 
 void ofxLedMapper::draw()
 {
-
+    if (!m_bSetup)
+        return;
 #ifndef LED_MAPPER_NO_GUI
     m_gui->update();
     m_gui->draw();

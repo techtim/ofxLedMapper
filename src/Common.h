@@ -51,9 +51,7 @@
 #define RPI_IP "192.168.2.10"
 #define RPI_PORT 3000
 
-#if defined(WIN32) || defined(TARGET_RASPBERRY_PI)
 #include "ofJson.h"
-#endif
 
 namespace LedMapper {
 
@@ -101,6 +99,7 @@ static const int LM_COLOR_GREEN_LIGHT = 0x6BE6B4;
 static const int LM_COLOR_RED = 0xbf093a;
 static const int LM_COLOR_RED_DARK = 0x870427;
 
+#ifndef LED_MAPPER_NO_GUI
 class ofxDatGuiThemeLM : public ofxDatGuiTheme {
 public:
     ofxDatGuiThemeLM()
@@ -127,4 +126,6 @@ public:
     }
 };
 
+#endif
+    
 } // LedMapper

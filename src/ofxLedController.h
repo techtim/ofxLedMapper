@@ -46,12 +46,13 @@ public:
     enum LED_TYPE { DATA, DATACLOCK };
     ofxLedController() = delete;
     ofxLedController(const ofxLedController &) = delete;
+    ofxLedController(ofxLedController &&) = delete;
     ofxLedController(const int &__id, const string &_path);
     void setOnControllerStatusChange(function<void(void)> callback);
     ~ofxLedController();
 
-    void save(string path);
-    void load(string path);
+    void save(const string &path);
+    void load(const string &path);
 
     void setupGui();
     void draw();
@@ -66,6 +67,8 @@ public:
     void onButtonEvent(ofxDatGuiButtonEvent e);
     void onTextInputEvent(ofxDatGuiTextInputEvent e);
     void onSliderEvent(ofxDatGuiSliderEvent e);
+    
+    ofVec2f getGuiSize() const { return ofVec2f(gui->getWidth(), gui->getHeight()); }
 #endif
 
     const ChannelsGrabObjects &peekGrabObjects() const;
@@ -75,12 +78,12 @@ public:
     bool bSetuped;
     bool isSelected() const { return bSelected; }
     bool isStatusOk() const { return m_statusOk; }
-    void setupUdp(string host, unsigned int port);
+    void setupUdp(const string &host, unsigned int port);
     void sendUdp();
     void sendUdp(const ofPixels &sidesGrabImg);
     string getIP() const { return cur_udpIpAddress; }
 
-    void setupDmx(string port_name);
+    void setupDmx(const string &port_name);
     void sendDmx(const ofPixels &grabbedImg);
 
     void showGui(bool _show)
@@ -100,7 +103,6 @@ public:
     void setSelected(bool state);
     void setGuiPosition(int x, int y);
 
-    ofVec2f getGuiSize() const { return ofVec2f(gui->getWidth(), gui->getHeight()); }
     ofImage grabImg;
 
     void parseXml(ofxXmlSettings &XML);
@@ -117,9 +119,9 @@ private:
 
     vector<char> m_output;
 
-    unsigned int m_totalLeds, pointsCount, m_outputHeaderOffset;
+    unsigned int m_totalLeds, m_pointsCount, m_outputHeaderOffset;
 
-    std::function<void(vector<char> &output, ofColor &color)> colorUpdator;
+    std::function<void(vector<char> &output, ofColor &color)> m_colorUpdator;
 
     function<void(void)> m_statusChanged;
 
@@ -143,12 +145,7 @@ private:
     string path;
 
     ofxUDPManager udpConnection;
-// GUI
-#ifndef LED_MAPPER_NO_GUI
-    shared_ptr<ofxDatGui> gui;
-    shared_ptr<ofxDatGui> grabObjGui;
-    unique_ptr<ofxDatGuiTheme> guiTheme;
-#endif
+
     COLOR_TYPE colorType;
     float pixelsInLed;
     bool bUdpSend, bDmxSend, bDoubleLine, m_statusOk, m_bDirtyPoints;
@@ -157,7 +154,16 @@ private:
     int dmxChannel;
     string udpIpAddress, cur_udpIpAddress;
     int udpPort, cur_udpPort;
-
+    
+    // GUI
+#ifndef LED_MAPPER_NO_GUI
+    shared_ptr<ofxDatGui> gui;
+    shared_ptr<ofxDatGui> grabObjGui;
+    unique_ptr<ofxDatGuiTheme> guiTheme;
+    ofxDatGuiTextInput* m_ipInput;
+    ofxDatGuiTextInput* m_portInput;
+#endif
+    
 // DMX
 #ifdef USE_DMX
     ofxDmx dmx;

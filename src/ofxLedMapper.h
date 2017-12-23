@@ -31,8 +31,7 @@
 class ofxLedMapper {
 
 public:
-    ofxLedMapper();
-    ofxLedMapper(int __id);
+    ofxLedMapper(int __id = 1);
     ~ofxLedMapper();
 
     void update(const ofPixels &grabImg);
@@ -67,7 +66,7 @@ private:
     ofDirectory dir;
     string configFolderPath;
     int _id;
-    bool bSetup = false;
+    bool m_bSetup;
 
 #ifndef LED_MAPPER_NO_GUI
     // GUI
