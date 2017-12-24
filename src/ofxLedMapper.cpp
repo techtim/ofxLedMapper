@@ -48,7 +48,7 @@ ofxLedMapper::ofxLedMapper(int __id)
 
 ofxLedMapper::~ofxLedMapper()
 {
-    ofLogVerbose("[ofxLedMapper] Detor: clear controllers + remove event listeners");
+    ofLogVerbose("[ofxLedMapper] Detor: remove event listeners");
 
     ofRemoveListener(ofEvents().keyPressed, this, &ofxLedMapper::keyPressed);
     ofRemoveListener(ofEvents().keyReleased, this, &ofxLedMapper::keyReleased);
@@ -124,7 +124,19 @@ bool ofxLedMapper::add(unsigned int _ctrlId, string folder_path)
     return true;
 }
 
-bool ofxLedMapper::remove(unsigned int _ctrlId) { return true; }
+bool ofxLedMapper::remove(unsigned int _ctrlId) {
+    auto it = Controllers.find(_ctrlId);
+    if (it == Controllers.end()) {
+        ofLogError() << "[ofxLedMapper] no ctrl to remove with id=" << _ctrlId;
+        return false;
+    }
+    ofLogNotice() << "[ofxLedMapper] remove ctrl with id=" << _ctrlId;
+    Controllers.erase(it);
+    m_listControllers->remove(m_listControllers->get(ofToString(_ctrlId)));
+    setCurrentController(_ctrlId-1);
+
+    return true;
+}
 
 // Return true if ID not found
 bool ofxLedMapper::checkUniqueId(unsigned int _ctrlId)
@@ -150,14 +162,15 @@ void ofxLedMapper::setupGui()
 
     m_togglePlay = m_gui->addToggle(LMGUITogglePlay, true);
     m_togglePlay->onButtonEvent(this, &ofxLedMapper::onButtonClick);
-    m_fpsSlider = m_gui->addSlider(LMGUISliderFps, 10, 60);
-    m_fpsSlider->onSliderEvent(this, &ofxLedMapper::onSliderEvent);
 
     m_toggleDebugController = m_gui->addToggle(LMGUIToggleDebug, false);
     m_toggleDebugController->onButtonEvent(this, &ofxLedMapper::onButtonClick);
     auto btn = m_gui->addButton(LMGUIButtonAdd);
     btn->onButtonEvent(this, &ofxLedMapper::onButtonClick);
-
+    
+    btn = m_gui->addButton(LMGUIButtonDel);
+    btn->onButtonEvent(this, &ofxLedMapper::onButtonClick);
+    
     m_listControllers = make_unique<ofxDatGuiScrollView>(LMGUIListControllers, 5);
     m_listControllers->onScrollViewEvent(this, &ofxLedMapper::onScrollViewEvent);
     m_listControllers->setWidth(LM_GUI_WIDTH);
@@ -185,8 +198,6 @@ void ofxLedMapper::setCurrentController(unsigned int _curCtrl)
     if (Controllers.empty())
         return;
 
-    _curCtrl %= Controllers.size();
-
     if (Controllers.find(_curCtrl) == Controllers.end())
         return;
 
@@ -206,8 +217,8 @@ void ofxLedMapper::updateControllersListGui()
 #ifndef LED_MAPPER_NO_GUI
     m_listControllers->sort();
     for (int i = 0; i < m_listControllers->getNumItems(); ++i) {
-        m_listControllers->get(ofToString(i))
-            ->setBackgroundColor(Controllers[i]->isStatusOk()
+        auto child = m_listControllers->get(i);
+        child->setBackgroundColor(Controllers[ofToInt(child->getName())]->isStatusOk()
                                      ? ofColor::fromHex(LedMapper::LM_COLOR_GREEN_DARK)
                                      : ofColor::fromHex(LedMapper::LM_COLOR_RED_DARK));
     }
@@ -294,13 +305,15 @@ void ofxLedMapper::onButtonClick(ofxDatGuiButtonEvent e)
     if (e.target->getName() == LMGUIButtonAdd) {
         add(configFolderPath);
     }
+
+    if (e.target->getName() == LMGUIButtonDel) {
+        remove(currentCtrl);
+    }
+
 }
 
 void ofxLedMapper::onSliderEvent(ofxDatGuiSliderEvent e)
 {
-    if (e.target->getName() == LMGUISliderFps) {
-        ofSetFrameRate(e.target->getValue());
-    }
 }
 #endif
 

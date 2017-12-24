@@ -23,6 +23,7 @@
 #pragma once
 
 #include "ofMain.h"
+
 #include "Common.h"
 
 #define POINT_RAD 3

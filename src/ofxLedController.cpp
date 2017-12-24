@@ -39,10 +39,13 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
     , m_statusOk(false)
     , bUdpSetup(false)
     , bDmxSetup(false)
-    , udpIpAddress("")
-    , cur_udpIpAddress("")
+    , m_udpIp(RPI_IP)
+    , m_curUdpIp("")
+    , m_udpPort(RPI_PORT)
+    , m_curUdpPort(0)
     , m_grabBounds(0, 0, 100, 100)
-    , pixelsInLed(5.f)
+    , m_pixelsInLed(5.f)
+    , m_fps(25.f)
     , m_totalLeds(0)
     , m_pointsCount(0)
     , m_outputHeaderOffset(2)
@@ -53,6 +56,7 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
     , m_currentChannelNum(0)
     , m_ledPoints(0)
 #ifndef LED_MAPPER_NO_GUI
+    , m_gui(nullptr)
     , m_ipInput(nullptr)
     , m_portInput(nullptr)
 #endif
@@ -60,11 +64,10 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
     _id = __id;
 
     setColorType(COLOR_TYPE::RGB);
+    setFps(m_fps);
 
     path = _path;
-    cur_udpPort = 0;
-    udpPort = RPI_PORT;
-    udpIpAddress = RPI_IP;
+    
 
     lineColor = ofColor(ofRandom(0, 100), ofRandom(50, 200), ofRandom(150, 255));
 
@@ -92,7 +95,7 @@ ofxLedController::~ofxLedController()
     ofLogVerbose("[ofxLedMapper] Detor: clear lines + remove event listeners + remove gui");
     m_channelGrabObjects.clear();
 #ifndef LED_MAPPER_NO_GUI
-    gui->clear();
+    m_gui->clear();
 #endif
     udpConnection.Close();
 
@@ -115,37 +118,43 @@ void ofxLedController::setupGui()
 
 #ifndef LED_MAPPER_NO_GUI
 
-    gui = make_shared<ofxDatGui>(ofxDatGuiAnchor::TOP_RIGHT);
-    guiTheme = make_unique<LedMapper::ofxDatGuiThemeLM>();
-    gui->setTheme(guiTheme.get());
-    gui->addHeader("Ctrl " + ofToString(_id));
-    gui->setWidth(LM_GUI_WIDTH);
+    m_gui = make_shared<ofxDatGui>(ofxDatGuiAnchor::TOP_RIGHT);
+    m_guiTheme = make_unique<LedMapper::ofxDatGuiThemeLM>();
+    m_gui->setTheme(m_guiTheme.get());
+    m_gui->addHeader("Ctrl " + ofToString(_id));
+    m_gui->setWidth(LM_GUI_WIDTH);
 
-    auto toggle = gui->addToggle(LCGUIButtonSend, bUdpSend);
+    auto toggle = m_gui->addToggle(LCGUIButtonSend, bUdpSend);
     toggle->bind(bUdpSend);
     toggle->onButtonEvent(this, &ofxLedController::onButtonEvent);
-    auto slider = gui->addSlider(LCGUISliderPix, 1, 50);
-    slider->bind(pixelsInLed);
+    auto slider = m_gui->addSlider(LCGUISliderPix, 1, 50);
+    slider->bind(m_pixelsInLed);
+    slider->setPrecision(1);
     slider->onSliderEvent(this, &ofxLedController::onSliderEvent);
 
-    auto dropDown = gui->addDropdown(LCGUIDropColorType, s_colorTypes);
+    slider = m_gui->addSlider(LMGUISliderFps, 10, 60);
+    slider->bind(m_fps);
+    slider->setPrecision(0);
+    slider->onSliderEvent(this, &ofxLedController::onSliderEvent);
+
+    auto dropDown = m_gui->addDropdown(LCGUIDropColorType, s_colorTypes);
     dropDown->select(colorType);
     dropDown->onDropdownEvent(this, &ofxLedController::onDropdownEvent);
-    //    toggle = gui->addToggle(LCGUIButtonDoubleLine, false);
+    //    toggle = m_gui->addToggle(LCGUIButtonDoubleLine, false);
     //    toggle->bind(bDoubleLine);
-    m_ipInput = gui->addTextInput(LCGUITextIP, udpIpAddress);
+    m_ipInput = m_gui->addTextInput(LCGUITextIP, m_udpIp);
     m_ipInput->onTextInputEvent(this, &ofxLedController::onTextInputEvent);
-    m_portInput = gui->addTextInput(LCGUITextPort, ofToString(udpPort));
+    m_portInput = m_gui->addTextInput(LCGUITextPort, ofToString(m_udpPort));
     m_portInput->onTextInputEvent(this, &ofxLedController::onTextInputEvent);
 
-    dropDown = gui->addDropdown(LCGUIDropChannelNum, s_channelList);
+    dropDown = m_gui->addDropdown(LCGUIDropChannelNum, s_channelList);
     dropDown->select(m_currentChannelNum);
     dropDown->onDropdownEvent(this, &ofxLedController::onDropdownEvent);
 
 #if defined(USE_DMX_FTDI) && (USE_DMX)
-    toggle = gui->addToggle(LCGUIButtonDmx, false);
+    toggle = m_gui->addToggle(LCGUIButtonDmx, false);
     toggle->bind(bDmxSend);
-    slider = gui->addSlider("DMX Chan", 1, 0, 512);
+    slider = m_gui->addSlider("DMX Chan", 1, 0, 512);
     slider->bind(dmxChannel);
 #endif
 
@@ -162,8 +171,8 @@ void ofxLedController::draw()
 #ifndef LED_MAPPER_NO_GUI
     if (bSelected && bSetupGui) {
         ofSetColor(255);
-        gui->update();
-        gui->draw();
+        m_gui->update();
+        m_gui->draw();
     }
 #endif
 
@@ -230,20 +239,20 @@ void ofxLedController::updatePixels(const ofPixels &grabbedImg)
     m_output.reserve(m_outputHeaderOffset + m_totalLeds * 3);
 
     if (m_colorUpdator != nullptr)
-    for (auto &point : m_ledPoints) {
-        if (point.x >= grabbedImg.getWidth() || point.y >= grabbedImg.getHeight()) {
-            ofLogWarning() << "add point outside of texture: [" << point.x << ", " << point.y
-                           << "]";
-            continue;
+        for (auto &point : m_ledPoints) {
+            if (point.x >= grabbedImg.getWidth() || point.y >= grabbedImg.getHeight()) {
+                ofLogWarning() << "add point outside of texture: [" << point.x << ", " << point.y
+                               << "]";
+                continue;
+            }
+            ofColor color = grabbedImg.getColor(point.x, point.y);
+            m_colorUpdator(m_output, color);
         }
-        ofColor color = grabbedImg.getColor(point.x, point.y);
-        m_colorUpdator(m_output, color);
-    }
 }
 
 void ofxLedController::setupUdp(const string &host, unsigned int port)
 {
-    if (bUdpSend || cur_udpIpAddress != host || cur_udpPort != port) {
+    if (bUdpSend || m_curUdpIp != host || m_curUdpPort != port) {
         udpConnection.Close();
         udpConnection.Create();
         if (udpConnection.Connect(host.c_str(), port)) {
@@ -252,14 +261,19 @@ void ofxLedController::setupUdp(const string &host, unsigned int port)
         udpConnection.SetSendBufferSize(4096 * 3);
         udpConnection.SetNonBlocking(true);
         //    }
-        cur_udpIpAddress = host;
-        cur_udpPort = port;
+        m_curUdpIp = host;
+        m_curUdpPort = port;
         bSetuped = bUdpSetup = true;
     }
 }
 
 void ofxLedController::sendUdp(const ofPixels &grabbedImg)
 {
+    auto now = ofGetSystemTime();
+    if (now - m_lastFrameTime < m_msecInFrame)
+        return;
+
+    m_lastFrameTime = now;
     updatePixels(grabbedImg);
     sendUdp();
 }
@@ -294,7 +308,7 @@ void ofxLedController::setSelected(bool state)
         }
 #ifndef LED_MAPPER_NO_GUI
     if (bSelected && bSetupGui)
-        gui->focus();
+        m_gui->focus();
 #endif
 }
 
@@ -302,7 +316,7 @@ void ofxLedController::setGuiPosition(int x, int y)
 {
 #ifndef LED_MAPPER_NO_GUI
     if (bSetupGui)
-        gui->setPosition(x, y);
+        m_gui->setPosition(x, y);
 #endif
 }
 
@@ -328,10 +342,11 @@ void ofxLedController::save(const string &path)
     XML.clear();
     int tagNum = XML.addTag("CONF");
     XML.setValue("CONF:colorType", colorType, tagNum);
-    XML.setValue("CONF:PixInLed", pixelsInLed, tagNum);
+    XML.setValue("CONF:PixInLed", m_pixelsInLed, tagNum);
+    XML.setValue("CONF:fps", m_fps, tagNum);
     XML.setValue("CONF:UdpSend", bUdpSend, tagNum);
-    XML.setValue("CONF:IpAddress", udpIpAddress, tagNum);
-    XML.setValue("CONF:Port", udpPort, tagNum);
+    XML.setValue("CONF:IpAddress", m_curUdpIp, tagNum);
+    XML.setValue("CONF:Port", m_curUdpPort, tagNum);
     XML.popTag();
 
     int lastStrokeNum = XML.addTag("STROKE");
@@ -351,8 +366,8 @@ void ofxLedController::save(const string &path)
     }
 
     ofJson config;
-    config["ipAddress"] = udpIpAddress;
-    config["port"] = udpPort;
+    config["ipAddress"] = m_udpIp;
+    config["port"] = m_udpPort;
     config["colorType"] = colorType;
     config["points"] = m_ledPoints;
     ofstream jsonFile(path + ofToString(_id) + ".json");
@@ -379,21 +394,22 @@ void ofxLedController::load(const string &path)
 
     setColorType(getColorType(XML.getValue("colorType", 0, 0)));
 
-    pixelsInLed = XML.getValue("PixInLed", 1.f, 0);
+    m_pixelsInLed = XML.getValue("PixInLed", 1.f, 0);
     ofLogVerbose() << "UdpSend=" << (XML.getValue("UdpSend", false, 0) ? "true" : "false");
     bUdpSend = XML.getValue("UdpSend", false, 0) ? true : false;
-    udpIpAddress = XML.getValue("IpAddress", RPI_IP, 0);
-    udpPort = XML.getValue("Port", RPI_PORT, 0);
+    m_udpIp = XML.getValue("IpAddress", RPI_IP, 0);
+    m_udpPort = XML.getValue("Port", RPI_PORT, 0);
+    m_fps = XML.getValue("fps", 25, 0);
     XML.popTag();
 
 #ifndef LED_MAPPER_NO_GUI
     if (m_ipInput != nullptr && m_portInput != nullptr) {
-        m_ipInput->setText(udpIpAddress);
-        m_portInput->setText(ofToString(udpPort));
+        m_ipInput->setText(m_udpIp);
+        m_portInput->setText(ofToString(m_udpPort));
     }
 #endif
     if (bUdpSend)
-        setupUdp(udpIpAddress, udpPort);
+        setupUdp(m_udpIp, m_udpPort);
     if (bDmxSend)
         setupDmx("");
 
@@ -401,7 +417,7 @@ void ofxLedController::load(const string &path)
 
     for (auto &channelGrabs : m_channelGrabObjects)
         for (auto &grab : channelGrabs)
-            grab->setPixelsInLed(pixelsInLed);
+            grab->setPixelsInLed(m_pixelsInLed);
 
     updateGrabPoints();
 }
@@ -498,7 +514,7 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
             if (m_pointsCount == 0) {
                 m_pointsCount++;
                 unique_ptr<ofxLedGrabLine> tmpLine
-                    = make_unique<ofxLedGrabLine>(x, y, x, y, pixelsInLed, bDoubleLine);
+                    = make_unique<ofxLedGrabLine>(x, y, x, y, m_pixelsInLed, bDoubleLine);
                 tmpLine->setObjectId(m_currentChannel->size());
                 tmpLine->setChannel(m_currentChannelNum);
                 m_currentChannel->emplace_back(move(tmpLine));
@@ -514,7 +530,7 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
             if (m_pointsCount == 0) {
                 m_pointsCount++;
                 unique_ptr<ofxLedGrabMatrix> tmpLine
-                    = make_unique<ofxLedGrabMatrix>(x, y, x, y, pixelsInLed);
+                    = make_unique<ofxLedGrabMatrix>(x, y, x, y, m_pixelsInLed);
                 tmpLine->setObjectId(m_currentChannel->size());
                 tmpLine->setChannel(m_currentChannelNum);
                 m_currentChannel->emplace_back(move(tmpLine));
@@ -528,7 +544,7 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
 
         case ofxLedGrabObject::GRAB_TYPE::GRAB_CIRCLE:
             unique_ptr<ofxLedGrabCircle> tmpCircle
-                = make_unique<ofxLedGrabCircle>(x, y, x + 20, y + 20, pixelsInLed);
+                = make_unique<ofxLedGrabCircle>(x, y, x + 20, y + 20, m_pixelsInLed);
             tmpCircle->setObjectId(m_currentChannel->size());
             tmpCircle->setChannel(m_currentChannelNum);
             m_currentChannel->emplace_back(move(tmpCircle));
@@ -604,7 +620,7 @@ void ofxLedController::onButtonEvent(ofxDatGuiButtonEvent e)
 {
     if (e.target->getName() == LCGUIButtonSend) {
         if (bUdpSend)
-            setupUdp(udpIpAddress, udpPort);
+            setupUdp(m_udpIp, m_udpPort);
     }
     if (e.target->getName() == LCGUIButtonDmx) {
         if (bDmxSend)
@@ -620,16 +636,16 @@ void ofxLedController::onTextInputEvent(ofxDatGuiTextInputEvent e)
         regex ip_addr("(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})"); // ([^\\.]+)
         std::regex_match(ip, base_match, ip_addr);
         if (base_match.size() > 0) {
-            udpIpAddress = ip;
-            setupUdp(udpIpAddress, udpPort);
+            m_udpIp = ip;
+            setupUdp(m_udpIp, m_udpPort);
         }
         else {
-            e.target->setText(udpIpAddress);
+            e.target->setText(m_udpIp);
         }
     }
     else if (e.target->getName() == LCGUITextPort) {
-        udpPort = ofToInt(e.target->getText());
-        setupUdp(udpIpAddress, udpPort);
+        m_udpPort = ofToInt(e.target->getText());
+        setupUdp(m_udpIp, m_udpPort);
     }
 }
 
@@ -638,10 +654,13 @@ void ofxLedController::onSliderEvent(ofxDatGuiSliderEvent e)
     if (e.target->getName() == LCGUISliderPix) {
         for (auto &channelGrabs : m_channelGrabObjects)
             for (auto &grab : channelGrabs)
-                grab->setPixelsInLed(pixelsInLed);
+                grab->setPixelsInLed(m_pixelsInLed);
 
         /// TODO call only when change objects
         markDirtyGrabPoints();
+    }
+    if (e.target->getName() == LMGUISliderFps) {
+        setFps(m_fps);
     }
 }
 #endif // LED_MAPPER_NO_GUI

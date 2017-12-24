@@ -20,8 +20,7 @@
  SOFTWARE.
  */
 
-#ifndef __ofxLedController__
-#define __ofxLedController__
+#pragma once
 
 #include "ofMain.h"
 #include "ofxNetwork.h"
@@ -67,8 +66,8 @@ public:
     void onButtonEvent(ofxDatGuiButtonEvent e);
     void onTextInputEvent(ofxDatGuiTextInputEvent e);
     void onSliderEvent(ofxDatGuiSliderEvent e);
-    
-    ofVec2f getGuiSize() const { return ofVec2f(gui->getWidth(), gui->getHeight()); }
+
+    ofVec2f getGuiSize() const { return m_gui != nullptr ? ofVec2f(m_gui->getWidth(), m_gui->getHeight()) : ofVec2f(0); }
 #endif
 
     const ChannelsGrabObjects &peekGrabObjects() const;
@@ -81,7 +80,7 @@ public:
     void setupUdp(const string &host, unsigned int port);
     void sendUdp();
     void sendUdp(const ofPixels &sidesGrabImg);
-    string getIP() const { return cur_udpIpAddress; }
+    string getIP() const { return m_curUdpIp; }
 
     void setupDmx(const string &port_name);
     void sendDmx(const ofPixels &grabbedImg);
@@ -98,7 +97,8 @@ public:
 
     const ofPixels &getPixels();
     void setPixels(const ofPixels &_pix);
-    void setPixelsBetweenLeds(float dist) { pixelsInLed = dist; };
+    void setPixelsBetweenLeds(float dist) { m_pixelsInLed = dist; };
+    void setFps(float fps) { m_fps = fps; m_msecInFrame = 1000.0 / m_fps; }
 
     void setSelected(bool state);
     void setGuiPosition(int x, int y);
@@ -147,30 +147,31 @@ private:
     ofxUDPManager udpConnection;
 
     COLOR_TYPE colorType;
-    float pixelsInLed;
+    float m_pixelsInLed, m_fps;
     bool bUdpSend, bDmxSend, bDoubleLine, m_statusOk, m_bDirtyPoints;
     int xPos, yPos, width, height;
 
     int dmxChannel;
-    string udpIpAddress, cur_udpIpAddress;
-    int udpPort, cur_udpPort;
-    
-    // GUI
+    string m_udpIp, m_curUdpIp;
+    int m_udpPort, m_curUdpPort;
+
+    uint64_t m_lastFrameTime, m_msecInFrame;
+// GUI
 #ifndef LED_MAPPER_NO_GUI
-    shared_ptr<ofxDatGui> gui;
-    shared_ptr<ofxDatGui> grabObjGui;
-    unique_ptr<ofxDatGuiTheme> guiTheme;
-    ofxDatGuiTextInput* m_ipInput;
-    ofxDatGuiTextInput* m_portInput;
+    shared_ptr<ofxDatGui> m_gui;
+    shared_ptr<ofxDatGui> m_grabObjGui;
+    unique_ptr<ofxDatGuiTheme> m_guiTheme;
+    ofxDatGuiTextInput *m_ipInput;
+    ofxDatGuiTextInput *m_portInput;
 #endif
-    
+
 // DMX
 #ifdef USE_DMX
     ofxDmx dmx;
 #elif USE_DMX_FTDI
     ofxDmxFtdi dmxFtdi;
-#endif
     unsigned char dmxFtdiVal[513];
+#endif
+
 };
 
-#endif /* defined(ofx__ledGipsy__LedController__) */

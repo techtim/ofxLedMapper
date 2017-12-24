@@ -31,6 +31,7 @@
 #define LMGUITogglePlay "Play"
 #define LMGUISliderFps "FPS"
 #define LMGUIButtonAdd "Add Controller"
+#define LMGUIButtonDel "Delete Controller"
 
 #define LCGUIButtonSend "Send"
 #define LCGUIButtonDoubleLine "Double Line"
