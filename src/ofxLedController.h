@@ -158,8 +158,8 @@ private:
     uint64_t m_lastFrameTime, m_msecInFrame;
 // GUI
 #ifndef LED_MAPPER_NO_GUI
-    shared_ptr<ofxDatGui> m_gui;
-    shared_ptr<ofxDatGui> m_grabObjGui;
+    unique_ptr<ofxDatGui> m_gui;
+    unique_ptr<ofxDatGui> m_grabObjGui;
     unique_ptr<ofxDatGuiTheme> m_guiTheme;
     ofxDatGuiTextInput *m_ipInput;
     ofxDatGuiTextInput *m_portInput;

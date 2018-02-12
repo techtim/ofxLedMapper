@@ -118,7 +118,7 @@ void ofxLedController::setupGui()
 
 #ifndef LED_MAPPER_NO_GUI
 
-    m_gui = make_shared<ofxDatGui>(ofxDatGuiAnchor::TOP_RIGHT);
+    m_gui = make_unique<ofxDatGui>(ofxDatGuiAnchor::TOP_RIGHT);
     m_guiTheme = make_unique<LedMapper::ofxDatGuiThemeLM>();
     m_gui->setTheme(m_guiTheme.get());
     m_gui->addHeader("Ctrl " + ofToString(_id));
@@ -208,7 +208,8 @@ void ofxLedController::updateGrabPoints()
         m_totalLeds += m_channelTotalLeds[i];
     }
 
-    ofVec2f res(0, 0);
+    /// set minimal bounds
+    ofVec2f res(100.f, 100.f);
     for_each(m_ledPoints.begin(), m_ledPoints.end(), [&res](const LedMapper::Point &p1) {
         if (res.x < p1.x)
             res.x = p1.x;
