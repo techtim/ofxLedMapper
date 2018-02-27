@@ -53,7 +53,6 @@ public:
     void save(const string &path);
     void load(const string &path);
 
-    void setupGui();
     void draw();
     void mousePressed(ofMouseEventArgs &args);
     void mouseDragged(ofMouseEventArgs &args);
@@ -62,21 +61,25 @@ public:
     void keyReleased(ofKeyEventArgs &data);
 
 #ifndef LED_MAPPER_NO_GUI
+    static unique_ptr<ofxDatGui> GenerateGui();
+    void bindGui(ofxDatGui *gui);
+
     void onDropdownEvent(ofxDatGuiDropdownEvent e);
     void onButtonEvent(ofxDatGuiButtonEvent e);
     void onTextInputEvent(ofxDatGuiTextInputEvent e);
     void onSliderEvent(ofxDatGuiSliderEvent e);
 
-    ofVec2f getGuiSize() const { return m_gui != nullptr ? ofVec2f(m_gui->getWidth(), m_gui->getHeight()) : ofVec2f(0); }
+    ofVec2f getGuiSize() const { return ofVec2f(LM_GUI_WIDTH, 100); }
 #endif
 
     const ChannelsGrabObjects &peekGrabObjects() const;
     unsigned int getId() const;
     unsigned int getTotalLeds() const;
     unsigned char *getOutput();
-    bool bSetuped;
+
     bool isSelected() const { return bSelected; }
     bool isStatusOk() const { return m_statusOk; }
+
     void setupUdp(const string &host, unsigned int port);
     void sendUdp();
     void sendUdp(const ofPixels &sidesGrabImg);
@@ -85,12 +88,6 @@ public:
     void setupDmx(const string &port_name);
     void sendDmx(const ofPixels &grabbedImg);
 
-    void showGui(bool _show)
-    {
-        bShowGui = _show;
-        bSelected = _show;
-    }
-
     void markDirtyGrabPoints() { m_bDirtyPoints = true; }
     void updateGrabPoints();
     void updatePixels(const ofPixels &grabbedImg);
@@ -98,10 +95,13 @@ public:
     const ofPixels &getPixels();
     void setPixels(const ofPixels &_pix);
     void setPixelsBetweenLeds(float dist) { m_pixelsInLed = dist; };
-    void setFps(float fps) { m_fps = fps; m_msecInFrame = 1000.0 / m_fps; }
+    void setFps(float fps)
+    {
+        m_fps = fps;
+        m_msecInFrame = 1000.0 / m_fps;
+    }
 
     void setSelected(bool state);
-    void setGuiPosition(int x, int y);
 
     ofImage grabImg;
 
@@ -114,8 +114,8 @@ public:
 
     const ofRectangle &peekBounds() const { return m_grabBounds; }
 private:
-    unsigned int _id;
-    ofColor lineColor;
+    unsigned int m_id;
+    ofColor m_colorLine, m_colorActive, m_colorInactive;
 
     vector<char> m_output;
 
@@ -132,9 +132,8 @@ private:
     vector<LedMapper::Point> m_ledPoints;
     int currentLine;
 
-    bool bSelected, bShowGui;
-    bool bDeletePoints;
-    bool bSetupGui, bUdpSetup, bDmxSetup;
+    bool bSelected, bDeletePoints;
+    bool bUdpSetup, bDmxSetup;
 
     ofxLedGrabObject::GRAB_TYPE m_recordGrabType;
 
@@ -146,24 +145,16 @@ private:
 
     ofxUDPManager udpConnection;
 
-    COLOR_TYPE colorType;
-    float m_pixelsInLed, m_fps;
+    COLOR_TYPE m_colorType;
+    float m_pixelsInLed;
     bool bUdpSend, bDmxSend, bDoubleLine, m_statusOk, m_bDirtyPoints;
-    int xPos, yPos, width, height;
+    int m_fps;
 
     int dmxChannel;
     string m_udpIp, m_curUdpIp;
     int m_udpPort, m_curUdpPort;
 
     uint64_t m_lastFrameTime, m_msecInFrame;
-// GUI
-#ifndef LED_MAPPER_NO_GUI
-    unique_ptr<ofxDatGui> m_gui;
-    unique_ptr<ofxDatGui> m_grabObjGui;
-    unique_ptr<ofxDatGuiTheme> m_guiTheme;
-    ofxDatGuiTextInput *m_ipInput;
-    ofxDatGuiTextInput *m_portInput;
-#endif
 
 // DMX
 #ifdef USE_DMX
@@ -172,6 +163,4 @@ private:
     ofxDmxFtdi dmxFtdi;
     unsigned char dmxFtdiVal[513];
 #endif
-
 };
-

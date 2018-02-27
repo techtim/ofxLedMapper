@@ -31,7 +31,7 @@
 class ofxLedMapper {
 
 public:
-    ofxLedMapper(int __id = 1);
+    ofxLedMapper();
     ~ofxLedMapper();
 
     void update(const ofPixels &grabImg);
@@ -65,17 +65,16 @@ private:
     ofxXmlSettings XML;
     ofDirectory dir;
     string configFolderPath;
-    int _id;
     bool m_bSetup;
 
 #ifndef LED_MAPPER_NO_GUI
     // GUI
     unique_ptr<ofxDatGui> m_gui;
+    unique_ptr<ofxDatGui> m_guiController;
     unique_ptr<ofxDatGuiScrollView> m_listControllers;
     unique_ptr<ofxDatGuiTheme> guiTheme;
     ofxDatGuiToggle *m_toggleDebugController;
     ofxDatGuiToggle *m_togglePlay;
-    ofxDatGuiSlider *m_fpsSlider;
 #endif
 
     bool bAdd;

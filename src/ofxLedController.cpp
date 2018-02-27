@@ -28,11 +28,8 @@ static const vector<string> s_channelList = { "channel 1", "channel 2" };
 
 ofxLedController::ofxLedController(const int &__id, const string &_path)
     : bSelected(false)
-    , bShowGui(true)
-    , bSetuped(false)
     , bDeletePoints(false)
     , m_recordGrabType(ofxLedGrabObject::GRAB_TYPE::GRAB_EMPTY)
-    , bSetupGui(false)
     , bUdpSend(false)
     , bDmxSend(false)
     , bDoubleLine(false)
@@ -55,27 +52,21 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
     , m_channelTotalLeds(s_channelList.size(), 0)
     , m_currentChannelNum(0)
     , m_ledPoints(0)
-#ifndef LED_MAPPER_NO_GUI
-    , m_gui(nullptr)
-    , m_ipInput(nullptr)
-    , m_portInput(nullptr)
-#endif
 {
-    _id = __id;
+    m_id = __id;
 
     setColorType(COLOR_TYPE::RGB);
     setFps(m_fps);
 
     path = _path;
-    
 
-    lineColor = ofColor(ofRandom(0, 100), ofRandom(50, 200), ofRandom(150, 255));
+    m_colorLine = ofColor(ofRandom(0, 100), ofRandom(50, 200), ofRandom(150, 255));
+    m_colorActive = ofColor(0, m_colorLine.g, m_colorLine.b, 200);
+    m_colorInactive = ofColor(m_colorLine.r, m_colorLine.g, 0, 200);
 
     load(path);
 
     setCurrentChannel(m_currentChannelNum);
-
-    setupGui();
 
     ofAddListener(ofEvents().mousePressed, this, &ofxLedController::mousePressed);
     ofAddListener(ofEvents().mouseReleased, this, &ofxLedController::mouseReleased);
@@ -86,17 +77,13 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
     grabImg.allocate(50, 20, OF_IMAGE_COLOR);
 
     udpConnection.Create();
-
-    bSetuped = true;
 }
 
 ofxLedController::~ofxLedController()
 {
     ofLogVerbose("[ofxLedMapper] Detor: clear lines + remove event listeners + remove gui");
     m_channelGrabObjects.clear();
-#ifndef LED_MAPPER_NO_GUI
-    m_gui->clear();
-#endif
+
     udpConnection.Close();
 
     ofRemoveListener(ofEvents().mousePressed, this, &ofxLedController::mousePressed);
@@ -111,78 +98,92 @@ void ofxLedController::setOnControllerStatusChange(function<void(void)> callback
     m_statusChanged = callback;
 }
 
-void ofxLedController::setupGui()
-{
-    if (bSetupGui)
-        return;
-
 #ifndef LED_MAPPER_NO_GUI
+unique_ptr<ofxDatGui> ofxLedController::GenerateGui()
+{
+    ofLogVerbose() << "Generate scene gui";
 
-    m_gui = make_unique<ofxDatGui>(ofxDatGuiAnchor::TOP_RIGHT);
-    m_guiTheme = make_unique<LedMapper::ofxDatGuiThemeLM>();
-    m_gui->setTheme(m_guiTheme.get());
-    m_gui->addHeader("Ctrl " + ofToString(_id));
-    m_gui->setWidth(LM_GUI_WIDTH);
+    unique_ptr<ofxDatGui> gui = make_unique<ofxDatGui>();
+    unique_ptr<ofxDatGuiTheme> guiTheme = make_unique<LedMapper::ofxDatGuiThemeLM>();
+    gui->setTheme(guiTheme.get(), true);
+    gui->addHeader("Controller");
+    gui->setPosition(ofGetWidth() - 200, ofGetHeight() / 2 - 20);
+    gui->setAutoDraw(false);
 
-    auto toggle = m_gui->addToggle(LCGUIButtonSend, bUdpSend);
+    gui->addToggle(LCGUIButtonSend, false);
+
+    auto slider = gui->addSlider(LCGUISliderPix, 1, 50);
+    slider->setPrecision(1);
+    slider = gui->addSlider(LMGUISliderFps, 10, 60);
+    slider->setPrecision(0);
+
+    gui->addDropdown(LCGUIDropColorType, s_colorTypes);
+
+    gui->addTextInput(LCGUITextIP, "127.0.0.1");
+    gui->addTextInput(LCGUITextPort, "3000");
+
+    gui->addDropdown(LCGUIDropChannelNum, s_channelList);
+
+    return move(gui);
+}
+
+void ofxLedController::bindGui(ofxDatGui *gui)
+{
+    auto slider = gui->getSlider(LMGUISliderFps);
+    slider->setValue(m_fps);
+    slider->bind(m_fps);
+    slider->onSliderEvent(this, &ofxLedController::onSliderEvent);
+    slider = gui->getSlider(LCGUISliderPix);
+    slider->setValue(m_pixelsInLed);
+    slider->bind(m_pixelsInLed);
+    slider->onSliderEvent(this, &ofxLedController::onSliderEvent);
+
+    auto toggle = gui->getToggle(LCGUIButtonSend);
+    toggle->setChecked(bUdpSend);
     toggle->bind(bUdpSend);
     toggle->onButtonEvent(this, &ofxLedController::onButtonEvent);
-    auto slider = m_gui->addSlider(LCGUISliderPix, 1, 50);
-    slider->bind(m_pixelsInLed);
-    slider->setPrecision(1);
-    slider->onSliderEvent(this, &ofxLedController::onSliderEvent);
 
-    slider = m_gui->addSlider(LMGUISliderFps, 10, 60);
-    slider->bind(m_fps);
-    slider->setPrecision(0);
-    slider->onSliderEvent(this, &ofxLedController::onSliderEvent);
+    auto dropDown = gui->getDropdown(LCGUIDropColorType);
+    if (dropDown->getName() != "X") {
+        dropDown->select(m_colorType);
+        dropDown->onDropdownEvent(this, &ofxLedController::onDropdownEvent);
+    }
 
-    auto dropDown = m_gui->addDropdown(LCGUIDropColorType, s_colorTypes);
-    dropDown->select(colorType);
-    dropDown->onDropdownEvent(this, &ofxLedController::onDropdownEvent);
-    //    toggle = m_gui->addToggle(LCGUIButtonDoubleLine, false);
-    //    toggle->bind(bDoubleLine);
-    m_ipInput = m_gui->addTextInput(LCGUITextIP, m_udpIp);
-    m_ipInput->onTextInputEvent(this, &ofxLedController::onTextInputEvent);
-    m_portInput = m_gui->addTextInput(LCGUITextPort, ofToString(m_udpPort));
-    m_portInput->onTextInputEvent(this, &ofxLedController::onTextInputEvent);
+    dropDown = gui->getDropdown(LCGUIDropChannelNum);
+    if (dropDown->getName() != "X") {
+        dropDown->select(m_currentChannelNum);
+        dropDown->onDropdownEvent(this, &ofxLedController::onDropdownEvent);
+    }
 
-    dropDown = m_gui->addDropdown(LCGUIDropChannelNum, s_channelList);
-    dropDown->select(m_currentChannelNum);
-    dropDown->onDropdownEvent(this, &ofxLedController::onDropdownEvent);
+    auto text = gui->getTextInput(LCGUITextIP);
+    if (text->getName() != "X") {
+        text->setText(m_udpIp);
+        text->onTextInputEvent(this, &ofxLedController::onTextInputEvent);
+    }
+
+    text = gui->getTextInput(LCGUITextPort);
+    if (text->getName() != "X") {
+        text->setText(ofToString(m_udpPort));
+        text->onTextInputEvent(this, &ofxLedController::onTextInputEvent);
+    }
 
 #if defined(USE_DMX_FTDI) && (USE_DMX)
-    toggle = m_gui->addToggle(LCGUIButtonDmx, false);
-    toggle->bind(bDmxSend);
-    slider = m_gui->addSlider("DMX Chan", 1, 0, 512);
-    slider->bind(dmxChannel);
+//    toggle = m_gui->addToggle(LCGUIButtonDmx, false);
+//    toggle->bind(bDmxSend);
+//    slider = m_gui->addSlider("DMX Chan", 1, 0, 512);
+//    slider->bind(dmxChannel);
 #endif
-
-#endif // LED_MAPPER_NO_GUI
-
-    bSetupGui = true;
 }
+#endif
 
 void ofxLedController::draw()
 {
-    if (!bSetuped || !bShowGui)
-        return;
-
-#ifndef LED_MAPPER_NO_GUI
-    if (bSelected && bSetupGui) {
-        ofSetColor(255);
-        m_gui->update();
-        m_gui->draw();
-    }
-#endif
-
     int chanNum = 0;
+    ofColor color;
     for (auto &channelGrabs : m_channelGrabObjects) {
+        color = (chanNum == m_currentChannelNum ? m_colorActive : m_colorInactive);
         for (auto &grab : channelGrabs) {
-            if (chanNum == m_currentChannelNum)
-                grab->draw(ofColor(0, lineColor.g, lineColor.b, 200));
-            else
-                grab->draw(ofColor(lineColor.r, lineColor.g, 0, 200));
+            grab->draw(color);
         }
         ++chanNum;
     }
@@ -190,7 +191,7 @@ void ofxLedController::draw()
 
 void ofxLedController::updateGrabPoints()
 {
-    if (!bSetuped && !m_bDirtyPoints)
+    if (!m_bDirtyPoints)
         return;
 
     m_bDirtyPoints = false;
@@ -221,7 +222,7 @@ void ofxLedController::updateGrabPoints()
 
 void ofxLedController::updatePixels(const ofPixels &grabbedImg)
 {
-    if (!bSetuped || grabbedImg.size() == 0)
+    if (grabbedImg.size() == 0)
         return;
 
     updateGrabPoints();
@@ -264,7 +265,7 @@ void ofxLedController::setupUdp(const string &host, unsigned int port)
         //    }
         m_curUdpIp = host;
         m_curUdpPort = port;
-        bSetuped = bUdpSetup = true;
+        bUdpSetup = true;
     }
 }
 
@@ -307,21 +308,9 @@ void ofxLedController::setSelected(bool state)
         for (auto &grab : channelGrabs) {
             grab->setActive(bSelected);
         }
-#ifndef LED_MAPPER_NO_GUI
-    if (bSelected && bSetupGui)
-        m_gui->focus();
-#endif
 }
 
-void ofxLedController::setGuiPosition(int x, int y)
-{
-#ifndef LED_MAPPER_NO_GUI
-    if (bSetupGui)
-        m_gui->setPosition(x, y);
-#endif
-}
-
-unsigned int ofxLedController::getId() const { return _id; }
+unsigned int ofxLedController::getId() const { return m_id; }
 
 const ofPixels &ofxLedController::getPixels() { return grabImg.getPixels(); }
 
@@ -342,7 +331,7 @@ void ofxLedController::save(const string &path)
 
     XML.clear();
     int tagNum = XML.addTag("CONF");
-    XML.setValue("CONF:colorType", colorType, tagNum);
+    XML.setValue("CONF:colorType", m_colorType, tagNum);
     XML.setValue("CONF:PixInLed", m_pixelsInLed, tagNum);
     XML.setValue("CONF:fps", m_fps, tagNum);
     XML.setValue("CONF:UdpSend", bUdpSend, tagNum);
@@ -369,20 +358,20 @@ void ofxLedController::save(const string &path)
     ofJson config;
     config["ipAddress"] = m_udpIp;
     config["port"] = m_udpPort;
-    config["colorType"] = colorType;
+    config["colorType"] = m_colorType;
     config["points"] = m_ledPoints;
-    ofstream jsonFile(path + ofToString(_id) + ".json");
+    ofstream jsonFile(path + ofToString(m_id) + ".json");
     jsonFile << config.dump(4);
     jsonFile.close();
 
-    auto xmlPath = ofFilePath::addTrailingSlash(path) + LCFileName + ofToString(_id) + ".xml";
+    auto xmlPath = ofFilePath::addTrailingSlash(path) + LCFileName + ofToString(m_id) + ".xml";
     ofLogNotice() << "[ofxLedController] Save config to " << xmlPath;
     XML.save(xmlPath);
 }
 
 void ofxLedController::load(const string &path)
 {
-    auto xmlPath = ofFilePath::addTrailingSlash(path) + LCFileName + ofToString(_id) + ".xml";
+    auto xmlPath = ofFilePath::addTrailingSlash(path) + LCFileName + ofToString(m_id) + ".xml";
 
     if (!XML.loadFile(xmlPath)) {
         ofLogError() << "[ofxLedController] No config with path=" << xmlPath;
@@ -403,12 +392,6 @@ void ofxLedController::load(const string &path)
     m_fps = XML.getValue("fps", 25, 0);
     XML.popTag();
 
-#ifndef LED_MAPPER_NO_GUI
-    if (m_ipInput != nullptr && m_portInput != nullptr) {
-        m_ipInput->setText(m_udpIp);
-        m_portInput->setText(ofToString(m_udpPort));
-    }
-#endif
     if (bUdpSend)
         setupUdp(m_udpIp, m_udpPort);
     if (bDmxSend)
@@ -466,7 +449,6 @@ void ofxLedController::parseXml(ofxXmlSettings &XML)
                     tmpObj->load(XML, i);
                 }
 
-                ofLogVerbose() << "[ofxLedController]" << tmpObj.get();
                 tmpObj->setObjectId(i);
                 int chan = XML.getValue("LN:CHANNEL", 0, i);
                 m_channelGrabObjects[chan].emplace_back(move(tmpObj));
@@ -501,11 +483,9 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
             }
             if (bDeletePoints)
                 (*it)->setObjectId(linesCntr);
-            linesCntr++;
+            ++linesCntr;
             ++it;
         }
-
-    posClicked = ofVec2f(x, y);
 
     switch (m_recordGrabType) {
         case ofxLedGrabObject::GRAB_TYPE::GRAB_EMPTY:
@@ -673,9 +653,9 @@ ofxLedController::COLOR_TYPE ofxLedController::getColorType(int num) const
 
 void ofxLedController::setColorType(COLOR_TYPE type)
 {
-    colorType = type;
+    m_colorType = type;
 
-    switch (colorType) {
+    switch (m_colorType) {
         case RBG:
             m_colorUpdator = [](vector<char> &output, ofColor &color) {
                 output.emplace_back(color.r);

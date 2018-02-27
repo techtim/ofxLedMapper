@@ -123,10 +123,12 @@ public:
         color.graph.fills = hex(0x9C9DA1);
         stripe.button = hex(0x64ffda);
         stripe.toggle = hex(0x64ffda);
+        layout.height = 24.f;
+        layout.width = LM_GUI_WIDTH;
         init();
     }
 };
 
 #endif
-    
+
 } // LedMapper
