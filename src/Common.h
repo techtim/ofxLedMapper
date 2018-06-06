@@ -25,32 +25,41 @@
 #ifndef LED_MAPPER_NO_GUI
 
 #include "ofxDatGui.h"
-#define LM_GUI_WIDTH 200
-#define LMGUIListControllers "Controllers"
-#define LMGUIToggleDebug "Debug controller"
-#define LMGUITogglePlay "Play"
-#define LMGUISliderFps "FPS"
-#define LMGUIButtonAdd "Add Controller"
-#define LMGUIButtonDel "Delete Controller"
 
-#define LCGUIButtonSend "Send"
-#define LCGUIButtonDoubleLine "Double Line"
-#define LCGUITextIP "IP"
-#define LCGUITextPort "Port"
-#define LCGUISliderPix "Pix in led"
-#define LCGUIDropColorType "Color Type"
-#define LCGUIDropChannelNum "Channel"
-#define LCGUIButtonDmx "DMX"
-#define LCFileName "Ctrl-"
+static const int LM_GUI_WIDTH = 200;
+static const int LM_GUI_TOP_BAR = 24;
+static const string LMGUIListControllers = "Controllers";
+static const string LMGUIToggleDebug = "Debug controller";
+static const string LMGUITogglePlay = "Play";
+static const string LMGUISliderFps = "FPS";
+static const string LMGUIButtonAdd = "Add Controller";
+static const string LMGUIButtonDel = "Delete Controller";
+static const string LMGUIButtonSave = "Save";
+static const string LMGUIButtonLoad = "Load";
+
+static const string LMGUIMouseSelect = "Select";
+static const string LMGUIMouseGrabLine = "Line";
+static const string LMGUIMouseGrabCircle = "Circle";
+static const string LMGUIMouseGrabMatric = "Matrix";
+
+static const string LCGUIButtonSend = "Send";
+static const string LCGUIButtonDoubleLine = "Double Line";
+static const string LCGUITextIP = "IP";
+static const string LCGUITextPort = "Port";
+static const string LCGUISliderPix = "Pix in led";
+static const string LCGUIDropColorType = "Color Type";
+static const string LCGUIDropChannelNum = "Channel";
+static const string LCGUIButtonDmx = "DMX";
+static const string LCFileName = "Ctrl-";
 
 #endif
 
 // typedef unique_ptr<ofxLedController> ofxLedController_ptr;
 
-#define LMCtrlsFolderPath "Ctrls"
+static const string LMCtrlsFolderPath = "Ctrls";
 
-#define RPI_IP "192.168.2.10"
-#define RPI_PORT 3000
+static const string RPI_IP = "192.168.2.10";
+static const int RPI_PORT = 3000;
 
 #include "ofJson.h"
 
@@ -100,6 +109,9 @@ static const int LM_COLOR_GREEN_LIGHT = 0x6BE6B4;
 static const int LM_COLOR_RED = 0xbf093a;
 static const int LM_COLOR_RED_DARK = 0x870427;
 
+/// CONSTANTS
+static const int POINT_RAD = 3;
+
 #ifndef LED_MAPPER_NO_GUI
 class ofxDatGuiThemeLM : public ofxDatGuiTheme {
 public:
@@ -123,8 +135,10 @@ public:
         color.graph.fills = hex(0x9C9DA1);
         stripe.button = hex(0x64ffda);
         stripe.toggle = hex(0x64ffda);
-        layout.height = 24.f;
+        layout.height = LM_GUI_TOP_BAR;
         layout.width = LM_GUI_WIDTH;
+        font.size = 9;
+        font.file = AssetPath + "ofxbraitsch/fonts/MavenPro-Medium.ttf";
         init();
     }
 };

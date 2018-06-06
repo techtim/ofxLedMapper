@@ -28,6 +28,8 @@
 #include "ofxNetwork.h"
 #include "ofxXmlSettings.h"
 
+namespace LedMapper {
+
 class ofxLedMapper {
 
 public:
@@ -60,11 +62,11 @@ public:
     void windowResized(ofResizeEventArgs &args);
 
 private:
-    map<size_t, unique_ptr<ofxLedController>> Controllers;
-    unsigned int currentCtrl;
+    map<size_t, unique_ptr<ofxLedController>> m_controllers;
+    unsigned int m_currentCtrl;
     ofxXmlSettings XML;
     ofDirectory dir;
-    string configFolderPath;
+    string m_configFolderPath;
     bool m_bSetup;
 
 #ifndef LED_MAPPER_NO_GUI
@@ -80,3 +82,5 @@ private:
     bool bAdd;
     bool bShowControllers;
 };
+
+} // namespace LedMapper

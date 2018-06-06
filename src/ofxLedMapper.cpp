@@ -24,6 +24,8 @@
 #include <math.h>
 #include <regex>
 
+namespace LedMapper {
+
 ofxLedMapper::ofxLedMapper()
     : m_bSetup(false)
 
@@ -33,9 +35,9 @@ ofxLedMapper::ofxLedMapper()
 #endif
 
 #ifdef WIN32
-    , configFolderPath(LedMapper::CONFIG_PATH + LedMapper::APP_NAME + "\\")
+    , m_configFolderPath(LedMapper::CONFIG_PATH + LedMapper::APP_NAME + "\\")
 #elif defined(__APPLE__)
-    , configFolderPath(LedMapper::CONFIG_PATH + LedMapper::APP_NAME + "/")
+    , m_configFolderPath(LedMapper::CONFIG_PATH + LedMapper::APP_NAME + "/")
 #endif
 
 {
@@ -46,7 +48,7 @@ ofxLedMapper::ofxLedMapper()
     ofAddListener(ofEvents().windowResized, this, &ofxLedMapper::windowResized);
 
     /// add default ctrl
-    add(0, configFolderPath);
+    add(0, m_configFolderPath);
     setCurrentController(0);
 
     m_bSetup = true;
@@ -77,19 +79,19 @@ void ofxLedMapper::draw()
     }
 #endif
 
-    if (Controllers.empty())
+    if (m_controllers.empty())
         return;
 
-// If no debug toggled show lines from all controllers
+// If no debug toggled show lines from all m_controllers
 #ifndef LED_MAPPER_NO_GUI
-    if (m_toggleDebugController->getChecked() && currentCtrl < Controllers.size()) {
+    if (m_toggleDebugController->getChecked() && m_currentCtrl < m_controllers.size()) {
         // If debug toggled show lines from selected controller and its gui
-        Controllers[currentCtrl]->draw();
+        m_controllers[m_currentCtrl]->draw();
     }
     else
 #endif
     {
-        for (auto &ctrl : Controllers)
+        for (auto &ctrl : m_controllers)
             ctrl.second->draw();
     }
 }
@@ -99,13 +101,13 @@ void ofxLedMapper::update(const ofPixels &grabImg)
 #ifndef LED_MAPPER_NO_GUI
     /// Send only to selected controller when Debug Toggle enabled
     if (m_toggleDebugController->getChecked()) {
-        Controllers[currentCtrl]->sendUdp(grabImg);
+        m_controllers[m_currentCtrl]->sendUdp(grabImg);
         return;
     }
     if (m_togglePlay->getChecked())
 #endif
     {
-        for (auto &ctrl : Controllers) {
+        for (auto &ctrl : m_controllers) {
             ctrl.second->sendUdp(grabImg);
         }
     }
@@ -113,7 +115,7 @@ void ofxLedMapper::update(const ofPixels &grabImg)
 
 bool ofxLedMapper::add(string folder_path)
 {
-    add(Controllers.size(), folder_path);
+    add(m_controllers.size(), folder_path);
     return true;
 }
 
@@ -131,20 +133,20 @@ bool ofxLedMapper::add(unsigned int _ctrlId, string folder_path)
     m_listControllers->add(ofToString(ctrlId));
 #endif
 
-    Controllers[ctrlId] = move(ctrl);
+    m_controllers[ctrlId] = move(ctrl);
 
     return true;
 }
 
 bool ofxLedMapper::remove(unsigned int _ctrlId)
 {
-    auto it = Controllers.find(_ctrlId);
-    if (it == Controllers.end()) {
+    auto it = m_controllers.find(_ctrlId);
+    if (it == m_controllers.end()) {
         ofLogError() << "[ofxLedMapper] no ctrl to remove with id=" << _ctrlId;
         return false;
     }
     ofLogNotice() << "[ofxLedMapper] remove ctrl with id=" << _ctrlId;
-    Controllers.erase(it);
+    m_controllers.erase(it);
 
 #ifndef LED_MAPPER_NO_GUI
     m_listControllers->remove(m_listControllers->get(ofToString(_ctrlId)));
@@ -157,9 +159,9 @@ bool ofxLedMapper::remove(unsigned int _ctrlId)
 // Return true if ID not found
 bool ofxLedMapper::checkUniqueId(unsigned int _ctrlId)
 {
-    if (Controllers.empty())
+    if (m_controllers.empty())
         return true;
-    return Controllers.find(_ctrlId) == Controllers.end();
+    return m_controllers.find(_ctrlId) == m_controllers.end();
 }
 
 //
@@ -175,30 +177,34 @@ void ofxLedMapper::setupGui()
     m_gui->setWidth(LM_GUI_WIDTH);
 
     m_gui->addHeader(LMGUIListControllers);
-    currentCtrl = 0;
+    m_currentCtrl = 0;
+
+    auto button = m_gui->addButton(LMGUIButtonSave);
+    button->onButtonEvent(this, &ofxLedMapper::onButtonClick);
+    button->setLabelAlignment(ofxDatGuiAlignment::CENTER);
+    button = m_gui->addButton(LMGUIButtonLoad);
+    button->onButtonEvent(this, &ofxLedMapper::onButtonClick);
+    button->setLabelAlignment(ofxDatGuiAlignment::CENTER);
 
     m_togglePlay = m_gui->addToggle(LMGUITogglePlay, true);
     m_togglePlay->onButtonEvent(this, &ofxLedMapper::onButtonClick);
 
     m_toggleDebugController = m_gui->addToggle(LMGUIToggleDebug, false);
     m_toggleDebugController->onButtonEvent(this, &ofxLedMapper::onButtonClick);
-    auto btn = m_gui->addButton(LMGUIButtonAdd);
-    btn->onButtonEvent(this, &ofxLedMapper::onButtonClick);
 
-    btn = m_gui->addButton(LMGUIButtonDel);
-    btn->onButtonEvent(this, &ofxLedMapper::onButtonClick);
+    m_gui->addButton(LMGUIButtonAdd)->onButtonEvent(this, &ofxLedMapper::onButtonClick);
+    m_gui->addButton(LMGUIButtonDel)->onButtonEvent(this, &ofxLedMapper::onButtonClick);
 
     m_listControllers = make_unique<ofxDatGuiScrollView>(LMGUIListControllers, 5);
     m_listControllers->setTheme(guiTheme.get());
     m_listControllers->onScrollViewEvent(this, &ofxLedMapper::onScrollViewEvent);
     m_listControllers->setWidth(LM_GUI_WIDTH);
     m_listControllers->setNumVisible(10);
-    m_listControllers->setPosition(m_gui->getPosition().x,
-                                   m_gui->getPosition().y + m_gui->getHeight());
     m_listControllers->setBackgroundColor(ofColor(10));
 
-    m_guiController->setPosition(m_listControllers->getX() - LM_GUI_WIDTH,
-                                 m_listControllers->getY());
+    m_gui->update();
+
+    setGuiPosition(m_gui->getPosition().x, m_gui->getPosition().y + m_gui->getHeight());
 #endif
 }
 
@@ -216,18 +222,18 @@ void ofxLedMapper::setGuiPosition(int x, int y)
 
 void ofxLedMapper::setCurrentController(unsigned int _curCtrl)
 {
-    if (Controllers.empty())
+    if (m_controllers.empty())
         return;
 
-    if (Controllers.find(_curCtrl) == Controllers.end()) {
+    if (m_controllers.find(_curCtrl) == m_controllers.end()) {
         return;
     }
 
-    currentCtrl = _curCtrl;
-    for (auto &ctrl : Controllers)
+    m_currentCtrl = _curCtrl;
+    for (auto &ctrl : m_controllers)
         ctrl.second->setSelected(false);
 
-    Controllers[currentCtrl]->setSelected(true);
+    m_controllers[m_currentCtrl]->setSelected(true);
 
 #ifndef LED_MAPPER_NO_GUI
     if (!m_guiController) {
@@ -235,7 +241,7 @@ void ofxLedMapper::setCurrentController(unsigned int _curCtrl)
         m_guiController->setPosition(m_listControllers->getX() - LM_GUI_WIDTH,
                                      m_listControllers->getY());
     }
-    Controllers[currentCtrl]->bindGui(m_guiController.get());
+    m_controllers[m_currentCtrl]->bindGui(m_guiController.get());
 #endif
 
     updateControllersListGui();
@@ -247,12 +253,12 @@ void ofxLedMapper::updateControllersListGui()
     m_listControllers->sort();
     for (int i = 0; i < m_listControllers->getNumItems(); ++i) {
         auto child = m_listControllers->get(i);
-        child->setBackgroundColor(Controllers[ofToInt(child->getName())]->isStatusOk()
+        child->setBackgroundColor(m_controllers[ofToInt(child->getName())]->isStatusOk()
                                       ? ofColor::fromHex(LedMapper::LM_COLOR_GREEN_DARK)
                                       : ofColor::fromHex(LedMapper::LM_COLOR_RED_DARK));
     }
-    m_listControllers->get(ofToString(currentCtrl))
-        ->setBackgroundColor(Controllers[currentCtrl]->isStatusOk()
+    m_listControllers->get(ofToString(m_currentCtrl))
+        ->setBackgroundColor(m_controllers[m_currentCtrl]->isStatusOk()
                                  ? ofColor::fromHex(LedMapper::LM_COLOR_GREEN)
                                  : ofColor::fromHex(LedMapper::LM_COLOR_RED));
 
@@ -264,18 +270,18 @@ void ofxLedMapper::updateControllersListGui()
 //
 bool ofxLedMapper::load()
 {
-    dir.open(configFolderPath);
+    dir.open(m_configFolderPath);
     // check if dir exists, if not create dir and return
     if (!dir.exists()) {
-        dir.createDirectory(configFolderPath);
+        dir.createDirectory(m_configFolderPath);
         return false;
     }
     dir.listDir();
     dir.sort();
 
     /// clear current ctrls
-    if (!Controllers.empty()) {
-        Controllers.clear();
+    if (!m_controllers.empty()) {
+        m_controllers.clear();
 #ifndef LED_MAPPER_NO_GUI
         m_listControllers->clear();
 #endif
@@ -288,10 +294,10 @@ bool ofxLedMapper::load()
         regex_match(pth, base_match, ctrl_name);
         if (base_match.size() > 1) {
             ofLogVerbose("[ofxLedMapper] Load: add controller " + base_match[1].str());
-            add(ofToInt(base_match[1].str()), configFolderPath);
+            add(ofToInt(base_match[1].str()), m_configFolderPath);
         }
     }
-    if (!Controllers.empty()) {
+    if (!m_controllers.empty()) {
 #ifndef LED_MAPPER_NO_GUI
         m_listControllers->sort();
 #endif
@@ -305,13 +311,13 @@ bool ofxLedMapper::load()
 bool ofxLedMapper::save()
 {
 
-    dir.open(configFolderPath);
+    dir.open(m_configFolderPath);
     // check if dir exists, if not create dir and return
     if (!dir.exists()) {
-        dir.createDirectory(configFolderPath);
+        dir.createDirectory(m_configFolderPath);
     }
-    for (auto &ctrl : Controllers) {
-        ctrl.second->save(configFolderPath);
+    for (auto &ctrl : m_controllers) {
+        ctrl.second->save(m_configFolderPath);
     }
 
     return true;
@@ -331,12 +337,20 @@ void ofxLedMapper::onScrollViewEvent(ofxDatGuiScrollViewEvent e)
 
 void ofxLedMapper::onButtonClick(ofxDatGuiButtonEvent e)
 {
+    if (e.target->getName() == LMGUIButtonSave) {
+        save();
+    }
+
+    if (e.target->getName() == LMGUIButtonLoad) {
+        load();
+    }
+
     if (e.target->getName() == LMGUIButtonAdd) {
-        add(configFolderPath);
+        add(m_configFolderPath);
     }
 
     if (e.target->getName() == LMGUIButtonDel) {
-        remove(currentCtrl);
+        remove(m_currentCtrl);
     }
 }
 
@@ -347,10 +361,10 @@ void ofxLedMapper::keyPressed(ofKeyEventArgs &data)
 {
     switch (data.key) {
         case OF_KEY_UP:
-            setCurrentController(currentCtrl - 1);
+            setCurrentController(m_currentCtrl - 1);
             break;
         case OF_KEY_DOWN:
-            setCurrentController(currentCtrl + 1);
+            setCurrentController(m_currentCtrl + 1);
             break;
     }
 }
@@ -364,3 +378,5 @@ void ofxLedMapper::windowResized(ofResizeEventArgs &args)
     //    m_gui->getPosition().y+m_gui->getHeight());
     //#endif
 }
+
+} // namespace LedMapper

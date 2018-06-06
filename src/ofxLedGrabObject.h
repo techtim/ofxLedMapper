@@ -26,7 +26,7 @@
 
 #include "Common.h"
 
-#define POINT_RAD 3
+namespace LedMapper {
 
 class ofxLedGrabLine;
 class ofxLedGrabCircle;
@@ -56,9 +56,9 @@ public:
     virtual void draw(const ofColor &color = ofColor(200, 200, 200, 150)) = 0;
     virtual void drawGui() = 0;
     virtual void updateBounds() = 0;
-    virtual bool mousePressed(ofMouseEventArgs &args) = 0;
-    virtual bool mouseDragged(ofMouseEventArgs &args) = 0;
-    virtual bool mouseReleased(ofMouseEventArgs &args) = 0;
+    virtual bool mousePressed(const ofMouseEventArgs &args) = 0;
+    virtual bool mouseDragged(const ofMouseEventArgs &args) = 0;
+    virtual bool mouseReleased(const ofMouseEventArgs &args) = 0;
     virtual void save(ofxXmlSettings &xml) = 0;
     virtual void load(ofxXmlSettings &xml, int tagNum) = 0;
     virtual void set(int _fromX, int _fromY, int _toX, int _toY)
@@ -214,7 +214,7 @@ public:
 
     ~ofxLedGrabLine(){};
 
-    bool mousePressed(ofMouseEventArgs &args)
+    bool mousePressed(const ofMouseEventArgs &args)
     {
         int x = args.x, y = args.y;
         if (m_bounds.inside(x, y)) {
@@ -236,7 +236,7 @@ public:
         return false;
     }
 
-    bool mouseDragged(ofMouseEventArgs &args)
+    bool mouseDragged(const ofMouseEventArgs &args)
     {
         int x = args.x, y = args.y;
         if (m_bSelectedFrom) {
@@ -257,7 +257,7 @@ public:
         }
         return false;
     }
-    bool mouseReleased(ofMouseEventArgs &args)
+    bool mouseReleased(const ofMouseEventArgs &args)
     {
         m_bSelectedFrom = m_bSelectedTo = false;
         return true;
@@ -351,7 +351,7 @@ public:
         m_points.clear();
     };
 
-    bool mousePressed(ofMouseEventArgs &args)
+    bool mousePressed(const ofMouseEventArgs &args)
     {
         int x = args.x, y = args.y;
         if (m_bounds.inside(x, y)) {
@@ -371,7 +371,7 @@ public:
         return false;
     }
 
-    bool mouseDragged(ofMouseEventArgs &args)
+    bool mouseDragged(const ofMouseEventArgs &args)
     {
         int x = args.x, y = args.y;
         if (m_bSelectedFrom) {
@@ -387,7 +387,7 @@ public:
         return false;
     }
 
-    bool mouseReleased(ofMouseEventArgs &args)
+    bool mouseReleased(const ofMouseEventArgs &args)
     {
         m_bSelectedFrom = m_bSelectedTo = false;
         return true;
@@ -418,7 +418,6 @@ public:
     void drawGui() override
     {
         ;
-        ;
     }
 
     void setStartAngle(float angle) { startAngle = angle; }
@@ -446,9 +445,8 @@ public:
     }
     void updateBounds() override
     {
-        m_bounds.setPosition(fromX, fromY);
-        m_bounds.growToInclude(toX - m_radius, toY - m_radius);
-        m_bounds.growToInclude(toX + m_radius, toY + m_radius);
+        m_bounds.setPosition(fromX-m_radius, fromY-m_radius);
+        m_bounds.growToInclude(fromX+m_radius, fromY+m_radius);
     }
 
     void save(ofxXmlSettings &XML)
@@ -495,7 +493,7 @@ public:
         m_points.clear();
     }
 
-    bool mousePressed(ofMouseEventArgs &args)
+    bool mousePressed(const ofMouseEventArgs &args)
     {
         int x = args.x, y = args.y;
         if (m_bounds.inside(x, y)) {
@@ -517,7 +515,7 @@ public:
         return false;
     }
 
-    bool mouseDragged(ofMouseEventArgs &args)
+    bool mouseDragged(const ofMouseEventArgs &args)
     {
         int x = args.x, y = args.y;
         if (m_bSelectedFrom) {
@@ -541,7 +539,7 @@ public:
         return false;
     }
 
-    bool mouseReleased(ofMouseEventArgs &args)
+    bool mouseReleased(const ofMouseEventArgs &args)
     {
         m_bSelectedFrom = m_bSelectedTo = false;
         return true;
@@ -684,3 +682,5 @@ public:
         updatePoints();
     }
 };
+
+} // namespace LedMapper

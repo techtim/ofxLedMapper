@@ -23,6 +23,8 @@
 #include "ofxLedController.h"
 #include <regex>
 
+namespace LedMapper {
+
 static const vector<string> s_colorTypes = { "RGB", "RBG", "BRG", "BGR", "GRB", "GBR" };
 static const vector<string> s_channelList = { "channel 1", "channel 2" };
 
@@ -34,6 +36,7 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
     , bDmxSend(false)
     , bDoubleLine(false)
     , m_statusOk(false)
+    , m_bDirtyPoints(false)
     , bUdpSetup(false)
     , bDmxSetup(false)
     , m_udpIp(RPI_IP)
@@ -74,8 +77,6 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
     ofAddListener(ofEvents().keyPressed, this, &ofxLedController::keyPressed);
     ofAddListener(ofEvents().keyReleased, this, &ofxLedController::keyReleased);
 
-    grabImg.allocate(50, 20, OF_IMAGE_COLOR);
-
     udpConnection.Create();
 }
 
@@ -99,13 +100,14 @@ void ofxLedController::setOnControllerStatusChange(function<void(void)> callback
 }
 
 #ifndef LED_MAPPER_NO_GUI
+/// Static function to generate ubniversal container for controllers GUI
 unique_ptr<ofxDatGui> ofxLedController::GenerateGui()
 {
     ofLogVerbose() << "Generate scene gui";
 
     unique_ptr<ofxDatGui> gui = make_unique<ofxDatGui>();
     unique_ptr<ofxDatGuiTheme> guiTheme = make_unique<LedMapper::ofxDatGuiThemeLM>();
-    gui->setTheme(guiTheme.get(), true);
+    
     gui->addHeader("Controller");
     gui->setPosition(ofGetWidth() - 200, ofGetHeight() / 2 - 20);
     gui->setAutoDraw(false);
@@ -124,9 +126,19 @@ unique_ptr<ofxDatGui> ofxLedController::GenerateGui()
 
     gui->addDropdown(LCGUIDropChannelNum, s_channelList);
 
+#if defined(USE_DMX_FTDI) && (USE_DMX)
+    //    toggle = m_gui->addToggle(LCGUIButtonDmx, false);
+    //    toggle->bind(bDmxSend);
+    //    slider = m_gui->addSlider("DMX Chan", 1, 0, 512);
+    //    slider->bind(dmxChannel);
+#endif
+
+    /// set theme for gui and apply emediatly to all added components
+    gui->setTheme(guiTheme.get(), true);
+    
     return move(gui);
 }
-
+/// Bing generated GUI to controller
 void ofxLedController::bindGui(ofxDatGui *gui)
 {
     auto slider = gui->getSlider(LMGUISliderFps);
@@ -167,15 +179,10 @@ void ofxLedController::bindGui(ofxDatGui *gui)
         text->onTextInputEvent(this, &ofxLedController::onTextInputEvent);
     }
 
-#if defined(USE_DMX_FTDI) && (USE_DMX)
-//    toggle = m_gui->addToggle(LCGUIButtonDmx, false);
-//    toggle->bind(bDmxSend);
-//    slider = m_gui->addSlider("DMX Chan", 1, 0, 512);
-//    slider->bind(dmxChannel);
-#endif
 }
 #endif
 
+/// Draw all controllers grab objects
 void ofxLedController::draw()
 {
     int chanNum = 0;
@@ -189,6 +196,7 @@ void ofxLedController::draw()
     }
 }
 
+/// Update grab points from grab objects
 void ofxLedController::updateGrabPoints()
 {
     if (!m_bDirtyPoints)
@@ -220,6 +228,7 @@ void ofxLedController::updateGrabPoints()
     m_grabBounds.set(0, 0, res.x + 1, res.y + 1);
 }
 
+/// Update color for grab points pixels
 void ofxLedController::updatePixels(const ofPixels &grabbedImg)
 {
     if (grabbedImg.size() == 0)
@@ -269,6 +278,7 @@ void ofxLedController::setupUdp(const string &host, unsigned int port)
     }
 }
 
+/// Send by UDP grab points data updated with grabbedImg
 void ofxLedController::sendUdp(const ofPixels &grabbedImg)
 {
     auto now = ofGetSystemTime();
@@ -298,6 +308,7 @@ void ofxLedController::sendUdp()
         m_statusChanged();
 }
 
+/// Make controllers grab objects highligted and editable
 void ofxLedController::setSelected(bool state)
 {
     if (bSelected == state)
@@ -310,9 +321,13 @@ void ofxLedController::setSelected(bool state)
         }
 }
 
+void ofxLedController::setFps(float fps)
+{
+    m_fps = fps;
+    m_msecInFrame = 1000 / m_fps;
+}
+    
 unsigned int ofxLedController::getId() const { return m_id; }
-
-const ofPixels &ofxLedController::getPixels() { return grabImg.getPixels(); }
 
 unsigned int ofxLedController::getTotalLeds() const { return m_totalLeds; }
 
@@ -403,6 +418,7 @@ void ofxLedController::load(const string &path)
         for (auto &grab : channelGrabs)
             grab->setPixelsInLed(m_pixelsInLed);
 
+    markDirtyGrabPoints();
     updateGrabPoints();
 }
 
@@ -465,8 +481,12 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
 {
     if (!bSelected)
         return;
-
-    int x = args.x, y = args.y;
+    
+    if (args.y <= LM_GUI_TOP_BAR)
+        return;
+    
+    int x = args.x;
+    int y = args.y > LM_GUI_TOP_BAR ? args.y : LM_GUI_TOP_BAR;
 
     unsigned int linesCntr = 0;
 
@@ -539,7 +559,7 @@ void ofxLedController::mouseDragged(ofMouseEventArgs &args)
 {
     if (!bSelected)
         return;
-
+    int y = args.y > LM_GUI_TOP_BAR ? args.y : LM_GUI_TOP_BAR;
     if (!m_currentChannel->empty())
         for (auto &grab : *m_currentChannel)
             if (grab->mouseDragged(args)) {
@@ -572,8 +592,6 @@ void ofxLedController::keyPressed(ofKeyEventArgs &data)
         case OF_KEY_BACKSPACE:
             bDeletePoints = true;
             break;
-        case OF_KEY_ESC:
-            bSelected = false;
         default:
             break;
     }
@@ -760,3 +778,4 @@ void ofxLedController::sendDmx(const ofPixels &grabbedImg)
     }
 #endif // DMX
 }
+} // namespace LedMapper

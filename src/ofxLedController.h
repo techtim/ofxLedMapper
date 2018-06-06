@@ -36,6 +36,8 @@
 
 #include "ofxLedGrabObject.h"
 
+namespace LedMapper {
+
 using OnControllerStatusChange = function<void(void)>;
 using ChannelsGrabObjects = vector<vector<unique_ptr<ofxLedGrabObject>>>;
 
@@ -43,6 +45,7 @@ class ofxLedController {
 public:
     enum COLOR_TYPE { RGB = 0, RBG = 1, BRG = 2, BGR = 3, GRB = 4, GBR = 5 };
     enum LED_TYPE { DATA, DATACLOCK };
+
     ofxLedController() = delete;
     ofxLedController(const ofxLedController &) = delete;
     ofxLedController(ofxLedController &&) = delete;
@@ -75,7 +78,6 @@ public:
     const ChannelsGrabObjects &peekGrabObjects() const;
     unsigned int getId() const;
     unsigned int getTotalLeds() const;
-    unsigned char *getOutput();
 
     bool isSelected() const { return bSelected; }
     bool isStatusOk() const { return m_statusOk; }
@@ -92,25 +94,13 @@ public:
     void updateGrabPoints();
     void updatePixels(const ofPixels &grabbedImg);
 
-    const ofPixels &getPixels();
-    void setPixels(const ofPixels &_pix);
-    void setPixelsBetweenLeds(float dist) { m_pixelsInLed = dist; };
-    void setFps(float fps)
-    {
-        m_fps = fps;
-        m_msecInFrame = 1000.0 / m_fps;
-    }
-
+    void setFps(float fps);
     void setSelected(bool state);
-
-    ofImage grabImg;
-
-    void parseXml(ofxXmlSettings &XML);
+    void setPixelsBetweenLeds(float dist) { m_pixelsInLed = dist; };
+    void setGrabType(ofxLedGrabObject::GRAB_TYPE type) { m_recordGrabType = type; }
 
     COLOR_TYPE getColorType(int num) const;
     void setColorType(COLOR_TYPE);
-    void setCurrentChannel(int);
-    void notifyDMXChanged(bool &param);
 
     const ofRectangle &peekBounds() const { return m_grabBounds; }
 private:
@@ -125,12 +115,13 @@ private:
 
     function<void(void)> m_statusChanged;
 
+    void setCurrentChannel(int);
     ChannelsGrabObjects m_channelGrabObjects;
     vector<unique_ptr<ofxLedGrabObject>> *m_currentChannel;
     size_t m_currentChannelNum;
+    
     vector<uint16_t> m_channelTotalLeds;
     vector<LedMapper::Point> m_ledPoints;
-    int currentLine;
 
     bool bSelected, bDeletePoints;
     bool bUdpSetup, bDmxSetup;
@@ -138,11 +129,11 @@ private:
     ofxLedGrabObject::GRAB_TYPE m_recordGrabType;
 
     ofRectangle m_grabBounds;
-    ofVec2f posClicked;
-
+    
     ofxXmlSettings XML;
     string path;
-
+    void parseXml(ofxXmlSettings &XML);
+    
     ofxUDPManager udpConnection;
 
     COLOR_TYPE m_colorType;
@@ -164,3 +155,5 @@ private:
     unsigned char dmxFtdiVal[513];
 #endif
 };
+
+} // namespace LedMapper
