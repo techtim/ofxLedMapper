@@ -27,6 +27,7 @@
 #include "ofxDatGui.h"
 
 static const int LM_GUI_WIDTH = 200;
+static const int LM_GUI_ICON_WIDTH = 24;
 static const int LM_GUI_TOP_BAR = 24;
 static const string LMGUIListControllers = "Controllers";
 static const string LMGUIToggleDebug = "Debug controller";
@@ -40,7 +41,7 @@ static const string LMGUIButtonLoad = "Load";
 static const string LMGUIMouseSelect = "Select";
 static const string LMGUIMouseGrabLine = "Line";
 static const string LMGUIMouseGrabCircle = "Circle";
-static const string LMGUIMouseGrabMatric = "Matrix";
+static const string LMGUIMouseGrabMatrix = "Matrix";
 
 static const string LCGUIButtonSend = "Send";
 static const string LCGUIButtonDoubleLine = "Double Line";

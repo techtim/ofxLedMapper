@@ -68,17 +68,6 @@ void ofxLedMapper::draw()
     if (!m_bSetup)
         return;
 
-#ifndef LED_MAPPER_NO_GUI
-    m_gui->update();
-    m_gui->draw();
-    m_listControllers->update();
-    m_listControllers->draw();
-    if (m_guiController) {
-        m_guiController->update();
-        m_guiController->draw();
-    }
-#endif
-
     if (m_controllers.empty())
         return;
 
@@ -96,6 +85,19 @@ void ofxLedMapper::draw()
     }
 }
 
+void ofxLedMapper::drawGui() {
+#ifndef LED_MAPPER_NO_GUI
+        m_gui->update();
+        m_gui->draw();
+        m_listControllers->update();
+        m_listControllers->draw();
+        if (m_guiController) {
+            m_guiController->update();
+            m_guiController->draw();
+        }
+#endif
+}
+    
 void ofxLedMapper::update(const ofPixels &grabImg)
 {
 #ifndef LED_MAPPER_NO_GUI

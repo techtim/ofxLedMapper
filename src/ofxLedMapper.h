@@ -38,6 +38,7 @@ public:
 
     void update(const ofPixels &grabImg);
     void draw();
+    void drawGui();
     bool add(string folder_path);
     bool add(unsigned int _ctrlId, string folder_path);
     bool remove(unsigned int _ctrlId);
