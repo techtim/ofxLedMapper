@@ -32,9 +32,10 @@ class ofxLedGrabLine;
 class ofxLedGrabCircle;
 class ofxLedGrabMatrix;
 
+enum LMGrabType {GRAB_EMPTY, GRAB_LINE, GRAB_CIRCLE, GRAB_MATRIX, GRAB_SELECT };
+
 class ofxLedGrabObject {
 public:
-    enum GRAB_TYPE { GRAB_SELECT, GRAB_LINE, GRAB_CIRCLE, GRAB_MATRIX };
 
     ofxLedGrabObject(int _fromX = 0, int _fromY = 0, int _toX = 0, int _toY = 0,
                      float pixInLed = 2.f)
@@ -96,6 +97,17 @@ public:
         updatePoints();
     };
 
+    bool pressedFromTo(const ofVec2f &args)
+    {
+        if (abs(args.x - fromX) <= POINT_RAD && abs(args.y - fromY) <= POINT_RAD) {
+            m_bSelectedFrom = true;
+            m_bSelectedTo = false;
+        }
+        else if (abs(args.x - toX) <= POINT_RAD && abs(args.y - toY) <= POINT_RAD) {
+            m_bSelectedFrom = false;
+            m_bSelectedTo = true;
+        }
+    }
     void setChannel(int _channel) { m_channel = _channel; }
     int getChannel() const { return m_channel; }
     void setActive(bool active) { m_bActive = active; }
@@ -108,7 +120,7 @@ public:
 
     virtual void setStartAngle(float angle) { startAngle = angle; }
 
-    int getType() const { return type; };
+    int getType() const { return m_type; };
     const ofRectangle &getBounds() { return m_bounds; }
     const vector<ofVec2f> &points() const { return m_points; }
 
@@ -137,7 +149,7 @@ private:
     vector<ofVec2f> m_points;
     ofRectangle m_bounds;
 
-    static const int type = GRAB_EMPTY;
+    static const int m_type = LMGrabType::GRAB_EMPTY;
 
 #ifndef LED_MAPPER_NO_GUI
     unique_ptr<ofxDatGui> gui;
@@ -151,13 +163,13 @@ private:
 
 inline std::ostream &operator<<(std::ostream &os, const ofxLedGrabObject &obj)
 {
-    os << "Grab obj with type=" << ofToString(obj.type) << " from=" << ofVec2f(obj.fromX, obj.fromY)
+    os << "Grab obj with type=" << ofToString(obj.m_type) << " from=" << ofVec2f(obj.fromX, obj.fromY)
        << " to=" << ofVec2f(obj.toX, obj.toY);
     return os;
 }
 
 class ofxLedGrabLine : public ofxLedGrabObject {
-    static const int type = GRAB_LINE;
+    static const int m_type = LMGrabType::GRAB_LINE;
     bool m_bDoubleLine;
 
 public:
@@ -220,16 +232,7 @@ public:
         if (m_bounds.inside(x, y)) {
             m_bSelected = true;
             m_clickedPos = ofVec2f(x, y);
-            if (x > fromX - POINT_RAD * 2 && x < fromX + POINT_RAD * 2 && y > fromY - POINT_RAD * 2
-                && y < fromY + POINT_RAD * 2) {
-                m_bSelectedFrom = true;
-                m_bSelectedTo = false;
-            }
-            else if (x > toX - POINT_RAD * 2 && x < toX + POINT_RAD * 2 && y > toY - POINT_RAD * 2
-                     && y < toY + POINT_RAD * 2) {
-                m_bSelectedFrom = false;
-                m_bSelectedTo = true;
-            }
+            pressedFromTo(args);
             return true;
         }
         m_bSelected = false;
@@ -315,7 +318,7 @@ public:
     void save(ofxXmlSettings &XML) override
     {
         int tagNum = XML.addTag("LN");
-        XML.setValue("LN:TYPE", type, tagNum);
+        XML.setValue("LN:TYPE", m_type, tagNum);
         XML.setValue("LN:CHANNEL", m_channel, tagNum);
         XML.setValue("LN:fromX", fromX, tagNum);
         XML.setValue("LN:fromY", fromY, tagNum);
@@ -331,7 +334,7 @@ public:
 };
 
 class ofxLedGrabCircle : public ofxLedGrabObject {
-    static const int type = GRAB_CIRCLE;
+    static const int m_type = LMGrabType::GRAB_CIRCLE;
     float m_radius;
     float startAngle;
     bool bClockwise;
@@ -397,7 +400,7 @@ public:
     {
         ofSetColor(color);
         ofFill();
-        ofDrawCircle(fromX, fromY, 3);
+        ofDrawCircle(fromX, fromY, POINT_RAD);
         ofNoFill();
         ofDrawCircle(fromX, fromY, m_radius);
         ofSetColor(200, 200, 200, 250);
@@ -407,6 +410,7 @@ public:
                 ofDrawCircle((*i), m_pixelsInLed / 2);
                 ofSetColor(200, 200, 200, 150);
             }
+            ofSetColor(100, 100, 100, 150);
             ofDrawRectangle(m_bounds);
             ofSetColor(0, 250, 150, 250);
             ofDrawBitmapString("id" + ofToString(objID), fromX, fromY);
@@ -445,14 +449,14 @@ public:
     }
     void updateBounds() override
     {
-        m_bounds.setPosition(fromX-m_radius, fromY-m_radius);
-        m_bounds.growToInclude(fromX+m_radius, fromY+m_radius);
+        m_bounds.setPosition(fromX - m_radius - POINT_RAD, fromY - m_radius - POINT_RAD);
+        m_bounds.setSize((m_radius + POINT_RAD) * 2.f, (m_radius + POINT_RAD) * 2.f);
     }
 
     void save(ofxXmlSettings &XML)
     {
         int tagNum = XML.addTag("LN");
-        XML.setValue("LN:TYPE", type, tagNum);
+        XML.setValue("LN:TYPE", m_type, tagNum);
         XML.setValue("LN:CHANNEL", m_channel, tagNum);
         XML.setValue("LN:fromX", fromX, tagNum);
         XML.setValue("LN:fromY", fromY, tagNum);
@@ -472,7 +476,7 @@ public:
 };
 
 class ofxLedGrabMatrix : public ofxLedGrabObject {
-    static const int type = GRAB_MATRIX;
+    static const int m_type = LMGrabType::GRAB_MATRIX;
     int m_columns, m_rows;
     bool m_isVertical, m_isZigzag;
     float startAngle;
@@ -499,16 +503,7 @@ public:
         if (m_bounds.inside(x, y)) {
             m_bSelected = true;
             m_clickedPos = ofVec2f(x, y);
-            if (x > fromX - POINT_RAD * 2 && x < fromX + POINT_RAD * 2 && y > fromY - POINT_RAD * 2
-                && y < fromY + POINT_RAD * 2) {
-                m_bSelectedFrom = true;
-                m_bSelectedTo = false;
-            }
-            else if (x > toX - POINT_RAD * 2 && x < toX + POINT_RAD * 2 && y > toY - POINT_RAD * 2
-                     && y < toY + POINT_RAD * 2) {
-                m_bSelectedFrom = false;
-                m_bSelectedTo = true;
-            }
+            pressedFromTo(args);
             return true;
         }
         m_bSelected = false;
@@ -545,7 +540,7 @@ public:
         return true;
     }
 
-    void draw(const ofColor &color = ofColor(200, 200, 200, 150)) override
+    void draw(const ofColor &color = ofColor(100, 100, 100, 150)) override
     {
         ofSetColor(0, 191, 165, 200);
         ofFill();
@@ -629,12 +624,8 @@ public:
                 while (cntr != maxCntr) {
                     ofVec2f tmp = rowPos.getInterpolated(
                         ofVec2f(rowPos.x, vert2.y), (static_cast<float>(cntr) + .5f) / m_columns);
-                    //                    ofLogVerbose("row=" + ofToString(row) + " col=" +
-                    //                    ofToString(cntr) + " : " + ofToString(tmp));
                     if (tmp.x >= 0 && tmp.y >= 0)
                         m_points.emplace_back(std::move(tmp));
-                    //                    else
-                    //                        ofLogError("Point out bounds" + ofToString(tmp));
                     cntr += increment;
                 }
             }
@@ -660,7 +651,7 @@ public:
     void save(ofxXmlSettings &XML)
     {
         int tagNum = XML.addTag("LN");
-        XML.setValue("LN:TYPE", type, tagNum);
+        XML.setValue("LN:TYPE", m_type, tagNum);
         XML.setValue("LN:CHANNEL", m_channel, tagNum);
         XML.setValue("LN:fromX", fromX, tagNum);
         XML.setValue("LN:fromY", fromY, tagNum);

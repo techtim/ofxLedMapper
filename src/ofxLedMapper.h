@@ -66,9 +66,10 @@ private:
     map<size_t, unique_ptr<ofxLedController>> m_controllers;
     unsigned int m_currentCtrl;
     ofxXmlSettings XML;
-    ofDirectory dir;
+    ofDirectory m_dir;
     string m_configFolderPath;
     bool m_bSetup;
+    LMGrabType m_grabTypeSelected;
 
 #ifndef LED_MAPPER_NO_GUI
     // GUI
@@ -79,8 +80,6 @@ private:
     ofxDatGuiToggle *m_togglePlay;
 #endif
 
-    bool bAdd;
-    bool bShowControllers;
 };
 
 } // namespace LedMapper

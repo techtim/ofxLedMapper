@@ -118,7 +118,7 @@ static const int LM_COLOR_RED = 0xbf093a;
 static const int LM_COLOR_RED_DARK = 0x870427;
 
 /// CONSTANTS
-static const int POINT_RAD = 3;
+static const int POINT_RAD = 4;
 
 #ifndef LED_MAPPER_NO_GUI
 class ofxDatGuiThemeLM : public ofxDatGuiTheme {

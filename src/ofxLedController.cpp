@@ -31,7 +31,7 @@ static const vector<string> s_channelList = { "channel 1", "channel 2" };
 ofxLedController::ofxLedController(const int &__id, const string &_path)
     : bSelected(false)
     , bDeletePoints(false)
-    , m_recordGrabType(ofxLedGrabObject::GRAB_TYPE::GRAB_SELECT)
+    , m_currentGrabType(LMGrabType::GRAB_SELECT)
     , bUdpSend(false)
     , bDmxSend(false)
     , bDoubleLine(false)
@@ -82,7 +82,8 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
 
 ofxLedController::~ofxLedController()
 {
-    ofLogVerbose("[ofxLedMapper] Detor: clear lines + remove event listeners + remove gui");
+    ofLogVerbose("[ofxLedMapper] Dtor: clear lines + remove event listeners + remove gui");
+    disableEvents();
     m_channelGrabObjects.clear();
 
     udpConnection.Close();
@@ -110,7 +111,7 @@ unique_ptr<ofxDatGui> ofxLedController::GenerateGui()
 
     unique_ptr<ofxDatGui> gui = make_unique<ofxDatGui>();
     unique_ptr<ofxDatGuiTheme> guiTheme = make_unique<LedMapper::ofxDatGuiThemeLM>();
-    
+
     gui->addHeader("Controller");
     gui->setPosition(ofGetWidth() - 200, ofGetHeight() / 2 - 20);
     gui->setAutoDraw(false);
@@ -130,15 +131,15 @@ unique_ptr<ofxDatGui> ofxLedController::GenerateGui()
     gui->addDropdown(LCGUIDropChannelNum, s_channelList);
 
 #if defined(USE_DMX_FTDI) && (USE_DMX)
-    //    toggle = m_gui->addToggle(LCGUIButtonDmx, false);
-    //    toggle->bind(bDmxSend);
-    //    slider = m_gui->addSlider("DMX Chan", 1, 0, 512);
-    //    slider->bind(dmxChannel);
+//    toggle = m_gui->addToggle(LCGUIButtonDmx, false);
+//    toggle->bind(bDmxSend);
+//    slider = m_gui->addSlider("DMX Chan", 1, 0, 512);
+//    slider->bind(dmxChannel);
 #endif
 
     /// set theme for gui and apply emediatly to all added components
     gui->setTheme(guiTheme.get(), true);
-    
+
     return move(gui);
 }
 /// Bing generated GUI to controller
@@ -181,7 +182,6 @@ void ofxLedController::bindGui(ofxDatGui *gui)
         text->setText(ofToString(m_udpPort));
         text->onTextInputEvent(this, &ofxLedController::onTextInputEvent);
     }
-
 }
 #endif
 
@@ -329,7 +329,7 @@ void ofxLedController::setFps(float fps)
     m_fps = fps;
     m_msecInFrame = 1000 / m_fps;
 }
-    
+
 unsigned int ofxLedController::getId() const { return m_id; }
 
 unsigned int ofxLedController::getTotalLeds() const { return m_totalLeds; }
@@ -447,21 +447,19 @@ void ofxLedController::parseXml(ofxXmlSettings &XML)
                 // the last argument of getValue can be used to specify
                 // which tag out of multiple tags you are refering to.
                 unique_ptr<ofxLedGrabObject> tmpObj;
-                if (XML.getValue("LN:TYPE", 2, i) == ofxLedGrabObject::GRAB_TYPE::GRAB_LINE) {
+                if (XML.getValue("LN:TYPE", 2, i) == LMGrabType::GRAB_LINE) {
                     tmpObj = make_unique<ofxLedGrabLine>(
                         XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i),
                         XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i));
                     tmpObj->load(XML, i);
                 }
-                else if (XML.getValue("LN:TYPE", 2, i)
-                         == ofxLedGrabObject::GRAB_TYPE::GRAB_CIRCLE) {
+                else if (XML.getValue("LN:TYPE", 2, i) == LMGrabType::GRAB_CIRCLE) {
                     tmpObj = make_unique<ofxLedGrabCircle>(
                         XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i),
                         XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i));
                     tmpObj->load(XML, i);
                 }
-                else if (XML.getValue("LN:TYPE", 2, i)
-                         == ofxLedGrabObject::GRAB_TYPE::GRAB_MATRIX) {
+                else if (XML.getValue("LN:TYPE", 2, i) == LMGrabType::GRAB_MATRIX) {
                     tmpObj = make_unique<ofxLedGrabMatrix>(
                         XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i),
                         XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i));
@@ -484,10 +482,10 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
 {
     if (!bSelected)
         return;
-    
+
     if (args.y <= LM_GUI_TOP_BAR)
         return;
-    
+
     int x = args.x;
     int y = args.y > LM_GUI_TOP_BAR ? args.y : LM_GUI_TOP_BAR;
 
@@ -510,11 +508,11 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
             ++it;
         }
 
-    switch (m_recordGrabType) {
-        case ofxLedGrabObject::GRAB_TYPE::GRAB_SELECT:
+    switch (m_currentGrabType) {
+        case LMGrabType::GRAB_SELECT:
             break;
 
-        case ofxLedGrabObject::GRAB_TYPE::GRAB_LINE:
+        case LMGrabType::GRAB_LINE:
             if (m_pointsCount == 0) {
                 m_pointsCount++;
                 unique_ptr<ofxLedGrabLine> tmpLine
@@ -528,9 +526,10 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
                 if (!m_currentChannel->empty())
                     m_currentChannel->back()->setTo(x, y);
             }
+            markDirtyGrabPoints();
             break;
 
-        case ofxLedGrabObject::GRAB_TYPE::GRAB_MATRIX:
+        case LMGrabType::GRAB_MATRIX:
             if (m_pointsCount == 0) {
                 m_pointsCount++;
                 unique_ptr<ofxLedGrabMatrix> tmpLine
@@ -546,19 +545,19 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
             }
             break;
 
-        case ofxLedGrabObject::GRAB_TYPE::GRAB_CIRCLE:
+        case LMGrabType::GRAB_CIRCLE:
             unique_ptr<ofxLedGrabCircle> tmpCircle
                 = make_unique<ofxLedGrabCircle>(x, y, x + 20, y + 20, m_pixelsInLed);
             tmpCircle->setObjectId(m_currentChannel->size());
             tmpCircle->setChannel(m_currentChannelNum);
             m_currentChannel->emplace_back(move(tmpCircle));
-            break;
-
             markDirtyGrabPoints();
+            break;
     }
 }
-    
-void ofxLedController::addGrab(unique_ptr<ofxLedGrabObject> &object){
+
+void ofxLedController::addGrab(unique_ptr<ofxLedGrabObject> &object)
+{
     m_currentChannel->emplace_back(move(object));
     markDirtyGrabPoints();
 }
@@ -589,13 +588,13 @@ void ofxLedController::keyPressed(ofKeyEventArgs &data)
 {
     switch (data.key) {
         case '1':
-            m_recordGrabType = ofxLedGrabObject::GRAB_TYPE::GRAB_LINE;
+            m_currentGrabType = LMGrabType::GRAB_LINE;
             break;
         case '2':
-            m_recordGrabType = ofxLedGrabObject::GRAB_TYPE::GRAB_CIRCLE;
+            m_currentGrabType = LMGrabType::GRAB_CIRCLE;
             break;
         case '3':
-            m_recordGrabType = ofxLedGrabObject::GRAB_TYPE::GRAB_MATRIX;
+            m_currentGrabType = LMGrabType::GRAB_MATRIX;
             break;
         case OF_KEY_BACKSPACE:
             bDeletePoints = true;
@@ -607,7 +606,7 @@ void ofxLedController::keyPressed(ofKeyEventArgs &data)
 
 void ofxLedController::keyReleased(ofKeyEventArgs &data)
 {
-    m_recordGrabType = ofxLedGrabObject::GRAB_TYPE::GRAB_SELECT;
+    m_currentGrabType = LMGrabType::GRAB_SELECT;
     bDeletePoints = false;
 }
 

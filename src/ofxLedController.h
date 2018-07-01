@@ -41,6 +41,9 @@ namespace LedMapper {
 using OnControllerStatusChange = function<void(void)>;
 using ChannelsGrabObjects = vector<vector<unique_ptr<ofxLedGrabObject>>>;
 
+/// Class represents connection to one recieving client,
+/// to control transmittion params like fps, pixel color order, LED IC Type
+
 class ofxLedController {
 public:
     enum COLOR_TYPE { RGB = 0, RBG = 1, BRG = 2, BGR = 3, GRB = 4, GBR = 5 };
@@ -57,9 +60,9 @@ public:
     void load(const string &path);
 
     void addGrab(unique_ptr<ofxLedGrabObject> &object);
-    
+
     void draw();
-    
+
     /// mouse and keyboard events
     void mousePressed(ofMouseEventArgs &args);
     void mouseDragged(ofMouseEventArgs &args);
@@ -69,7 +72,7 @@ public:
     /// turn off global ofListeners for mouse and keyboard events
     /// used by ofxLedMapper
     void disableEvents();
-    
+
 #ifndef LED_MAPPER_NO_GUI
     static unique_ptr<ofxDatGui> GenerateGui();
     void bindGui(ofxDatGui *gui);
@@ -104,7 +107,7 @@ public:
     void setFps(float fps);
     void setSelected(bool state);
     void setPixelsBetweenLeds(float dist) { m_pixelsInLed = dist; };
-    void setGrabType(ofxLedGrabObject::GRAB_TYPE type) { m_recordGrabType = type; }
+    void setGrabType(LMGrabType type) { m_currentGrabType = type; }
 
     COLOR_TYPE getColorType(int num) const;
     void setColorType(COLOR_TYPE);
@@ -125,21 +128,21 @@ private:
     ChannelsGrabObjects m_channelGrabObjects;
     vector<unique_ptr<ofxLedGrabObject>> *m_currentChannel;
     size_t m_currentChannelNum;
-    
+
     vector<uint16_t> m_channelTotalLeds;
     vector<LedMapper::Point> m_ledPoints;
 
     bool bSelected, bDeletePoints;
     bool bUdpSetup, bDmxSetup;
 
-    ofxLedGrabObject::GRAB_TYPE m_recordGrabType;
+    LMGrabType m_currentGrabType;
 
     ofRectangle m_grabBounds;
-    
+
     ofxXmlSettings XML;
     string path;
     void parseXml(ofxXmlSettings &XML);
-    
+
     ofxUDPManager udpConnection;
 
     COLOR_TYPE m_colorType;

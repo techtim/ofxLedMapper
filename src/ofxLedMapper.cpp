@@ -28,7 +28,8 @@ namespace LedMapper {
 
 ofxLedMapper::ofxLedMapper()
     : m_bSetup(false)
-
+    , m_grabTypeSelected(LMGrabType::GRAB_SELECT)
+    , m_currentCtrl(0)
 #ifndef LED_MAPPER_NO_GUI
     , m_gui(nullptr)
     , m_guiController(nullptr)
@@ -293,14 +294,14 @@ void ofxLedMapper::updateControllersListGui()
 //
 bool ofxLedMapper::load()
 {
-    dir.open(m_configFolderPath);
+    m_dir.open(m_configFolderPath);
     // check if dir exists, if not create dir and return
-    if (!dir.exists()) {
-        dir.createDirectory(m_configFolderPath);
+    if (!m_dir.exists()) {
+        m_dir.createDirectory(m_configFolderPath);
         return false;
     }
-    dir.listDir();
-    dir.sort();
+    m_dir.listDir();
+    m_dir.sort();
 
     /// clear current ctrls
     if (!m_controllers.empty()) {
@@ -312,8 +313,8 @@ bool ofxLedMapper::load()
 
     regex ctrl_name(".*" + ofToString(LCFileName) + "([0-9]+).*"); // ([^\\.]+)
     smatch base_match;
-    for (int i = 0; i < (int)dir.size(); i++) {
-        string pth = dir.getPath(i);
+    for (size_t i = 0; i < m_dir.size(); ++i) {
+        string pth = m_dir.getPath(i);
         regex_match(pth, base_match, ctrl_name);
         if (base_match.size() > 1) {
             ofLogVerbose("[ofxLedMapper] Load: add controller " + base_match[1].str());
@@ -333,11 +334,10 @@ bool ofxLedMapper::load()
 
 bool ofxLedMapper::save()
 {
-
-    dir.open(m_configFolderPath);
-    // check if dir exists, if not create dir and return
-    if (!dir.exists()) {
-        dir.createDirectory(m_configFolderPath);
+    m_dir.open(m_configFolderPath);
+    // check if dir exists, create dir when not
+    if (!m_dir.exists()) {
+        m_dir.createDirectory(m_configFolderPath);
     }
     for (auto &ctrl : m_controllers) {
         ctrl.second->save(m_configFolderPath);
@@ -376,10 +376,10 @@ void ofxLedMapper::onButtonClick(ofxDatGuiButtonEvent e)
         remove(m_currentCtrl);
     }
 
-    if (e.target->getName() == LMGUIMouseSelect) m_grabType = GrabSelect;
-    if (e.target->getName() == LMGUIMouseGrabLine) m_grabType = GrabLine;
-    if (e.target->getName() == LMGUIMouseGrabCircle) m_grabType = GrabCircle;
-    if (e.target->getName() == LMGUIMouseGrabMatrix) m_grabType = GrabMatrix;
+    if (e.target->getName() == LMGUIMouseSelect) m_grabTypeSelected = LMGrabType::GRAB_SELECT;
+    if (e.target->getName() == LMGUIMouseGrabLine) m_grabTypeSelected = LMGrabType::GRAB_LINE;
+    if (e.target->getName() == LMGUIMouseGrabCircle) m_grabTypeSelected = LMGrabType::GRAB_CIRCLE;
+    if (e.target->getName() == LMGUIMouseGrabMatrix) m_grabTypeSelected = LMGrabType::GRAB_MATRIX;
 }
 
 void ofxLedMapper::onSliderEvent(ofxDatGuiSliderEvent e) {}
