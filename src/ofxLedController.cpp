@@ -86,7 +86,10 @@ ofxLedController::~ofxLedController()
     m_channelGrabObjects.clear();
 
     udpConnection.Close();
+}
 
+void ofxLedController::disableEvents()
+{
     ofRemoveListener(ofEvents().mousePressed, this, &ofxLedController::mousePressed);
     ofRemoveListener(ofEvents().mouseReleased, this, &ofxLedController::mouseReleased);
     ofRemoveListener(ofEvents().mouseDragged, this, &ofxLedController::mouseDragged);
@@ -553,6 +556,11 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
 
             markDirtyGrabPoints();
     }
+}
+    
+void ofxLedController::addGrab(unique_ptr<ofxLedGrabObject> &object){
+    m_currentChannel->emplace_back(move(object));
+    markDirtyGrabPoints();
 }
 
 void ofxLedController::mouseDragged(ofMouseEventArgs &args)

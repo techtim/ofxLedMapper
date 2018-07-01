@@ -214,7 +214,7 @@ public:
 
     ~ofxLedGrabLine(){};
 
-    bool mousePressed(const ofMouseEventArgs &args)
+    bool mousePressed(const ofMouseEventArgs &args) override
     {
         int x = args.x, y = args.y;
         if (m_bounds.inside(x, y)) {
@@ -236,7 +236,7 @@ public:
         return false;
     }
 
-    bool mouseDragged(const ofMouseEventArgs &args)
+    bool mouseDragged(const ofMouseEventArgs &args) override
     {
         int x = args.x, y = args.y;
         if (m_bSelectedFrom) {
@@ -257,7 +257,7 @@ public:
         }
         return false;
     }
-    bool mouseReleased(const ofMouseEventArgs &args)
+    bool mouseReleased(const ofMouseEventArgs &args) override
     {
         m_bSelectedFrom = m_bSelectedTo = false;
         return true;
@@ -284,7 +284,7 @@ public:
 
     void drawGui() override { ; }
 
-    void updatePoints()
+    void updatePoints() override
     {
         ofVec2f vert1(fromX, fromY);
         ofVec2f vert2(toX, toY);
@@ -387,7 +387,7 @@ public:
         return false;
     }
 
-    bool mouseReleased(const ofMouseEventArgs &args)
+    bool mouseReleased(const ofMouseEventArgs &args) override
     {
         m_bSelectedFrom = m_bSelectedTo = false;
         return true;
@@ -420,9 +420,9 @@ public:
         ;
     }
 
-    void setStartAngle(float angle) { startAngle = angle; }
+    void setStartAngle(float angle) override { startAngle = angle; }
     void setClockwise(bool bClock) { bClockwise = bClock; }
-    void updatePoints()
+    void updatePoints() override
     {
         ofVec2f vert1(fromX, fromY);
         ofVec2f vert2(toX, toY);

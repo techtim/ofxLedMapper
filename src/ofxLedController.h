@@ -56,13 +56,20 @@ public:
     void save(const string &path);
     void load(const string &path);
 
+    void addGrab(unique_ptr<ofxLedGrabObject> &object);
+    
     void draw();
+    
+    /// mouse and keyboard events
     void mousePressed(ofMouseEventArgs &args);
     void mouseDragged(ofMouseEventArgs &args);
     void mouseReleased(ofMouseEventArgs &args);
     void keyPressed(ofKeyEventArgs &data);
     void keyReleased(ofKeyEventArgs &data);
-
+    /// turn off global ofListeners for mouse and keyboard events
+    /// used by ofxLedMapper
+    void disableEvents();
+    
 #ifndef LED_MAPPER_NO_GUI
     static unique_ptr<ofxDatGui> GenerateGui();
     void bindGui(ofxDatGui *gui);
@@ -112,7 +119,6 @@ private:
     unsigned int m_totalLeds, m_pointsCount, m_outputHeaderOffset;
 
     std::function<void(vector<char> &output, ofColor &color)> m_colorUpdator;
-
     function<void(void)> m_statusChanged;
 
     void setCurrentChannel(int);
