@@ -32,6 +32,7 @@ ofxLedMapper::ofxLedMapper()
 #ifndef LED_MAPPER_NO_GUI
     , m_gui(nullptr)
     , m_guiController(nullptr)
+    , m_iconsMenu(nullptr)
 #endif
 
 #ifdef WIN32
@@ -91,13 +92,15 @@ void ofxLedMapper::drawGui() {
         m_gui->draw();
         m_listControllers->update();
         m_listControllers->draw();
+        m_iconsMenu->update();
+        m_iconsMenu->draw();
         if (m_guiController) {
             m_guiController->update();
             m_guiController->draw();
         }
 #endif
 }
-    
+
 void ofxLedMapper::update(const ofPixels &grabImg)
 {
 #ifndef LED_MAPPER_NO_GUI
@@ -205,6 +208,24 @@ void ofxLedMapper::setupGui()
     m_listControllers->setBackgroundColor(ofColor(10));
 
     m_gui->update();
+
+    /// Mouse Grab style buttons avalable when controllers tab selected
+    /// and draw ledMappers gui
+    m_iconsMenu = make_unique<ofxDatGui>(ofxDatGuiAnchor::TOP_LEFT);
+    m_iconsMenu->setTheme(guiTheme.get());
+    m_iconsMenu->setWidth(LM_GUI_ICON_WIDTH);
+    m_iconsMenu->setAutoDraw(false);
+
+    m_iconsMenu->addButtonImage(LMGUIMouseSelect, "gui/mouse_select.png",
+                                              "gui/mouse_select_over.png");
+    m_iconsMenu->addButtonImage(LMGUIMouseGrabLine, "gui/mouse_grab_line.png",
+                                "gui/mouse_grab_line_over.png");
+    m_iconsMenu->addButtonImage(LMGUIMouseGrabCircle, "gui/mouse_grab_line.png",
+                                "gui/mouse_grab_line.png");
+    m_iconsMenu->addButtonImage(LMGUIMouseGrabMatrix, "gui/mouse_grab_line.png",
+                                "gui/mouse_grab_line.png");
+    m_iconsMenu->onButtonEvent(this, &ofxLedMapper::onButtonClick);
+    m_iconsMenu->update();
 
     setGuiPosition(m_gui->getPosition().x, m_gui->getPosition().y + m_gui->getHeight());
 #endif
@@ -354,6 +375,11 @@ void ofxLedMapper::onButtonClick(ofxDatGuiButtonEvent e)
     if (e.target->getName() == LMGUIButtonDel) {
         remove(m_currentCtrl);
     }
+
+    if (e.target->getName() == LMGUIMouseSelect) m_grabType = GrabSelect;
+    if (e.target->getName() == LMGUIMouseGrabLine) m_grabType = GrabLine;
+    if (e.target->getName() == LMGUIMouseGrabCircle) m_grabType = GrabCircle;
+    if (e.target->getName() == LMGUIMouseGrabMatrix) m_grabType = GrabMatrix;
 }
 
 void ofxLedMapper::onSliderEvent(ofxDatGuiSliderEvent e) {}

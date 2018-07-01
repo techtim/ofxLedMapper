@@ -72,8 +72,7 @@ private:
 
 #ifndef LED_MAPPER_NO_GUI
     // GUI
-    unique_ptr<ofxDatGui> m_gui;
-    unique_ptr<ofxDatGui> m_guiController;
+    unique_ptr<ofxDatGui> m_gui, m_guiController, m_iconsMenu;
     unique_ptr<ofxDatGuiScrollView> m_listControllers;
     unique_ptr<ofxDatGuiTheme> guiTheme;
     ofxDatGuiToggle *m_toggleDebugController;

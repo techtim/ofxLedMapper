@@ -31,7 +31,7 @@ static const vector<string> s_channelList = { "channel 1", "channel 2" };
 ofxLedController::ofxLedController(const int &__id, const string &_path)
     : bSelected(false)
     , bDeletePoints(false)
-    , m_recordGrabType(ofxLedGrabObject::GRAB_TYPE::GRAB_EMPTY)
+    , m_recordGrabType(ofxLedGrabObject::GRAB_TYPE::GRAB_SELECT)
     , bUdpSend(false)
     , bDmxSend(false)
     , bDoubleLine(false)
@@ -511,7 +511,7 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
         }
 
     switch (m_recordGrabType) {
-        case ofxLedGrabObject::GRAB_TYPE::GRAB_EMPTY:
+        case ofxLedGrabObject::GRAB_TYPE::GRAB_SELECT:
             break;
 
         case ofxLedGrabObject::GRAB_TYPE::GRAB_LINE:
@@ -607,7 +607,7 @@ void ofxLedController::keyPressed(ofKeyEventArgs &data)
 
 void ofxLedController::keyReleased(ofKeyEventArgs &data)
 {
-    m_recordGrabType = ofxLedGrabObject::GRAB_TYPE::GRAB_EMPTY;
+    m_recordGrabType = ofxLedGrabObject::GRAB_TYPE::GRAB_SELECT;
     bDeletePoints = false;
 }
 

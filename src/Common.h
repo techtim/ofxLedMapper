@@ -62,6 +62,7 @@ static const string LMCtrlsFolderPath = "Ctrls";
 static const string RPI_IP = "192.168.2.10";
 static const int RPI_PORT = 3000;
 
+/// include json in oF versions prior to 1.0
 #include "ofJson.h"
 
 namespace LedMapper {
@@ -101,6 +102,12 @@ static void from_json(const ofJson &j, Point &p)
 {
     p.x = j.at("x").get<uint16_t>();
     p.y = j.at("y").get<uint16_t>();
+}
+
+/// hashing function
+constexpr unsigned int hash(const char* str, int h = 0)
+{
+    return !str[h] ? 5381 : (hash(str, h+1)*33) ^ str[h];
 }
 
 /// COLORS

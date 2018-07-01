@@ -34,7 +34,7 @@ class ofxLedGrabMatrix;
 
 class ofxLedGrabObject {
 public:
-    enum GRAB_TYPE { GRAB_EMPTY, GRAB_LINE, GRAB_CIRCLE, GRAB_MATRIX };
+    enum GRAB_TYPE { GRAB_SELECT, GRAB_LINE, GRAB_CIRCLE, GRAB_MATRIX };
 
     ofxLedGrabObject(int _fromX = 0, int _fromY = 0, int _toX = 0, int _toY = 0,
                      float pixInLed = 2.f)
