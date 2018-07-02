@@ -155,8 +155,9 @@ void ofxLedController::bindGui(ofxDatGui *gui)
     slider->onSliderEvent(this, &ofxLedController::onSliderEvent);
 
     auto toggle = gui->getToggle(LCGUIButtonSend);
-    toggle->setChecked(bUdpSend);
+    /// bind & set order matters
     toggle->bind(bUdpSend);
+    toggle->setChecked(bUdpSend);
     toggle->onButtonEvent(this, &ofxLedController::onButtonEvent);
 
     auto dropDown = gui->getDropdown(LCGUIDropColorType);
@@ -364,7 +365,9 @@ void ofxLedController::save(const string &path)
             /// xml
             if (XML.pushTag("STROKE", lastStrokeNum)) {
                 grab->setChannel(chanCtr);
-                grab->save(XML);
+                int tagNum = XML.addTag("LN");
+                grab->save(XML, tagNum);
+                XML.popTag();
             }
             /// json
             auto grabPoints = grab->getLedPoints();
@@ -446,25 +449,29 @@ void ofxLedController::parseXml(ofxXmlSettings &XML)
             for (int i = 0; i < numPtTags; i++) {
                 // the last argument of getValue can be used to specify
                 // which tag out of multiple tags you are refering to.
-                unique_ptr<ofxLedGrabObject> tmpObj;
-                if (XML.getValue("LN:TYPE", 2, i) == LMGrabType::GRAB_LINE) {
+                unique_ptr<ofxLedGrabObject> tmpObj{nullptr};
+                if (XML.getValue("LN:TYPE", LMGrabType::GRAB_EMPTY, i) == LMGrabType::GRAB_LINE) {
                     tmpObj = make_unique<ofxLedGrabLine>(
-                        XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i),
-                        XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i));
+                        ofVec2f(XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i)),
+                        ofVec2f(XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i)));
                     tmpObj->load(XML, i);
                 }
-                else if (XML.getValue("LN:TYPE", 2, i) == LMGrabType::GRAB_CIRCLE) {
+                else if (XML.getValue("LN:TYPE", LMGrabType::GRAB_EMPTY, i) == LMGrabType::GRAB_CIRCLE) {
                     tmpObj = make_unique<ofxLedGrabCircle>(
-                        XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i),
-                        XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i));
+                        ofVec2f(XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i)),
+                        ofVec2f(XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i)));
                     tmpObj->load(XML, i);
                 }
-                else if (XML.getValue("LN:TYPE", 2, i) == LMGrabType::GRAB_MATRIX) {
+                else if (XML.getValue("LN:TYPE", LMGrabType::GRAB_EMPTY, i) == LMGrabType::GRAB_MATRIX) {
                     tmpObj = make_unique<ofxLedGrabMatrix>(
-                        XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i),
-                        XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i));
+                        ofVec2f(XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i)),
+                        ofVec2f(XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i)));
                     tmpObj->load(XML, i);
                 }
+
+                if (tmpObj == nullptr)
+                    ofLogError() << "ofxLedController Malformed XML config, LN:TYPE unknown or empty"
+                                << XML.getValue("LN:TYPE", 0, i);
 
                 tmpObj->setObjectId(i);
                 int chan = XML.getValue("LN:CHANNEL", 0, i);
@@ -516,7 +523,7 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
             if (m_pointsCount == 0) {
                 m_pointsCount++;
                 unique_ptr<ofxLedGrabLine> tmpLine
-                    = make_unique<ofxLedGrabLine>(x, y, x, y, m_pixelsInLed, bDoubleLine);
+                    = make_unique<ofxLedGrabLine>(args, args, m_pixelsInLed, bDoubleLine);
                 tmpLine->setObjectId(m_currentChannel->size());
                 tmpLine->setChannel(m_currentChannelNum);
                 m_currentChannel->emplace_back(move(tmpLine));
@@ -524,7 +531,7 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
             else {
                 m_pointsCount = 0;
                 if (!m_currentChannel->empty())
-                    m_currentChannel->back()->setTo(x, y);
+                    m_currentChannel->back()->setTo(args);
             }
             markDirtyGrabPoints();
             break;
@@ -533,7 +540,7 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
             if (m_pointsCount == 0) {
                 m_pointsCount++;
                 unique_ptr<ofxLedGrabMatrix> tmpLine
-                    = make_unique<ofxLedGrabMatrix>(x, y, x, y, m_pixelsInLed);
+                    = make_unique<ofxLedGrabMatrix>(args, args, m_pixelsInLed);
                 tmpLine->setObjectId(m_currentChannel->size());
                 tmpLine->setChannel(m_currentChannelNum);
                 m_currentChannel->emplace_back(move(tmpLine));
@@ -541,18 +548,22 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
             else {
                 m_pointsCount = 0;
                 if (!m_currentChannel->empty())
-                    m_currentChannel->back()->setTo(x, y);
+                    m_currentChannel->back()->setTo(args);
             }
             break;
 
         case LMGrabType::GRAB_CIRCLE:
             unique_ptr<ofxLedGrabCircle> tmpCircle
-                = make_unique<ofxLedGrabCircle>(x, y, x + 20, y + 20, m_pixelsInLed);
+                = make_unique<ofxLedGrabCircle>(args, args + ofVec2f(20), m_pixelsInLed);
             tmpCircle->setObjectId(m_currentChannel->size());
             tmpCircle->setChannel(m_currentChannelNum);
             m_currentChannel->emplace_back(move(tmpCircle));
             markDirtyGrabPoints();
             break;
+
+//        case LMGrabType::GRAB_EMPTY:
+//        default:
+//            break;
     }
 }
 
