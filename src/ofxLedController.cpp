@@ -493,9 +493,6 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
     if (args.y <= LM_GUI_TOP_BAR)
         return;
 
-    int x = args.x;
-    int y = args.y > LM_GUI_TOP_BAR ? args.y : LM_GUI_TOP_BAR;
-
     unsigned int linesCntr = 0;
 
     for (auto &channelGrabs : m_channelGrabObjects)
@@ -562,7 +559,6 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
             break;
 
 //        case LMGrabType::GRAB_EMPTY:
-//        default:
 //            break;
     }
 }
