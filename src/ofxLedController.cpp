@@ -82,7 +82,7 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
 
 ofxLedController::~ofxLedController()
 {
-    ofLogVerbose("[ofxLedMapper] Dtor: clear lines + remove event listeners + remove gui");
+    ofLogVerbose("[ofxLedController] Dtor: clear lines + remove event listeners + remove gui");
     disableEvents();
     m_channelGrabObjects.clear();
 

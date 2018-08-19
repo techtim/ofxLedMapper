@@ -35,13 +35,7 @@ ofxLedMapper::ofxLedMapper()
     , m_guiController(nullptr)
     , m_iconsMenu(nullptr)
 #endif
-
-#ifdef WIN32
-    , m_configFolderPath(LedMapper::CONFIG_PATH + LedMapper::APP_NAME + "\\")
-#elif defined(__APPLE__)
-    , m_configFolderPath(LedMapper::CONFIG_PATH + LedMapper::APP_NAME + "/")
-#endif
-
+    , m_configFolderPath(LedMapper::LM_CONFIG_PATH)
 {
     setupGui();
 
@@ -178,8 +172,8 @@ void ofxLedMapper::setupGui()
 #ifndef LED_MAPPER_NO_GUI
     m_guiController = ofxLedController::GenerateGui();
     m_gui = make_unique<ofxDatGui>(ofxDatGuiAnchor::TOP_RIGHT);
-    guiTheme = make_unique<LedMapper::ofxDatGuiThemeLM>();
-    m_gui->setTheme(guiTheme.get());
+    m_guiTheme = make_unique<LedMapper::ofxDatGuiThemeLM>();
+    m_gui->setTheme(m_guiTheme.get());
     m_gui->setWidth(LM_GUI_WIDTH);
 
     m_gui->addHeader(LMGUIListControllers);
@@ -202,7 +196,7 @@ void ofxLedMapper::setupGui()
     m_gui->addButton(LMGUIButtonDel)->onButtonEvent(this, &ofxLedMapper::onButtonClick);
 
     m_listControllers = make_unique<ofxDatGuiScrollView>(LMGUIListControllers, 5);
-    m_listControllers->setTheme(guiTheme.get());
+    m_listControllers->setTheme(m_guiTheme.get());
     m_listControllers->onScrollViewEvent(this, &ofxLedMapper::onScrollViewEvent);
     m_listControllers->setWidth(LM_GUI_WIDTH);
     m_listControllers->setNumVisible(10);
@@ -213,19 +207,19 @@ void ofxLedMapper::setupGui()
     /// Mouse Grab style buttons avalable when controllers tab selected
     /// and draw ledMappers gui
     m_iconsMenu = make_unique<ofxDatGui>(ofxDatGuiAnchor::TOP_LEFT);
-    m_iconsMenu->setTheme(guiTheme.get());
+    m_iconsMenu->setTheme(m_guiTheme.get());
     m_iconsMenu->setWidth(LM_GUI_ICON_WIDTH);
     m_iconsMenu->setAutoDraw(false);
 
-    m_iconsMenu->addButtonImage(LMGUIMouseSelect, "gui/mouse_select.png",
-                                              "gui/mouse_select_over.png");
-    m_iconsMenu->addButtonImage(LMGUIMouseGrabLine, "gui/mouse_grab_line.png",
-                                "gui/mouse_grab_line_over.png");
-    m_iconsMenu->addButtonImage(LMGUIMouseGrabCircle, "gui/mouse_grab_line.png",
-                                "gui/mouse_grab_line.png");
-    m_iconsMenu->addButtonImage(LMGUIMouseGrabMatrix, "gui/mouse_grab_line.png",
-                                "gui/mouse_grab_line.png");
-    m_iconsMenu->onButtonEvent(this, &ofxLedMapper::onButtonClick);
+//    m_iconsMenu->addButtonImage(LMGUIMouseSelect, "gui/mouse_select.png",
+//                                              "gui/mouse_select_over.png");
+//    m_iconsMenu->addButtonImage(LMGUIMouseGrabLine, "gui/mouse_grab_line.png",
+//                                "gui/mouse_grab_line_over.png");
+//    m_iconsMenu->addButtonImage(LMGUIMouseGrabCircle, "gui/mouse_grab_line.png",
+//                                "gui/mouse_grab_line.png");
+//    m_iconsMenu->addButtonImage(LMGUIMouseGrabMatrix, "gui/mouse_grab_line.png",
+//                                "gui/mouse_grab_line.png");
+//    m_iconsMenu->onButtonEvent(this, &ofxLedMapper::onButtonClick);
     m_iconsMenu->update();
 
     setGuiPosition(m_gui->getPosition().x, m_gui->getPosition().y + m_gui->getHeight());
@@ -300,6 +294,9 @@ bool ofxLedMapper::load()
         m_dir.createDirectory(m_configFolderPath);
         return false;
     }
+    if (m_dir.size() == 0)
+        return false;
+             
     m_dir.listDir();
     m_dir.sort();
 

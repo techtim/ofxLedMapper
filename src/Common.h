@@ -29,6 +29,7 @@
 static const int LM_GUI_WIDTH = 200;
 static const int LM_GUI_ICON_WIDTH = 24;
 static const int LM_GUI_TOP_BAR = 24;
+static const string LMGUIPlayer = "Player";
 static const string LMGUIListControllers = "Controllers";
 static const string LMGUIToggleDebug = "Debug controller";
 static const string LMGUITogglePlay = "Play";
@@ -37,6 +38,8 @@ static const string LMGUIButtonAdd = "Add Controller";
 static const string LMGUIButtonDel = "Delete Controller";
 static const string LMGUIButtonSave = "Save";
 static const string LMGUIButtonLoad = "Load";
+static const string LMGUISliderFadeTime = "Fade time";
+static const string LMGUIListPlaylist = "Playlist";
 
 static const string LMGUIMouseSelect = "Select";
 static const string LMGUIMouseGrabLine = "Line";
@@ -70,9 +73,11 @@ namespace LedMapper {
 static const std::string APP_NAME = "LedMapper";
 
 #ifdef WIN32
-static const std::string CONFIG_PATH = "C:\\Users\\Public\\Documents\\";
+static const std::string LM_CONFIG_PATH = "C:\\Users\\Public\\Documents\\" + APP_NAME + "\\";
 #elif defined(__APPLE__)
-static const std::string CONFIG_PATH = "/Users/Shared/";
+static const std::string LM_CONFIG_PATH = "/Users/Shared/" + APP_NAME + "/";
+#elif defined(TARGET_LINUX)
+static const std::string LM_CONFIG_PATH = "~/" + APP_NAME + "/";
 #endif
 
 /// JSON Utils
