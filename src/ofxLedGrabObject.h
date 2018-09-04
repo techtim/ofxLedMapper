@@ -62,11 +62,14 @@ public:
         if (m_from.distance(args) <= POINT_RAD) {
             m_bSelectedFrom = true;
             m_bSelectedTo = false;
+            return true;
         }
         else if (m_to.distance(args) <= POINT_RAD) {
             m_bSelectedFrom = false;
             m_bSelectedTo = true;
+            return true;
         }
+        return false;
     }
 
     virtual void load(ofxXmlSettings &xml, int tagNum = -1) = 0;
@@ -331,7 +334,7 @@ public:
         m_points.clear();
     };
 
-    bool mousePressed(const ofMouseEventArgs &args)
+    bool mousePressed(const ofMouseEventArgs &args) override
     {
         if (m_bounds.inside(args)) {
             m_bSelected = true;
@@ -348,7 +351,7 @@ public:
         return false;
     }
 
-    bool mouseDragged(const ofMouseEventArgs &args)
+    bool mouseDragged(const ofMouseEventArgs &args) override
     {
         if (m_bSelectedFrom) {
             m_bSelected = true;
@@ -420,7 +423,7 @@ public:
     }
     void updateBounds() override
     {
-        m_bounds.setPosition(m_from - ofVec2f(m_radius + POINT_RAD));
+        m_bounds.setPosition(m_from.x - m_radius + POINT_RAD, m_from.y - m_radius + POINT_RAD);
         m_bounds.setSize((m_radius + POINT_RAD) * 2.f, (m_radius + POINT_RAD) * 2.f);
     }
 
@@ -462,7 +465,7 @@ public:
         m_points.clear();
     }
 
-    bool mousePressed(const ofMouseEventArgs &args)
+    bool mousePressed(const ofMouseEventArgs &args) override
     {
         if (m_bounds.inside(args)) {
             m_bSelected = true;
@@ -474,7 +477,7 @@ public:
         return false;
     }
 
-    bool mouseDragged(const ofMouseEventArgs &args)
+    bool mouseDragged(const ofMouseEventArgs &args) override
     {
         if (m_bSelectedFrom) {
             m_bSelected = true;
@@ -496,7 +499,7 @@ public:
         return false;
     }
 
-    bool mouseReleased(const ofMouseEventArgs &args)
+    bool mouseReleased(const ofMouseEventArgs &args) override
     {
         m_bSelectedFrom = m_bSelectedTo = false;
         return true;
@@ -545,7 +548,7 @@ public:
     void setNumRows(int rows) { m_rows = rows; }
     void setNumColumns(int columns) { m_columns = columns; }
 
-    void updatePoints()
+    void updatePoints() override
     {
         updateBounds();
 

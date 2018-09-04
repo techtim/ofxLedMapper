@@ -42,7 +42,9 @@ public:
     bool add(string folder_path);
     bool add(unsigned int _ctrlId, string folder_path);
     bool remove(unsigned int _ctrlId);
+    bool load(string folderPath);
     bool load();
+    bool save(string folderPath);
     bool save();
 
     bool checkUniqueId(unsigned int _ctrlId);

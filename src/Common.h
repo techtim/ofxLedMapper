@@ -66,7 +66,9 @@ static const string RPI_IP = "192.168.2.10";
 static const int RPI_PORT = 3000;
 
 /// include json in oF versions prior to 1.0
+#if (OF_VERSION_MINOR < 10)
 #include "ofJson.h"
+#endif
 
 namespace LedMapper {
 
@@ -79,6 +81,8 @@ static const std::string LM_CONFIG_PATH = "/Users/Shared/" + APP_NAME + "/";
 #elif defined(TARGET_LINUX)
 static const std::string LM_CONFIG_PATH = "~/" + APP_NAME + "/";
 #endif
+
+static const std::string LM_CONFIG_EXTENSION = ".lmjson";
 
 /// JSON Utils
 struct Color {

@@ -41,8 +41,8 @@ namespace LedMapper {
 using OnControllerStatusChange = function<void(void)>;
 using ChannelsGrabObjects = vector<vector<unique_ptr<ofxLedGrabObject>>>;
 
-/// Class represents connection to one recieving client,
-/// to control transmittion params like fps, pixel color order, LED IC Type
+/// Class represents connection to one client recieving led data and
+/// control transmittion params like fps, pixel color order, LED IC Type
 
 class ofxLedController {
 public:

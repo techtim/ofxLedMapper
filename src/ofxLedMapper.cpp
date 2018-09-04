@@ -81,18 +81,19 @@ void ofxLedMapper::draw()
     }
 }
 
-void ofxLedMapper::drawGui() {
+void ofxLedMapper::drawGui()
+{
 #ifndef LED_MAPPER_NO_GUI
-        m_gui->update();
-        m_gui->draw();
-        m_listControllers->update();
-        m_listControllers->draw();
-        m_iconsMenu->update();
-        m_iconsMenu->draw();
-        if (m_guiController) {
-            m_guiController->update();
-            m_guiController->draw();
-        }
+    m_gui->update();
+    m_gui->draw();
+    m_listControllers->update();
+    m_listControllers->draw();
+    m_iconsMenu->update();
+    m_iconsMenu->draw();
+    if (m_guiController) {
+        m_guiController->update();
+        m_guiController->draw();
+    }
 #endif
 }
 
@@ -211,15 +212,18 @@ void ofxLedMapper::setupGui()
     m_iconsMenu->setWidth(LM_GUI_ICON_WIDTH);
     m_iconsMenu->setAutoDraw(false);
 
-//    m_iconsMenu->addButtonImage(LMGUIMouseSelect, "gui/mouse_select.png",
-//                                              "gui/mouse_select_over.png");
-//    m_iconsMenu->addButtonImage(LMGUIMouseGrabLine, "gui/mouse_grab_line.png",
-//                                "gui/mouse_grab_line_over.png");
-//    m_iconsMenu->addButtonImage(LMGUIMouseGrabCircle, "gui/mouse_grab_line.png",
-//                                "gui/mouse_grab_line.png");
-//    m_iconsMenu->addButtonImage(LMGUIMouseGrabMatrix, "gui/mouse_grab_line.png",
-//                                "gui/mouse_grab_line.png");
-//    m_iconsMenu->onButtonEvent(this, &ofxLedMapper::onButtonClick);
+    //    m_iconsMenu->addButtonImage(LMGUIMouseSelect, "gui/mouse_select.png",
+    //                                              "gui/mouse_select_over.png");
+    //    m_iconsMenu->addButtonImage(LMGUIMouseGrabLine,
+    //    "gui/mouse_grab_line.png",
+    //                                "gui/mouse_grab_line_over.png");
+    //    m_iconsMenu->addButtonImage(LMGUIMouseGrabCircle,
+    //    "gui/mouse_grab_line.png",
+    //                                "gui/mouse_grab_line.png");
+    //    m_iconsMenu->addButtonImage(LMGUIMouseGrabMatrix,
+    //    "gui/mouse_grab_line.png",
+    //                                "gui/mouse_grab_line.png");
+    //    m_iconsMenu->onButtonEvent(this, &ofxLedMapper::onButtonClick);
     m_iconsMenu->update();
 
     setGuiPosition(m_gui->getPosition().x, m_gui->getPosition().y + m_gui->getHeight());
@@ -286,18 +290,30 @@ void ofxLedMapper::updateControllersListGui()
 //
 // ------------------------------ SAVE & LOAD ------------------------------
 //
+bool ofxLedMapper::load(string folderPath)
+{
+    m_configFolderPath = folderPath;
+    return load();
+}
+
 bool ofxLedMapper::load()
 {
+    ofLogVerbose() << "[ofxLedMapper] Load from folder=" << m_configFolderPath;
     m_dir.open(m_configFolderPath);
     // check if dir exists, if not create dir and return
     if (!m_dir.exists()) {
+        ofLogVerbose() << "[ofxLedMapper] No such folder!";
         m_dir.createDirectory(m_configFolderPath);
         return false;
     }
-    if (m_dir.size() == 0)
-        return false;
-             
+
     m_dir.listDir();
+
+    if (m_dir.size() == 0) {
+        ofLogVerbose() << "[ofxLedMapper] Empty folder=" << m_dir.path();
+        return false;
+    }
+
     m_dir.sort();
 
     /// clear current ctrls
@@ -312,6 +328,7 @@ bool ofxLedMapper::load()
     smatch base_match;
     for (size_t i = 0; i < m_dir.size(); ++i) {
         string pth = m_dir.getPath(i);
+        ofLogVerbose() << "[ofxLedMapper] Check file=" << pth;
         regex_match(pth, base_match, ctrl_name);
         if (base_match.size() > 1) {
             ofLogVerbose("[ofxLedMapper] Load: add controller " + base_match[1].str());
@@ -327,6 +344,12 @@ bool ofxLedMapper::load()
     }
 
     return false;
+}
+
+bool ofxLedMapper::save(string folderPath)
+{
+    m_configFolderPath = folderPath;
+    return save();
 }
 
 bool ofxLedMapper::save()
@@ -373,10 +396,14 @@ void ofxLedMapper::onButtonClick(ofxDatGuiButtonEvent e)
         remove(m_currentCtrl);
     }
 
-    if (e.target->getName() == LMGUIMouseSelect) m_grabTypeSelected = LMGrabType::GRAB_SELECT;
-    if (e.target->getName() == LMGUIMouseGrabLine) m_grabTypeSelected = LMGrabType::GRAB_LINE;
-    if (e.target->getName() == LMGUIMouseGrabCircle) m_grabTypeSelected = LMGrabType::GRAB_CIRCLE;
-    if (e.target->getName() == LMGUIMouseGrabMatrix) m_grabTypeSelected = LMGrabType::GRAB_MATRIX;
+    if (e.target->getName() == LMGUIMouseSelect)
+        m_grabTypeSelected = LMGrabType::GRAB_SELECT;
+    if (e.target->getName() == LMGUIMouseGrabLine)
+        m_grabTypeSelected = LMGrabType::GRAB_LINE;
+    if (e.target->getName() == LMGUIMouseGrabCircle)
+        m_grabTypeSelected = LMGrabType::GRAB_CIRCLE;
+    if (e.target->getName() == LMGUIMouseGrabMatrix)
+        m_grabTypeSelected = LMGrabType::GRAB_MATRIX;
 }
 
 void ofxLedMapper::onSliderEvent(ofxDatGuiSliderEvent e) {}

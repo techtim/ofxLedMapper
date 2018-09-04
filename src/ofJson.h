@@ -75,7 +75,7 @@ inline void ofSerialize(ofJson &js, ofAbstractParameter &parameter)
     if (!parameter.isSerializable()) {
         return;
     }
-    string name = parameter.getEscapedName();
+    std::string name = parameter.getEscapedName();
     if (name == "") {
         name = "UnknownName";
     }
@@ -88,7 +88,7 @@ inline void ofSerialize(ofJson &js, ofAbstractParameter &parameter)
         js[name] = jsonGroup;
     }
     else {
-        string value = parameter.toString();
+        std::string value = parameter.toString();
         js[name] = value;
     }
 }
@@ -98,7 +98,7 @@ inline void ofDeserialize(const ofJson &json, ofAbstractParameter &parameter)
     if (!parameter.isSerializable()) {
         return;
     }
-    string name = parameter.getEscapedName();
+    std::string name = parameter.getEscapedName();
     if (parameter.type() == typeid(ofParameterGroup).name()) {
         ofParameterGroup &group = static_cast<ofParameterGroup &>(parameter);
         if (json.find(name) != json.end()) {
@@ -125,7 +125,7 @@ inline void ofDeserialize(const ofJson &json, ofAbstractParameter &parameter)
                      && json[name].is_number_integer()) {
                 parameter.cast<int64_t>() = json[name].get<int64_t>();
             }
-            else if (parameter.type() == typeid(ofParameter<string>).name()) {
+            else if (parameter.type() == typeid(ofParameter<std::string>).name()) {
                 parameter.cast<std::string>() = json[name].get<std::string>();
             }
             else {

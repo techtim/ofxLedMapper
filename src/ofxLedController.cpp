@@ -285,7 +285,7 @@ void ofxLedController::setupUdp(const string &host, unsigned int port)
 /// Send by UDP grab points data updated with grabbedImg
 void ofxLedController::sendUdp(const ofPixels &grabbedImg)
 {
-    auto now = ofGetSystemTime();
+    auto now = ofGetSystemTimeMillis();
     if (now - m_lastFrameTime < m_msecInFrame)
         return;
 
@@ -513,6 +513,7 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
         }
 
     switch (m_currentGrabType) {
+        case LMGrabType::GRAB_EMPTY:
         case LMGrabType::GRAB_SELECT:
             break;
 
