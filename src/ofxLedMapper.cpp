@@ -84,10 +84,13 @@ void ofxLedMapper::draw()
 void ofxLedMapper::drawGui()
 {
 #ifndef LED_MAPPER_NO_GUI
+    m_gui->focus();
     m_gui->update();
     m_gui->draw();
+
     m_listControllers->update();
     m_listControllers->draw();
+
     m_iconsMenu->update();
     m_iconsMenu->draw();
     if (m_guiController) {
@@ -196,11 +199,10 @@ void ofxLedMapper::setupGui()
     m_gui->addButton(LMGUIButtonAdd)->onButtonEvent(this, &ofxLedMapper::onButtonClick);
     m_gui->addButton(LMGUIButtonDel)->onButtonEvent(this, &ofxLedMapper::onButtonClick);
 
-    m_listControllers = make_unique<ofxDatGuiScrollView>(LMGUIListControllers, 5);
+    m_listControllers = make_unique<ofxDatGuiScrollView>(LMGUIListControllers, 10);
     m_listControllers->setTheme(m_guiTheme.get());
     m_listControllers->onScrollViewEvent(this, &ofxLedMapper::onScrollViewEvent);
     m_listControllers->setWidth(LM_GUI_WIDTH);
-    m_listControllers->setNumVisible(10);
     m_listControllers->setBackgroundColor(ofColor(10));
 
     m_gui->update();
@@ -212,18 +214,16 @@ void ofxLedMapper::setupGui()
     m_iconsMenu->setWidth(LM_GUI_ICON_WIDTH);
     m_iconsMenu->setAutoDraw(false);
 
-    //    m_iconsMenu->addButtonImage(LMGUIMouseSelect, "gui/mouse_select.png",
-    //                                              "gui/mouse_select_over.png");
-    //    m_iconsMenu->addButtonImage(LMGUIMouseGrabLine,
-    //    "gui/mouse_grab_line.png",
-    //                                "gui/mouse_grab_line_over.png");
-    //    m_iconsMenu->addButtonImage(LMGUIMouseGrabCircle,
-    //    "gui/mouse_grab_line.png",
-    //                                "gui/mouse_grab_line.png");
-    //    m_iconsMenu->addButtonImage(LMGUIMouseGrabMatrix,
-    //    "gui/mouse_grab_line.png",
-    //                                "gui/mouse_grab_line.png");
-    //    m_iconsMenu->onButtonEvent(this, &ofxLedMapper::onButtonClick);
+    m_iconsMenu->addButtonImage(LMGUIMouseSelect, "gui/mouse_select.png",
+                                "gui/mouse_select_over.png");
+    m_iconsMenu->addButtonImage(LMGUIMouseGrabLine, "gui/mouse_grab_line.png",
+                                "gui/mouse_grab_line_over.png");
+    m_iconsMenu->addButtonImage(LMGUIMouseGrabCircle, "gui/mouse_grab_line.png",
+                                "gui/mouse_grab_line.png");
+    m_iconsMenu->addButtonImage(LMGUIMouseGrabMatrix, "gui/mouse_grab_line.png",
+                                "gui/mouse_grab_line.png");
+    m_iconsMenu->onButtonEvent(this, &ofxLedMapper::onButtonClick);
+
     m_iconsMenu->update();
 
     setGuiPosition(m_gui->getPosition().x, m_gui->getPosition().y + m_gui->getHeight());
@@ -251,19 +251,28 @@ void ofxLedMapper::setCurrentController(unsigned int _curCtrl)
         return;
     }
 
+    /// hide Controller gui if select already selected
+    bool isDoubleSelect = m_currentCtrl == _curCtrl && m_controllers[m_currentCtrl]->isSelected();
+
     m_currentCtrl = _curCtrl;
     for (auto &ctrl : m_controllers)
         ctrl.second->setSelected(false);
 
-    m_controllers[m_currentCtrl]->setSelected(true);
+    if (!isDoubleSelect)
+        m_controllers[m_currentCtrl]->setSelected(true);
 
 #ifndef LED_MAPPER_NO_GUI
-    if (!m_guiController) {
-        m_guiController = ofxLedController::GenerateGui();
-        m_guiController->setPosition(m_listControllers->getX() - LM_GUI_WIDTH,
-                                     m_listControllers->getY());
-    }
-    m_controllers[m_currentCtrl]->bindGui(m_guiController.get());
+        /// reset gui pointer to hide active Controllers gui
+        if (isDoubleSelect) {
+            m_guiController.reset();
+        } else {
+            if (!m_guiController) {
+                m_guiController = ofxLedController::GenerateGui();
+                m_guiController->setPosition(m_listControllers->getX() - LM_GUI_WIDTH,
+                                             m_listControllers->getY());
+            }
+            m_controllers[m_currentCtrl]->bindGui(m_guiController.get());
+        }
 #endif
 
     updateControllersListGui();
@@ -417,6 +426,10 @@ void ofxLedMapper::keyPressed(ofKeyEventArgs &data)
             break;
         case OF_KEY_DOWN:
             setCurrentController(m_currentCtrl + 1);
+            break;
+        case OF_KEY_ESC:
+            /// selecting same Controller deselecs all
+            setCurrentController(m_currentCtrl);
             break;
     }
 }

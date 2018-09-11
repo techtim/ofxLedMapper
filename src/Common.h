@@ -38,8 +38,9 @@ static const string LMGUIButtonAdd = "Add Controller";
 static const string LMGUIButtonDel = "Delete Controller";
 static const string LMGUIButtonSave = "Save";
 static const string LMGUIButtonLoad = "Load";
-static const string LMGUISliderFadeTime = "Fade time";
+static const string LMGUISliderFadeTime = "Fade in sec";
 static const string LMGUIListPlaylist = "Playlist";
+static const string LMGUIListPlaylistDelete = "Delete item";
 
 static const string LMGUIMouseSelect = "Select";
 static const string LMGUIMouseGrabLine = "Line";
@@ -114,9 +115,9 @@ static void from_json(const ofJson &j, Point &p)
 }
 
 /// hashing function
-constexpr unsigned int hash(const char* str, int h = 0)
+constexpr unsigned int hash(const char *str, int h = 0)
 {
-    return !str[h] ? 5381 : (hash(str, h+1)*33) ^ str[h];
+    return !str[h] ? 5381 : (hash(str, h + 1) * 33) ^ str[h];
 }
 
 /// COLORS
@@ -160,6 +161,18 @@ public:
     }
 };
 
+class ofxDatGuiThemeLMTopMenu : public ofxDatGuiThemeLM {
+public:
+    ofxDatGuiThemeLMTopMenu()
+        : ofxDatGuiThemeLM::ofxDatGuiThemeLM()
+    {
+        layout.width = LM_GUI_WIDTH / 3;
+        color.background = ofColor(30);
+        color.guiBackground = hex(LM_COLOR_GREEN_DARK);
+        init();
+    }
+};
+
 #endif
 
-} // LedMapper
+} // namespace LedMapper
