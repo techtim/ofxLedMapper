@@ -55,6 +55,7 @@ public:
     void updateControllersListGui();
 
 #ifndef LED_MAPPER_NO_GUI
+    ofxDatGui *getGui();
     void onScrollViewEvent(ofxDatGuiScrollViewEvent e);
     void onButtonClick(ofxDatGuiButtonEvent e);
     void onSliderEvent(ofxDatGuiSliderEvent e);
@@ -75,6 +76,7 @@ private:
 
 #ifndef LED_MAPPER_NO_GUI
     // GUI
+
     unique_ptr<ofxDatGui> m_gui, m_guiController, m_iconsMenu;
     unique_ptr<ofxDatGuiScrollView> m_listControllers;
     unique_ptr<ofxDatGuiTheme> m_guiTheme;

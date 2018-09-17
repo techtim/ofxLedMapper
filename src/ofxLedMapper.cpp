@@ -84,7 +84,6 @@ void ofxLedMapper::draw()
 void ofxLedMapper::drawGui()
 {
 #ifndef LED_MAPPER_NO_GUI
-    m_gui->focus();
     m_gui->update();
     m_gui->draw();
 
@@ -241,6 +240,12 @@ void ofxLedMapper::setGuiPosition(int x, int y)
                                      m_listControllers->getY());
 #endif
 }
+
+#ifndef LED_MAPPER_NO_GUI
+ofxDatGui * ofxLedMapper::getGui(){
+    return m_gui.get();
+}
+#endif
 
 void ofxLedMapper::setCurrentController(unsigned int _curCtrl)
 {
