@@ -77,10 +77,13 @@ static const std::string APP_NAME = "LedMapper";
 
 #ifdef WIN32
 static const std::string LM_CONFIG_PATH = "C:\\Users\\Public\\Documents\\" + APP_NAME + "\\";
+static const int LM_KEY_CONTROL = 0x2; // OF_KEY_CONTROL
 #elif defined(__APPLE__)
 static const std::string LM_CONFIG_PATH = "/Users/Shared/" + APP_NAME + "/";
+static const int LM_KEY_CONTROL = 0x10; /// OF_KEY_SUPER
 #elif defined(TARGET_LINUX)
 static const std::string LM_CONFIG_PATH = "~/" + APP_NAME + "/";
+static const int LM_KEY_CONTROL = 0x2; // OF_KEY_CONTROL
 #endif
 
 static const std::string LM_CONFIG_EXTENSION = ".lmjson";

@@ -33,11 +33,29 @@ class ofxLedGrabCircle;
 class ofxLedGrabMatrix;
 
 enum LMGrabType { GRAB_EMPTY, GRAB_LINE, GRAB_CIRCLE, GRAB_MATRIX, GRAB_SELECT };
+static const ofColor s_colorGreen = ofColor::fromHex(LM_COLOR_GREEN_LIGHT);
 
-class ofxLedGrabObject {
+/// based on  glm::closestPointOnLine
+inline float getPointDistanceToLine(const ofVec2f &point, const ofVec2f &lineFrom,
+                                    const ofVec2f &lineTo)
+{
+    float LineLength = lineFrom.distance(lineTo);
+    glm::fvec2 Vector = point - lineFrom;
+    glm::fvec2 LineDirection = (lineTo - lineFrom) / LineLength;
+    // Project Vector to LineDirection to get the distance of point from a
+    float Distance = glm::dot(Vector, LineDirection);
+    if (Distance < 0.f)
+        return POINT_RAD * 10; // miss
+    if (Distance > LineLength)
+        return POINT_RAD * 10; // miss
+    glm::fvec2 pointOnLine = lineFrom + LineDirection * Distance;
+    return point.distance(pointOnLine);
+}
+
+class ofxLedGrab {
 public:
-    ofxLedGrabObject(const ofVec2f &from = ofVec2f(0), const ofVec2f &to = ofVec2f(0),
-                     float pixInLed = 2.f)
+    ofxLedGrab(const ofVec2f &from = ofVec2f(0), const ofVec2f &to = ofVec2f(0),
+               float pixInLed = 2.f)
         : m_from(from)
         , m_to(to)
         , m_bActive(false)
@@ -47,9 +65,18 @@ public:
         , m_pixelsInLed(pixInLed)
     {
     }
-
-    virtual ~ofxLedGrabObject(){};
-
+    ofxLedGrab(const ofxLedGrab &line)
+        : m_from(line.m_from)
+        , m_to(line.m_to)
+        , m_type(line.m_type)
+        , m_bActive(false)
+        , m_bSelected(false)
+        , m_bSelectedFrom(false)
+        , m_bSelectedTo(false)
+        , m_pixelsInLed(line.m_pixelsInLed)
+    {
+    }
+    virtual ~ofxLedGrab(){};
     virtual void updatePoints() = 0;
     virtual void draw(const ofColor &color = ofColor(200, 200, 200, 150)) = 0;
     virtual void drawGui() = 0;
@@ -71,9 +98,11 @@ public:
         }
         return false;
     }
+    void deselectFromTo() { m_bSelectedFrom = m_bSelectedTo = false; }
 
     virtual void load(ofxXmlSettings &xml, int tagNum = -1) = 0;
-    virtual void save(ofxXmlSettings &xml, const int tagNum) {
+    virtual void save(ofxXmlSettings &xml, const int tagNum)
+    {
         xml.setValue("LN:CHANNEL", m_channel, tagNum);
         xml.setValue("LN:fromX", m_from.x, tagNum);
         xml.setValue("LN:fromY", m_from.y, tagNum);
@@ -81,29 +110,29 @@ public:
         xml.setValue("LN:toY", m_to.y, tagNum);
     }
 
-    virtual void set(int fromX, int fromY, int toX, int toY)
+    void set(const ofVec2f &from, const ofVec2f &to)
     {
-        if (fromX < 0 || fromY < 0 || toX < 0 || toY < 0)
+        if (from.x < 0 || from.y < 0 || to.x < 0 || to.y < 0)
             return;
-        m_from.x = fromX;
-        m_from.y = fromY;
-        m_to.x = toX;
-        m_to.y = toY;
+        m_from = from;
+        m_to = to;
         updatePoints();
     };
-    virtual void set(const ofVec2f &from, const ofVec2f &to) { set(from.x, from.y, to.x, to.y); };
 
-    virtual void setFrom(const ofVec2f &from) { set(from, m_to); }
-    virtual void setTo(const ofVec2f &to) { set(m_from, to); }
-    virtual ofVec2f getFrom() const { return m_from; }
-    virtual ofVec2f getTo() const { return m_to; }
+    void setFrom(const ofVec2f &from) { set(from, m_to); }
+    void setTo(const ofVec2f &to) { set(m_from, to); }
+    ofVec2f getFrom() const { return m_from; }
+    ofVec2f getTo() const { return m_to; }
+
+    void setClickedPos(const ofVec2f &pos) { m_clickedPos = pos; }
+    const ofVec2f &getClickedPos() const { return m_clickedPos; }
 
     void setPixelsInLed(float _pixs)
     {
         m_pixelsInLed = _pixs;
         updatePoints();
     };
-
+    float getPixelsInLed() const { return m_pixelsInLed; }
     void setObjectId(unsigned int _objID) { objID = _objID; };
     unsigned int getObjectId() const { return objID; };
     void setChannel(int _channel) { m_channel = _channel; }
@@ -114,9 +143,8 @@ public:
     bool isSelected() const { return m_bSelected; }
 
     virtual void setStartAngle(float angle) { startAngle = angle; }
-
     int getType() const { return m_type; };
-    const ofRectangle &getBounds() { return m_bounds; }
+
     const vector<ofVec2f> &points() const { return m_points; }
 
     vector<LedMapper::Point> getLedPoints()
@@ -130,11 +158,12 @@ public:
         return ledPoints;
     }
 
-private:
-    const int m_type = LMGrabType::GRAB_EMPTY;
+    /// ------- Variables -------
+
     unsigned int objID;
 
     ofVec2f m_from, m_to, m_clickedPos;
+    int m_type = LMGrabType::GRAB_EMPTY;
     bool m_bActive, m_bSelected, m_bSelectedFrom, m_bSelectedTo;
 
     float m_pixelsInLed;
@@ -144,47 +173,37 @@ private:
     vector<ofVec2f> m_points;
     ofRectangle m_bounds;
 
-
-
 #ifndef LED_MAPPER_NO_GUI
     unique_ptr<ofxDatGui> gui;
 #endif
 
-    friend class ofxLedGrabLine;
-    friend class ofxLedGrabCircle;
-    friend class ofxLedGrabMatrix;
-    friend std::ostream &operator<<(std::ostream &os, const ofxLedGrabObject &obj);
+    friend std::ostream &operator<<(std::ostream &os, const ofxLedGrab &obj);
 };
 
-inline std::ostream &operator<<(std::ostream &os, const ofxLedGrabObject &obj)
+inline std::ostream &operator<<(std::ostream &os, const ofxLedGrab &obj)
 {
     os << "Grab obj with type=" << ofToString(obj.m_type) << " from=" << obj.m_from
        << " to=" << obj.m_to;
     return os;
 }
 
-class ofxLedGrabLine : public ofxLedGrabObject {
-    const int m_type = LMGrabType::GRAB_LINE;
+class ofxLedGrabLine : public ofxLedGrab {
     bool m_bDoubleLine;
 
 public:
     ofxLedGrabLine(const ofVec2f &from = ofVec2f(0), const ofVec2f &to = ofVec2f(0),
                    float pixInLed = 2.f, bool bDouble = false)
-        : ofxLedGrabObject(from, to, pixInLed)
+        : ofxLedGrab(from, to, pixInLed)
         , m_bDoubleLine(bDouble)
     {
+        ofxLedGrab::m_type = LMGrabType::GRAB_LINE;
         updatePoints();
     }
 
     ofxLedGrabLine(const ofxLedGrabLine &line)
+        : ofxLedGrab(line)
+        , m_bDoubleLine(line.m_bDoubleLine)
     {
-        m_from = line.m_from;
-        m_to = line.m_to;
-        m_pixelsInLed = line.m_pixelsInLed;
-        m_bDoubleLine = line.m_bDoubleLine;
-        m_bSelectedFrom = false;
-        m_bSelectedTo = false;
-        m_bSelected = false;
         updatePoints();
     }
 
@@ -220,37 +239,42 @@ public:
 
     bool mousePressed(const ofMouseEventArgs &args) override
     {
-        if (m_bounds.inside(args)) {
-            m_bSelected = true;
-            m_clickedPos = args;
-            pressedFromTo(args);
+        auto dist = getPointDistanceToLine(args, m_from, m_to);
+        if (abs(dist) < POINT_RAD * 2) {
+            ofxLedGrab::setSelected(true);
+            ofxLedGrab::setClickedPos(args);
+            ofxLedGrab::pressedFromTo(args);
             return true;
         }
-        m_bSelected = false;
+        ofxLedGrab::setSelected(false);
         return false;
     }
 
     bool mouseDragged(const ofMouseEventArgs &args) override
     {
         if (m_bSelectedFrom) {
-            ofxLedGrabObject::setFrom(args);
+            ofxLedGrab::setFrom(args);
             return true;
         }
         else if (m_bSelectedTo) {
-            ofxLedGrabObject::setTo(args);
+            ofxLedGrab::setTo(args);
             return true;
         }
         else if (m_bSelected) {
-            ofVec2f dist(args - m_clickedPos);
-            m_clickedPos = args;
-            ofxLedGrabObject::set(m_from + dist, m_to + dist);
+            auto dist = args - ofxLedGrab::getClickedPos();
+            ofLogVerbose() << "[mouseDragged] args=" << args
+                           << "- prev pos=" << ofxLedGrab::getClickedPos() << " = " << dist;
+            ofxLedGrab::setClickedPos(args);
+            ofxLedGrab::set(m_from + dist, m_to + dist);
+            ofLogVerbose() << "from=" << m_from << " to=" << m_to;
             return true;
         }
         return false;
     }
+
     bool mouseReleased(const ofMouseEventArgs &args) override
     {
-        m_bSelectedFrom = m_bSelectedTo = false;
+        ofxLedGrab::deselectFromTo();
         return true;
     }
 
@@ -258,18 +282,17 @@ public:
     {
         ofSetColor(color);
         ofDrawLine(m_from, m_to);
-        if (m_bSelected || isActive()) {
+        if (isActive()) {
+            ofFill();
             for (vector<ofVec2f>::iterator i = m_points.begin(); i != m_points.end(); i++) {
                 ofDrawCircle((*i), m_pixelsInLed / 2);
             }
-            ofNoFill();
-            ofDrawRectangle(m_bounds);
-            ofFill();
-            ofSetColor(0, 250, 150, 250);
-            ofDrawBitmapString("id" + ofToString(objID), m_from);
-            ofSetColor(107, 230, 180, 250);
-            ofDrawBitmapString(ofToString(static_cast<int>(m_points.size())),
-                               m_from.getInterpolated(m_to, .5));
+            ofSetColor(s_colorGreen);
+            ofDrawBitmapString("id" + ofToString(objID), m_from + ofVec2f(0, 2));
+            if (!m_bSelected)
+                return;
+            ofDrawBitmapString(ofToString(m_points.size()),
+                               m_from.getInterpolated(m_to, .5) - ofVec2f(0, 2));
         }
     }
 
@@ -300,10 +323,9 @@ public:
         auto max = ofVec2f(MAX(m_from.x, m_to.x), MAX(m_from.y, m_to.y));
         m_bounds.set(min - ofVec2f(POINT_RAD), max + ofVec2f(POINT_RAD));
     }
-
     void save(ofxXmlSettings &xml, const int tagNum) override
     {
-        ofxLedGrabObject::save(xml, tagNum);
+        ofxLedGrab::save(xml, tagNum);
         xml.setValue("LN:TYPE", this->m_type, tagNum);
         xml.setValue("LN:bDouble", m_bDoubleLine, tagNum);
     }
@@ -313,26 +335,31 @@ public:
     }
 };
 
-class ofxLedGrabCircle : public ofxLedGrabObject {
-    const int m_type = LMGrabType::GRAB_CIRCLE;
+class ofxLedGrabCircle : public ofxLedGrab {
     float m_radius;
-    float startAngle;
-    bool bClockwise;
+    float m_startAngle;
+    bool m_bClockwise;
 
 public:
     ofxLedGrabCircle(const ofVec2f &from = ofVec2f(0), const ofVec2f &to = ofVec2f(0),
                      float pixInLed = 2.f)
-        : ofxLedGrabObject(from, to, pixInLed)
+        : ofxLedGrab(from, to, pixInLed)
+        , m_startAngle(-90.f)
+        , m_bClockwise(true)
     {
-        startAngle = -90.f;
-        bClockwise = true;
+        ofxLedGrab::m_type = LMGrabType::GRAB_CIRCLE;
+
         updatePoints();
     }
-    ~ofxLedGrabCircle()
+
+    ofxLedGrabCircle(const ofxLedGrabCircle &circle)
+        : ofxLedGrab(circle)
+        , m_startAngle(circle.m_startAngle)
+        , m_bClockwise(circle.m_bClockwise)
     {
-        ofLogVerbose("[ofxLedGrabCircle] Detor: clear m_points");
-        m_points.clear();
-    };
+    }
+
+    ~ofxLedGrabCircle() { m_points.clear(); };
 
     bool mousePressed(const ofMouseEventArgs &args) override
     {
@@ -355,12 +382,12 @@ public:
     {
         if (m_bSelectedFrom) {
             m_bSelected = true;
-            ofxLedGrabObject::set(args, m_to - m_from + args);
+            ofxLedGrab::set(args, m_to - m_from + args);
             return true;
         }
         else if (m_bSelectedTo) {
             m_bSelected = true;
-            ofxLedGrabObject::setTo(args);
+            ofxLedGrab::setTo(args);
             return true;
         }
         return false;
@@ -368,7 +395,7 @@ public:
 
     bool mouseReleased(const ofMouseEventArgs &args) override
     {
-        m_bSelectedFrom = m_bSelectedTo = false;
+        ofxLedGrab::deselectFromTo();
         return true;
     }
 
@@ -381,17 +408,15 @@ public:
         ofDrawCircle(m_from, m_radius);
 
         if (isActive()) {
-            m_bSelected ? ofFill() : ofNoFill();
             ofSetColor(150, 150, 150, 150); /// color for first point
             for (vector<ofVec2f>::iterator i = m_points.begin(); i != m_points.end(); i++) {
                 ofDrawCircle((*i), m_pixelsInLed / 2);
                 ofSetColor(color);
             }
-            ofSetColor(100, 100, 100, 150);
-            ofNoFill();
-            ofDrawRectangle(m_bounds);
-            ofSetColor(0, 250, 150, 250);
+            ofSetColor(s_colorGreen);
             ofDrawBitmapString("id" + ofToString(objID), m_from);
+            if (!m_bSelected)
+                return;
             ofDrawBitmapString(ofToString(static_cast<int>(m_points.size())),
                                m_from.getInterpolated(m_to, .5));
         }
@@ -399,8 +424,8 @@ public:
 
     void drawGui() override { ; }
 
-    void setStartAngle(float angle) override { startAngle = angle; }
-    void setClockwise(bool bClock) { bClockwise = bClock; }
+    void setStartAngle(float angle) override { m_startAngle = angle; }
+    void setClockwise(bool bClock) { m_bClockwise = bClock; }
 
     void updatePoints() override
     {
@@ -409,7 +434,7 @@ public:
         float dist = m_radius * TWO_PI;
         int pixelsInLine = static_cast<int>(dist / m_pixelsInLed);
         float degreeStep = 360.f / static_cast<float>(pixelsInLine);
-        float currStep = startAngle;
+        float currStep = m_startAngle;
         m_points.clear();
         m_points.reserve(pixelsInLine);
         for (int i = 0; i < pixelsInLine; i++) {
@@ -418,7 +443,7 @@ public:
             // check if point is on the screen
             if (tmp.x >= 0 && tmp.y >= 0)
                 m_points.push_back(tmp);
-            bClockwise ? currStep -= degreeStep : currStep += degreeStep;
+            m_bClockwise ? currStep -= degreeStep : currStep += degreeStep;
         }
     }
     void updateBounds() override
@@ -429,10 +454,10 @@ public:
 
     void save(ofxXmlSettings &xml, const int tagNum) override
     {
-        ofxLedGrabObject::save(xml, tagNum);
+        ofxLedGrab::save(xml, tagNum);
         xml.setValue("LN:TYPE", this->m_type, tagNum);
-        xml.setValue("LN:startAngle", startAngle, tagNum);
-        xml.setValue("LN:isClockwise", bClockwise, tagNum);
+        xml.setValue("LN:startAngle", m_startAngle, tagNum);
+        xml.setValue("LN:isClockwise", m_bClockwise, tagNum);
     }
 
     void load(ofxXmlSettings &xml, int tagNum) override
@@ -443,20 +468,26 @@ public:
     }
 };
 
-class ofxLedGrabMatrix : public ofxLedGrabObject {
-    const int m_type = LMGrabType::GRAB_MATRIX;
+class ofxLedGrabMatrix : public ofxLedGrab {
     int m_columns, m_rows;
     bool m_isVertical, m_isZigzag;
-    float startAngle;
 
 public:
     ofxLedGrabMatrix(const ofVec2f &from = ofVec2f(0), const ofVec2f &to = ofVec2f(0),
                      float pixInLed = 2.f, bool isVertical = true, bool isZigzag = true)
-        : ofxLedGrabObject(from, to, pixInLed)
+        : ofxLedGrab(from, to, pixInLed)
         , m_isVertical(isVertical)
         , m_isZigzag(isZigzag)
     {
+        ofxLedGrab::m_type = LMGrabType::GRAB_MATRIX;
         updatePoints();
+    }
+
+    ofxLedGrabMatrix(const ofxLedGrabMatrix &grab)
+        : ofxLedGrab(grab)
+        , m_isVertical(grab.m_isVertical)
+        , m_isZigzag(grab.m_isZigzag)
+    {
     }
 
     ~ofxLedGrabMatrix()
@@ -467,13 +498,16 @@ public:
 
     bool mousePressed(const ofMouseEventArgs &args) override
     {
-        if (m_bounds.inside(args)) {
-            m_bSelected = true;
-            m_clickedPos = args;
-            pressedFromTo(args);
+        if (pressedFromTo(args)) {
+            ofxLedGrab::setSelected(true);
             return true;
         }
-        m_bSelected = false;
+        if (m_bounds.inside(args)) {
+            ofxLedGrab::setSelected(true);
+            ofxLedGrab::setClickedPos(args);
+            return true;
+        }
+        ofxLedGrab::setSelected(false);
         return false;
     }
 
@@ -481,18 +515,18 @@ public:
     {
         if (m_bSelectedFrom) {
             m_bSelected = true;
-            ofxLedGrabObject::setFrom(args);
+            ofxLedGrab::setFrom(args);
             return true;
         }
         else if (m_bSelectedTo) {
             m_bSelected = true;
-            ofxLedGrabObject::setTo(args);
+            ofxLedGrab::setTo(args);
             return true;
         }
         else if (m_bSelected) {
             ofVec2f dist(args - m_clickedPos);
-            m_clickedPos = args;
-            ofxLedGrabObject::set(m_from + dist, m_to + dist);
+            ofxLedGrab::setClickedPos(args);
+            ofxLedGrab::set(m_from + dist, m_to + dist);
             return true;
         }
 
@@ -501,7 +535,7 @@ public:
 
     bool mouseReleased(const ofMouseEventArgs &args) override
     {
-        m_bSelectedFrom = m_bSelectedTo = false;
+        ofxLedGrab::deselectFromTo();
         return true;
     }
 
@@ -511,19 +545,21 @@ public:
         ofFill();
         ofDrawCircle(m_from, 3);
         ofDrawCircle(m_to, 3);
-
+        ofSetColor(color);
         ofNoFill();
-        if (m_bSelected || isActive()) {
+        ofDrawRectangle(m_bounds);
+
+        if (isActive()) {
             ofSetColor(color);
             ofFill();
-            //            unsigned ctr=0;
             for (auto &it : m_points) {
-                ofDrawCircle(it, m_pixelsInLed / 8);
-                //                ofDrawBitmapString(ofToString(ctr), it);
-                //                ++ctr;
+                ofDrawCircle(it, m_pixelsInLed / 4);
             }
             ofSetColor(0, 250, 150, 250);
             ofDrawBitmapString("id" + ofToString(objID), m_from);
+
+            if (!m_bSelected)
+                return;
 
             ofSetColor(0, 250, 150, 250);
             ofDrawBitmapString("w=" + ofToString(m_isVertical ? m_rows : m_columns),
@@ -535,15 +571,9 @@ public:
             ofDrawBitmapString(ofToString(static_cast<int>(m_points.size())),
                                m_from.getInterpolated(m_to, .5));
         }
-        ofSetColor(100, 100, 100, 100);
-        ofDrawRectangle(m_bounds);
     }
 
-    void drawGui() override
-    {
-        ;
-        ;
-    }
+    void drawGui() override { ; }
 
     void setNumRows(int rows) { m_rows = rows; }
     void setNumColumns(int columns) { m_columns = columns; }
@@ -551,11 +581,6 @@ public:
     void updatePoints() override
     {
         updateBounds();
-
-        //        m_columns = static_cast<int>(m_isVertical? abs(m_from.y - m_to.y) / m_pixelsInLed
-        //        : abs(m_from.x - m_to.x) / m_pixelsInLed);
-        //        m_rows = static_cast<int>(m_isVertical? abs(m_from.x - m_to.x) / m_pixelsInLed :
-        //        abs(m_from.y - m_to.y) / m_pixelsInLed);
         m_columns = static_cast<int>(m_isVertical ? abs(m_from.y - m_to.y) / m_pixelsInLed
                                                   : abs(m_from.x - m_to.x) / m_pixelsInLed);
         m_rows = static_cast<int>(m_isVertical ? abs(m_from.x - m_to.x) / m_pixelsInLed
@@ -609,12 +634,12 @@ public:
     {
         auto min = ofVec2f(MIN(m_from.x, m_to.x), MIN(m_from.y, m_to.y));
         auto max = ofVec2f(MAX(m_from.x, m_to.x), MAX(m_from.y, m_to.y));
-        m_bounds.set(min - ofVec2f(POINT_RAD), max + ofVec2f(POINT_RAD));
+        m_bounds.set(min, max);
     }
 
     void save(ofxXmlSettings &xml, const int tagNum) override
     {
-        ofxLedGrabObject::save(xml, tagNum);
+        ofxLedGrab::save(xml, tagNum);
         xml.setValue("LN:TYPE", this->m_type, tagNum);
         xml.setValue("LN:rows", m_rows, tagNum);
         xml.setValue("LN:columns", m_columns, tagNum);

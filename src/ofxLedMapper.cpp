@@ -45,7 +45,6 @@ ofxLedMapper::ofxLedMapper()
 
     /// add default ctrl
     add(0, m_configFolderPath);
-    setCurrentController(0);
 
     m_bSetup = true;
 }
@@ -208,21 +207,21 @@ void ofxLedMapper::setupGui()
 
     /// Mouse Grab style buttons avalable when controllers tab selected
     /// and draw ledMappers gui
-    m_iconsMenu = make_unique<ofxDatGui>(ofxDatGuiAnchor::TOP_LEFT);
+    m_iconsMenu = make_unique<ofxDatGui>(ofxDatGuiAnchor::BOTTOM_LEFT);
     m_iconsMenu->setTheme(m_guiTheme.get());
     m_iconsMenu->setWidth(LM_GUI_ICON_WIDTH);
     m_iconsMenu->setAutoDraw(false);
 
-    m_iconsMenu->addButtonImage(LMGUIMouseSelect, "gui/mouse_select.png",
-                                "gui/mouse_select_over.png");
-    m_iconsMenu->addButtonImage(LMGUIMouseGrabLine, "gui/mouse_grab_line.png",
-                                "gui/mouse_grab_line_over.png");
-    m_iconsMenu->addButtonImage(LMGUIMouseGrabCircle, "gui/mouse_grab_line.png",
-                                "gui/mouse_grab_line.png");
-    m_iconsMenu->addButtonImage(LMGUIMouseGrabMatrix, "gui/mouse_grab_line.png",
-                                "gui/mouse_grab_line.png");
-    m_iconsMenu->onButtonEvent(this, &ofxLedMapper::onButtonClick);
+    m_iconsMenu->addButtonImage(LMGUIMouseSelect, "gui/mouse_select.png");
+    //            , "gui/mouse_select_over.png"
+    m_iconsMenu->addButtonImage(LMGUIMouseGrabLine, "gui/mouse_grab_line.png");
+    //            , "gui/mouse_grab_line_over.png"
+    m_iconsMenu->addButtonImage(LMGUIMouseGrabCircle, "gui/mouse_grab_circle.png");
+    //            , "gui/mouse_grab_circle_over.png"
+    m_iconsMenu->addButtonImage(LMGUIMouseGrabMatrix, "gui/mouse_grab_matrix.png");
+    //            , "gui/mouse_grab_line.png"
 
+    m_iconsMenu->onButtonEvent(this, &ofxLedMapper::onButtonClick);
     m_iconsMenu->update();
 
     setGuiPosition(m_gui->getPosition().x, m_gui->getPosition().y + m_gui->getHeight());
@@ -238,14 +237,16 @@ void ofxLedMapper::setGuiPosition(int x, int y)
     if (m_guiController)
         m_guiController->setPosition(m_listControllers->getX() - LM_GUI_WIDTH,
                                      m_listControllers->getY());
-#endif
-}
 
-#ifndef LED_MAPPER_NO_GUI
-ofxDatGui * ofxLedMapper::getGui(){
-    return m_gui.get();
-}
+    m_iconsMenu->setPosition(ofxDatGuiAnchor::BOTTOM_LEFT);
 #endif
+}
+void ofxLedMapper::setGuiActive()
+{
+#ifndef LED_MAPPER_NO_GUI
+    m_gui->focus();
+#endif
+}
 
 void ofxLedMapper::setCurrentController(unsigned int _curCtrl)
 {
@@ -267,17 +268,18 @@ void ofxLedMapper::setCurrentController(unsigned int _curCtrl)
         m_controllers[m_currentCtrl]->setSelected(true);
 
 #ifndef LED_MAPPER_NO_GUI
-        /// reset gui pointer to hide active Controllers gui
-        if (isDoubleSelect) {
-            m_guiController.reset();
-        } else {
-            if (!m_guiController) {
-                m_guiController = ofxLedController::GenerateGui();
-                m_guiController->setPosition(m_listControllers->getX() - LM_GUI_WIDTH,
-                                             m_listControllers->getY());
-            }
-            m_controllers[m_currentCtrl]->bindGui(m_guiController.get());
+    /// reset gui pointer to hide active Controllers gui
+    if (isDoubleSelect) {
+        m_guiController.reset();
+    }
+    else {
+        if (!m_guiController) {
+            m_guiController = ofxLedController::GenerateGui();
+            m_guiController->setPosition(m_listControllers->getX() - LM_GUI_WIDTH,
+                                         m_listControllers->getY());
         }
+        m_controllers[m_currentCtrl]->bindGui(m_guiController.get());
+    }
 #endif
 
     updateControllersListGui();
@@ -379,7 +381,36 @@ bool ofxLedMapper::save()
 
     return true;
 }
+void ofxLedMapper::copyGrabs()
+{
+    m_copyPasteGrabs.clear();
+    auto &grabs = m_controllers[m_currentCtrl]->peekGrabObjects();
+    for (const auto &grab : m_controllers[m_currentCtrl]->peekCurrentGrabs())
+        if (grab->isSelected()) {
+            int type = grab->getType();
 
+//            ofxLedGrab::GetUniqueCopiedGrab(type, grab.get());
+            auto newGrab = move(ofxLedController::GetUniqueTypedGrab(type, grab.operator*()));
+//                    grab->getType(), grab->getFrom(), grab->getTo(), grab->getPixelsInLed()));
+            m_copyPasteGrabs.emplace_back(move(newGrab));
+        }
+    ofLogVerbose() << "Copied controller #" << m_currentCtrl
+                   << " grabs, size=" << m_copyPasteGrabs.size();
+}
+
+void ofxLedMapper::pasteGrabs()
+{
+    if (m_copyPasteGrabs.empty())
+        return;
+
+    for (auto &grab : m_copyPasteGrabs) {
+        ofLogVerbose() << "Pasting Grab type=" << *grab;
+        m_controllers[m_currentCtrl]->addGrab(move(grab));
+    }
+    m_copyPasteGrabs.clear();
+    ofLogVerbose() << "Copied controller #" << m_currentCtrl
+                   << " grabs, size=" << m_copyPasteGrabs.size();
+}
 //
 // ------------------------------ EVENTS ------------------------------
 //
@@ -425,6 +456,7 @@ void ofxLedMapper::onSliderEvent(ofxDatGuiSliderEvent e) {}
 
 void ofxLedMapper::keyPressed(ofKeyEventArgs &data)
 {
+
     switch (data.key) {
         case OF_KEY_UP:
             setCurrentController(m_currentCtrl - 1);
@@ -436,17 +468,24 @@ void ofxLedMapper::keyPressed(ofKeyEventArgs &data)
             /// selecting same Controller deselecs all
             setCurrentController(m_currentCtrl);
             break;
+        case OF_KEY_CONTROL:
+            m_bControlPressed = true;
+            break;
+        case 'v':
+            if (data.hasModifier(LM_KEY_CONTROL))
+                pasteGrabs();
+            break;
+        case 'c':
+            if (data.hasModifier(LM_KEY_CONTROL))
+                copyGrabs();
+            break;
+        default:
+            break;
     }
 }
 
 void ofxLedMapper::keyReleased(ofKeyEventArgs &data) {}
 
-void ofxLedMapper::windowResized(ofResizeEventArgs &args)
-{
-    //#ifndef LED_MAPPER_NO_GUI
-    //    m_listControllers->setPosition(args.width-LM_GUI_WIDTH,
-    //    m_gui->getPosition().y+m_gui->getHeight());
-    //#endif
-}
+void ofxLedMapper::windowResized(ofResizeEventArgs &args) {}
 
 } // namespace LedMapper

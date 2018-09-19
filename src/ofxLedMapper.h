@@ -51,11 +51,11 @@ public:
 
     void setupGui();
     void setGuiPosition(int x, int y);
+    void setGuiActive();
     void setCurrentController(unsigned int _curCtrl);
     void updateControllersListGui();
 
 #ifndef LED_MAPPER_NO_GUI
-    ofxDatGui *getGui();
     void onScrollViewEvent(ofxDatGuiScrollViewEvent e);
     void onButtonClick(ofxDatGuiButtonEvent e);
     void onSliderEvent(ofxDatGuiSliderEvent e);
@@ -71,9 +71,12 @@ private:
     ofxXmlSettings XML;
     ofDirectory m_dir;
     string m_configFolderPath;
-    bool m_bSetup;
+    bool m_bSetup, m_bControlPressed;
     LMGrabType m_grabTypeSelected;
 
+    void copyGrabs();
+    void pasteGrabs();
+    vector<unique_ptr<ofxLedGrab>> m_copyPasteGrabs;
 #ifndef LED_MAPPER_NO_GUI
     // GUI
 

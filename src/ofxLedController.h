@@ -39,7 +39,7 @@
 namespace LedMapper {
 
 using OnControllerStatusChange = function<void(void)>;
-using ChannelsGrabObjects = vector<vector<unique_ptr<ofxLedGrabObject>>>;
+using ChannelsGrabObjects = vector<vector<unique_ptr<ofxLedGrab>>>;
 
 /// Class represents connection to one client recieving led data and
 /// control transmittion params like fps, pixel color order, LED IC Type
@@ -59,7 +59,8 @@ public:
     void save(const string &path);
     void load(const string &path);
 
-    void addGrab(unique_ptr<ofxLedGrabObject> &object);
+    static unique_ptr<ofxLedGrab> GetUniqueTypedGrab(int type, const ofxLedGrab &grab);
+    void addGrab(unique_ptr<ofxLedGrab> &&object);
 
     void draw();
 
@@ -86,6 +87,8 @@ public:
 #endif
 
     const ChannelsGrabObjects &peekGrabObjects() const;
+    const vector<unique_ptr<ofxLedGrab>> &peekCurrentGrabs() const { return *m_currentChannel; };
+
     unsigned int getId() const;
     unsigned int getTotalLeds() const;
 
@@ -113,6 +116,7 @@ public:
     void setColorType(COLOR_TYPE);
 
     const ofRectangle &peekBounds() const { return m_grabBounds; }
+
 private:
     unsigned int m_id;
     ofColor m_colorLine, m_colorActive, m_colorInactive;
@@ -126,7 +130,7 @@ private:
 
     void setCurrentChannel(int);
     ChannelsGrabObjects m_channelGrabObjects;
-    vector<unique_ptr<ofxLedGrabObject>> *m_currentChannel;
+    vector<unique_ptr<ofxLedGrab>> *m_currentChannel;
     size_t m_currentChannelNum;
 
     vector<uint16_t> m_channelTotalLeds;
