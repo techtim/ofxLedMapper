@@ -61,7 +61,7 @@ public:
 
     static unique_ptr<ofxLedGrab> GetUniqueTypedGrab(int type, const ofxLedGrab &grab);
     void addGrab(unique_ptr<ofxLedGrab> &&object);
-
+    void deleteSelectedGrabs();
     void draw();
 
     /// mouse and keyboard events
@@ -109,6 +109,7 @@ public:
 
     void setFps(float fps);
     void setSelected(bool state);
+    void setGrabsSelected(bool state);
     void setPixelsBetweenLeds(float dist) { m_pixelsInLed = dist; };
     void setGrabType(LMGrabType type) { m_currentGrabType = type; }
 

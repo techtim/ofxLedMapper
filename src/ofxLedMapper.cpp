@@ -39,6 +39,9 @@ ofxLedMapper::ofxLedMapper()
 {
     setupGui();
 
+    ofAddListener(ofEvents().mousePressed, this, &ofxLedMapper::mousePressed);
+    ofAddListener(ofEvents().mouseReleased, this, &ofxLedMapper::mouseReleased);
+    ofAddListener(ofEvents().mouseDragged, this, &ofxLedMapper::mouseDragged);
     ofAddListener(ofEvents().keyPressed, this, &ofxLedMapper::keyPressed);
     ofAddListener(ofEvents().keyReleased, this, &ofxLedMapper::keyReleased);
     ofAddListener(ofEvents().windowResized, this, &ofxLedMapper::windowResized);
@@ -56,6 +59,9 @@ ofxLedMapper::~ofxLedMapper()
     ofRemoveListener(ofEvents().keyPressed, this, &ofxLedMapper::keyPressed);
     ofRemoveListener(ofEvents().keyReleased, this, &ofxLedMapper::keyReleased);
     ofRemoveListener(ofEvents().windowResized, this, &ofxLedMapper::windowResized);
+    ofRemoveListener(ofEvents().mousePressed, this, &ofxLedMapper::mousePressed);
+    ofRemoveListener(ofEvents().mouseReleased, this, &ofxLedMapper::mouseReleased);
+    ofRemoveListener(ofEvents().mouseDragged, this, &ofxLedMapper::mouseDragged);
 }
 
 void ofxLedMapper::draw()
@@ -128,7 +134,7 @@ bool ofxLedMapper::add(unsigned int _ctrlId, string folder_path)
         ctrlId++;
     }
     auto ctrl = make_unique<ofxLedController>(ctrlId, folder_path);
-
+    ctrl->disableEvents();
 #ifndef LED_MAPPER_NO_GUI
     function<void(void)> fnc = [this](void) { this->updateControllersListGui(); };
     ctrl->setOnControllerStatusChange(fnc);
@@ -182,24 +188,30 @@ void ofxLedMapper::setupGui()
     m_currentCtrl = 0;
 
     auto button = m_gui->addButton(LMGUIButtonSave);
-    button->onButtonEvent(this, &ofxLedMapper::onButtonClick);
+    button->onButtonEvent([this](ofxDatGuiButtonEvent) { this->save(); });
     button->setLabelAlignment(ofxDatGuiAlignment::CENTER);
     button = m_gui->addButton(LMGUIButtonLoad);
-    button->onButtonEvent(this, &ofxLedMapper::onButtonClick);
+    //    button->onButtonEvent(this, &ofxLedMapper::onButtonClick);
+    button->onButtonEvent([this](ofxDatGuiButtonEvent) { this->load(); });
     button->setLabelAlignment(ofxDatGuiAlignment::CENTER);
 
     m_togglePlay = m_gui->addToggle(LMGUITogglePlay, true);
-    m_togglePlay->onButtonEvent(this, &ofxLedMapper::onButtonClick);
 
     m_toggleDebugController = m_gui->addToggle(LMGUIToggleDebug, false);
-    m_toggleDebugController->onButtonEvent(this, &ofxLedMapper::onButtonClick);
 
-    m_gui->addButton(LMGUIButtonAdd)->onButtonEvent(this, &ofxLedMapper::onButtonClick);
-    m_gui->addButton(LMGUIButtonDel)->onButtonEvent(this, &ofxLedMapper::onButtonClick);
+    m_gui->addButton(LMGUIButtonAdd)->onButtonEvent([this](ofxDatGuiButtonEvent) {
+        this->add(m_configFolderPath);
+    });
+    m_gui->addButton(LMGUIButtonDel)->onButtonEvent([this](ofxDatGuiButtonEvent) {
+        this->remove(m_currentCtrl);
+    });
 
     m_listControllers = make_unique<ofxDatGuiScrollView>(LMGUIListControllers, 10);
     m_listControllers->setTheme(m_guiTheme.get());
-    m_listControllers->onScrollViewEvent(this, &ofxLedMapper::onScrollViewEvent);
+    m_listControllers->onScrollViewEvent([this](ofxDatGuiScrollViewEvent e) {
+        this->setCurrentController(ofToInt(e.target->getName()));
+    });
+
     m_listControllers->setWidth(LM_GUI_WIDTH);
     m_listControllers->setBackgroundColor(ofColor(10));
 
@@ -212,16 +224,23 @@ void ofxLedMapper::setupGui()
     m_iconsMenu->setWidth(LM_GUI_ICON_WIDTH);
     m_iconsMenu->setAutoDraw(false);
 
-    m_iconsMenu->addButtonImage(LMGUIMouseSelect, "gui/mouse_select.png");
+    m_iconsMenu->addButtonImage(LMGUIMouseSelect, "gui/mouse_select.png")
+        ->onButtonEvent(
+            [this](ofxDatGuiButtonEvent) { m_grabTypeSelected = LMGrabType::GRAB_SELECT; });
     //            , "gui/mouse_select_over.png"
-    m_iconsMenu->addButtonImage(LMGUIMouseGrabLine, "gui/mouse_grab_line.png");
+    m_iconsMenu->addButtonImage(LMGUIMouseGrabLine, "gui/mouse_grab_line.png")
+        ->onButtonEvent(
+            [this](ofxDatGuiButtonEvent) { m_grabTypeSelected = LMGrabType::GRAB_LINE; });
     //            , "gui/mouse_grab_line_over.png"
-    m_iconsMenu->addButtonImage(LMGUIMouseGrabCircle, "gui/mouse_grab_circle.png");
+    m_iconsMenu->addButtonImage(LMGUIMouseGrabCircle, "gui/mouse_grab_circle.png")
+        ->onButtonEvent(
+            [this](ofxDatGuiButtonEvent) { m_grabTypeSelected = LMGrabType::GRAB_CIRCLE; });
     //            , "gui/mouse_grab_circle_over.png"
-    m_iconsMenu->addButtonImage(LMGUIMouseGrabMatrix, "gui/mouse_grab_matrix.png");
+    m_iconsMenu->addButtonImage(LMGUIMouseGrabMatrix, "gui/mouse_grab_matrix.png")
+        ->onButtonEvent(
+            [this](ofxDatGuiButtonEvent) { m_grabTypeSelected = LMGrabType::GRAB_MATRIX; });
     //            , "gui/mouse_grab_line.png"
 
-    m_iconsMenu->onButtonEvent(this, &ofxLedMapper::onButtonClick);
     m_iconsMenu->update();
 
     setGuiPosition(m_gui->getPosition().x, m_gui->getPosition().y + m_gui->getHeight());
@@ -250,12 +269,8 @@ void ofxLedMapper::setGuiActive()
 
 void ofxLedMapper::setCurrentController(unsigned int _curCtrl)
 {
-    if (m_controllers.empty())
+    if (m_controllers.empty() || m_controllers.find(_curCtrl) == m_controllers.end())
         return;
-
-    if (m_controllers.find(_curCtrl) == m_controllers.end()) {
-        return;
-    }
 
     /// hide Controller gui if select already selected
     bool isDoubleSelect = m_currentCtrl == _curCtrl && m_controllers[m_currentCtrl]->isSelected();
@@ -387,11 +402,7 @@ void ofxLedMapper::copyGrabs()
     auto &grabs = m_controllers[m_currentCtrl]->peekGrabObjects();
     for (const auto &grab : m_controllers[m_currentCtrl]->peekCurrentGrabs())
         if (grab->isSelected()) {
-            int type = grab->getType();
-
-//            ofxLedGrab::GetUniqueCopiedGrab(type, grab.get());
-            auto newGrab = move(ofxLedController::GetUniqueTypedGrab(type, grab.operator*()));
-//                    grab->getType(), grab->getFrom(), grab->getTo(), grab->getPixelsInLed()));
+            auto newGrab = move(ofxLedController::GetUniqueTypedGrab(grab->getType(), grab.operator*()));
             m_copyPasteGrabs.emplace_back(move(newGrab));
         }
     ofLogVerbose() << "Copied controller #" << m_currentCtrl
@@ -402,57 +413,40 @@ void ofxLedMapper::pasteGrabs()
 {
     if (m_copyPasteGrabs.empty())
         return;
-
+    /// deselect currently selected
+    m_controllers[m_currentCtrl]->setGrabsSelected(false);
     for (auto &grab : m_copyPasteGrabs) {
-        ofLogVerbose() << "Pasting Grab type=" << *grab;
-        m_controllers[m_currentCtrl]->addGrab(move(grab));
+        grab->set(grab->getFrom() + ofVec2f(10), grab->getTo() + ofVec2f(10));
+        ofLogVerbose() << "Pasting Grab: " << *grab;
+        m_controllers[m_currentCtrl]->addGrab(move(ofxLedController::GetUniqueTypedGrab(grab->getType(), grab.operator*())));
     }
-    m_copyPasteGrabs.clear();
+
     ofLogVerbose() << "Copied controller #" << m_currentCtrl
                    << " grabs, size=" << m_copyPasteGrabs.size();
 }
+
 //
 // ------------------------------ EVENTS ------------------------------
 //
-#ifndef LED_MAPPER_NO_GUI
-void ofxLedMapper::onScrollViewEvent(ofxDatGuiScrollViewEvent e)
+
+/// mouse and keyboard events
+
+void ofxLedMapper::mousePressed(ofMouseEventArgs &args)
 {
-    if (e.parent->getName() == LMGUIListControllers) {
-        // check if item from list selected
-        setCurrentController(ofToInt(e.target->getName()));
-    }
+    m_controllers[m_currentCtrl]->setGrabType(m_grabTypeSelected);
+    m_controllers[m_currentCtrl]->mousePressed(args);
 }
 
-void ofxLedMapper::onButtonClick(ofxDatGuiButtonEvent e)
+void ofxLedMapper::mouseDragged(ofMouseEventArgs &args)
 {
-    if (e.target->getName() == LMGUIButtonSave) {
-        save();
-    }
-
-    if (e.target->getName() == LMGUIButtonLoad) {
-        load();
-    }
-
-    if (e.target->getName() == LMGUIButtonAdd) {
-        add(m_configFolderPath);
-    }
-
-    if (e.target->getName() == LMGUIButtonDel) {
-        remove(m_currentCtrl);
-    }
-
-    if (e.target->getName() == LMGUIMouseSelect)
-        m_grabTypeSelected = LMGrabType::GRAB_SELECT;
-    if (e.target->getName() == LMGUIMouseGrabLine)
-        m_grabTypeSelected = LMGrabType::GRAB_LINE;
-    if (e.target->getName() == LMGUIMouseGrabCircle)
-        m_grabTypeSelected = LMGrabType::GRAB_CIRCLE;
-    if (e.target->getName() == LMGUIMouseGrabMatrix)
-        m_grabTypeSelected = LMGrabType::GRAB_MATRIX;
+    m_controllers[m_currentCtrl]->mouseDragged(args);
 }
-
-void ofxLedMapper::onSliderEvent(ofxDatGuiSliderEvent e) {}
-#endif
+void ofxLedMapper::mouseReleased(ofMouseEventArgs &args)
+{
+    if (!args.hasModifier(OF_KEY_SHIFT)) {
+        m_controllers[m_currentCtrl]->mouseReleased(args);
+    }
+}
 
 void ofxLedMapper::keyPressed(ofKeyEventArgs &data)
 {
@@ -468,8 +462,17 @@ void ofxLedMapper::keyPressed(ofKeyEventArgs &data)
             /// selecting same Controller deselecs all
             setCurrentController(m_currentCtrl);
             break;
-        case OF_KEY_CONTROL:
-            m_bControlPressed = true;
+        case '1':
+            m_grabTypeSelected = LMGrabType::GRAB_SELECT;
+            break;
+        case '2':
+            m_grabTypeSelected = LMGrabType::GRAB_LINE;
+            break;
+        case '3':
+            m_grabTypeSelected = LMGrabType::GRAB_CIRCLE;
+            break;
+        case '4':
+            m_grabTypeSelected = LMGrabType::GRAB_MATRIX;
             break;
         case 'v':
             if (data.hasModifier(LM_KEY_CONTROL))
@@ -478,6 +481,9 @@ void ofxLedMapper::keyPressed(ofKeyEventArgs &data)
         case 'c':
             if (data.hasModifier(LM_KEY_CONTROL))
                 copyGrabs();
+            break;
+        case OF_KEY_BACKSPACE:
+            m_controllers[m_currentCtrl]->deleteSelectedGrabs();
             break;
         default:
             break;

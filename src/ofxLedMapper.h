@@ -55,12 +55,9 @@ public:
     void setCurrentController(unsigned int _curCtrl);
     void updateControllersListGui();
 
-#ifndef LED_MAPPER_NO_GUI
-    void onScrollViewEvent(ofxDatGuiScrollViewEvent e);
-    void onButtonClick(ofxDatGuiButtonEvent e);
-    void onSliderEvent(ofxDatGuiSliderEvent e);
-#endif
-
+    void mousePressed(ofMouseEventArgs &args);
+    void mouseDragged(ofMouseEventArgs &args);
+    void mouseReleased(ofMouseEventArgs &args);
     void keyPressed(ofKeyEventArgs &data);
     void keyReleased(ofKeyEventArgs &data);
     void windowResized(ofResizeEventArgs &args);
@@ -76,6 +73,7 @@ private:
 
     void copyGrabs();
     void pasteGrabs();
+    void removeGrabs();
     vector<unique_ptr<ofxLedGrab>> m_copyPasteGrabs;
 #ifndef LED_MAPPER_NO_GUI
     // GUI

@@ -321,9 +321,14 @@ void ofxLedController::setSelected(bool state)
 
     bSelected = state;
     for (auto &channelGrabs : m_channelGrabObjects)
-        for (auto &grab : channelGrabs) {
+        for (auto &grab : channelGrabs)
             grab->setActive(bSelected);
-        }
+}
+
+void ofxLedController::setGrabsSelected(bool state) {
+    for (auto &channelGrabs : m_channelGrabObjects)
+        for (auto &grab : channelGrabs)
+            grab->setSelected(state);
 }
 
 void ofxLedController::setFps(float fps)
@@ -494,25 +499,9 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
     if (!bSelected)
         return;
 
-    unsigned int grabCntr = 0;
+    for (auto &grab : *m_currentChannel)
+        grab->mousePressed(args);
 
-    for (auto &channelGrabs : m_channelGrabObjects)
-        for (auto it = channelGrabs.begin(); it != channelGrabs.end();) {
-            if ((*it) == nullptr)
-                continue;
-            if ((*it)->mousePressed(args)) {
-                /// erase grab and don't increment grab counter
-                if (bDeletePoints) {
-                    it = channelGrabs.erase(it);
-                    markDirtyGrabPoints();
-                    continue;
-                }
-            }
-            if (bDeletePoints)
-                (*it)->setObjectId(grabCntr);
-            ++grabCntr;
-            ++it;
-        }
 
     switch (m_currentGrabType) {
         case LMGrabType::GRAB_EMPTY:
@@ -560,9 +549,11 @@ unique_ptr<ofxLedGrab> ofxLedController::GetUniqueTypedGrab(int type, const ofxL
         case LMGrabType::GRAB_LINE:
             return make_unique<ofxLedGrabLine>(grab.getFrom(), grab.getTo(), grab.getPixelsInLed());
         case LMGrabType::GRAB_MATRIX:
-            return make_unique<ofxLedGrabMatrix>(grab.getFrom(), grab.getTo(), grab.getPixelsInLed());
+            return make_unique<ofxLedGrabMatrix>(grab.getFrom(), grab.getTo(),
+                                                 grab.getPixelsInLed());
         case LMGrabType::GRAB_CIRCLE:
-            return make_unique<ofxLedGrabCircle>(grab.getFrom(), grab.getTo(), grab.getPixelsInLed());
+            return make_unique<ofxLedGrabCircle>(grab.getFrom(), grab.getTo(),
+                                                 grab.getPixelsInLed());
         default:
             break;
     }
@@ -575,8 +566,27 @@ void ofxLedController::addGrab(unique_ptr<ofxLedGrab> &&object)
     object->setObjectId(m_currentChannel->size());
     object->setChannel(m_currentChannelNum);
     object->setActive(true);
+    object->setSelected(true);
     m_currentChannel->emplace_back(move(object));
     markDirtyGrabPoints();
+}
+
+void ofxLedController::deleteSelectedGrabs()
+{
+    size_t grabCntr = 0;
+    for (auto it = m_currentChannel->begin(); it != m_currentChannel->end();) {
+        if ((*it) == nullptr)
+            continue;
+        if ((*it)->isSelected()) {
+            /// erase grab and don't increment grab counter
+            it = m_currentChannel->erase(it);
+            markDirtyGrabPoints();
+            continue;
+        }
+        (*it)->setObjectId(grabCntr);
+        ++grabCntr;
+        ++it;
+    }
 }
 
 void ofxLedController::mouseDragged(ofMouseEventArgs &args)
@@ -586,10 +596,8 @@ void ofxLedController::mouseDragged(ofMouseEventArgs &args)
     int y = args.y > LM_GUI_TOP_BAR ? args.y : LM_GUI_TOP_BAR;
     if (!m_currentChannel->empty())
         for (auto &grab : *m_currentChannel)
-            if (grab->mouseDragged(args)) {
+            if (grab->mouseDragged(args))
                 markDirtyGrabPoints();
-                break;
-            }
 }
 
 void ofxLedController::mouseReleased(ofMouseEventArgs &args)
@@ -614,7 +622,7 @@ void ofxLedController::keyPressed(ofKeyEventArgs &data)
             m_currentGrabType = LMGrabType::GRAB_MATRIX;
             break;
         case OF_KEY_BACKSPACE:
-            bDeletePoints = true;
+            deleteSelectedGrabs();
             break;
         default:
             break;
@@ -746,6 +754,7 @@ void ofxLedController::setColorType(COLOR_TYPE type)
 
 void ofxLedController::setCurrentChannel(int chan)
 {
+    /// get mod from chan to be in bounds
     m_currentChannelNum = chan % s_channelList.size();
     m_currentChannel = &m_channelGrabObjects[m_currentChannelNum];
 }

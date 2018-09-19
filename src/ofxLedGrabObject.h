@@ -81,7 +81,7 @@ public:
     virtual void draw(const ofColor &color = ofColor(200, 200, 200, 150)) = 0;
     virtual void drawGui() = 0;
     virtual void updateBounds() = 0;
-    virtual bool mousePressed(const ofMouseEventArgs &args) = 0;
+    virtual bool mousePressed(ofMouseEventArgs &args) = 0;
     virtual bool mouseDragged(const ofMouseEventArgs &args) = 0;
     virtual bool mouseReleased(const ofMouseEventArgs &args) = 0;
     virtual bool pressedFromTo(const ofVec2f &args)
@@ -237,16 +237,19 @@ public:
 
     ~ofxLedGrabLine(){};
 
-    bool mousePressed(const ofMouseEventArgs &args) override
+    bool mousePressed(ofMouseEventArgs &args) override
     {
+        ofxLedGrab::setClickedPos(args);
         auto dist = getPointDistanceToLine(args, m_from, m_to);
         if (abs(dist) < POINT_RAD * 2) {
             ofxLedGrab::setSelected(true);
-            ofxLedGrab::setClickedPos(args);
             ofxLedGrab::pressedFromTo(args);
             return true;
         }
-        ofxLedGrab::setSelected(false);
+        ofxLedGrab::deselectFromTo();
+        /// when holding shift don't deselect
+        if (!args.hasModifier(OF_KEY_SHIFT))
+            ofxLedGrab::setSelected(false);
         return false;
     }
 
@@ -361,8 +364,9 @@ public:
 
     ~ofxLedGrabCircle() { m_points.clear(); };
 
-    bool mousePressed(const ofMouseEventArgs &args) override
+    bool mousePressed(ofMouseEventArgs &args) override
     {
+        ofxLedGrab::setClickedPos(args);
         if (m_bounds.inside(args)) {
             m_bSelected = true;
             if (m_from.distance(args) <= POINT_RAD) {
@@ -375,12 +379,15 @@ public:
             }
             return true;
         }
+        if (!args.hasModifier(OF_KEY_SHIFT))
+            ofxLedGrab::setSelected(false);
+
         return false;
     }
 
     bool mouseDragged(const ofMouseEventArgs &args) override
     {
-        if (m_bSelectedFrom) {
+        if (m_bSelectedFrom || m_bSelected) {
             m_bSelected = true;
             ofxLedGrab::set(args, m_to - m_from + args);
             return true;
@@ -408,6 +415,7 @@ public:
         ofDrawCircle(m_from, m_radius);
 
         if (isActive()) {
+            ofFill();
             ofSetColor(150, 150, 150, 150); /// color for first point
             for (vector<ofVec2f>::iterator i = m_points.begin(); i != m_points.end(); i++) {
                 ofDrawCircle((*i), m_pixelsInLed / 2);
@@ -496,18 +504,21 @@ public:
         m_points.clear();
     }
 
-    bool mousePressed(const ofMouseEventArgs &args) override
+    bool mousePressed(ofMouseEventArgs &args) override
     {
+        ofxLedGrab::setClickedPos(args);
+
         if (pressedFromTo(args)) {
             ofxLedGrab::setSelected(true);
             return true;
         }
         if (m_bounds.inside(args)) {
             ofxLedGrab::setSelected(true);
-            ofxLedGrab::setClickedPos(args);
             return true;
         }
-        ofxLedGrab::setSelected(false);
+        ofxLedGrab::deselectFromTo();
+        if (!args.hasModifier(OF_KEY_SHIFT))
+            ofxLedGrab::setSelected(false);
         return false;
     }
 
@@ -524,7 +535,7 @@ public:
             return true;
         }
         else if (m_bSelected) {
-            ofVec2f dist(args - m_clickedPos);
+            ofVec2f dist(args - ofxLedGrab::getClickedPos());
             ofxLedGrab::setClickedPos(args);
             ofxLedGrab::set(m_from + dist, m_to + dist);
             return true;
