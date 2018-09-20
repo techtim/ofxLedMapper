@@ -53,6 +53,7 @@ static const string LCGUITextIP = "IP";
 static const string LCGUITextPort = "Port";
 static const string LCGUISliderPix = "Pix in led";
 static const string LCGUIDropColorType = "Color Type";
+static const string LCGUIDropLedType = "LED IC Type";
 static const string LCGUIDropChannelNum = "Channel";
 static const string LCGUIButtonDmx = "DMX";
 static const string LCFileName = "Ctrl-";
@@ -63,8 +64,9 @@ static const string LCFileName = "Ctrl-";
 
 static const string LMCtrlsFolderPath = "Ctrls";
 
-static const string RPI_IP = "192.168.2.10";
-static const int RPI_PORT = 3000;
+static const string RPI_IP = "192.168.2.102";
+static const int RPI_PORT = 3001;
+static const int RPI_CONF_PORT = 3002;
 
 /// include json in oF versions prior to 1.0
 #if (OF_VERSION_MINOR < 10)

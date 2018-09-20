@@ -27,6 +27,7 @@ namespace LedMapper {
 
 static const vector<string> s_colorTypes = { "RGB", "RBG", "BRG", "BGR", "GRB", "GBR" };
 static const vector<string> s_channelList = { "channel 1", "channel 2" };
+static const vector<string> s_ledTypeList = { "WS2811", "SK9822" };
 
 ofxLedController::ofxLedController(const int &__id, const string &_path)
     : bSelected(false)
@@ -54,6 +55,7 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
     , m_channelGrabObjects(s_channelList.size())
     , m_channelTotalLeds(s_channelList.size(), 0)
     , m_currentChannelNum(0)
+    , m_currentLedType(s_ledTypeList.front())
     , m_ledPoints(0)
 {
     m_id = __id;
@@ -76,8 +78,6 @@ ofxLedController::ofxLedController(const int &__id, const string &_path)
     ofAddListener(ofEvents().mouseDragged, this, &ofxLedController::mouseDragged);
     ofAddListener(ofEvents().keyPressed, this, &ofxLedController::keyPressed);
     ofAddListener(ofEvents().keyReleased, this, &ofxLedController::keyReleased);
-
-    udpConnection.Create();
 }
 
 ofxLedController::~ofxLedController()
@@ -86,7 +86,8 @@ ofxLedController::~ofxLedController()
     disableEvents();
     m_channelGrabObjects.clear();
 
-    udpConnection.Close();
+    m_frameConnection.Close();
+    m_confConnection.Close();
 }
 
 /// Disable mouse/key events to explicitly call from ofxLedMapper
@@ -128,7 +129,7 @@ unique_ptr<ofxDatGui> ofxLedController::GenerateGui()
 
     gui->addTextInput(LCGUITextIP, "127.0.0.1");
     gui->addTextInput(LCGUITextPort, "3000");
-
+    gui->addDropdown(LCGUIDropLedType, s_ledTypeList);
     gui->addDropdown(LCGUIDropChannelNum, s_channelList);
 
 #if defined(USE_DMX_FTDI) && (USE_DMX)
@@ -170,6 +171,13 @@ void ofxLedController::bindGui(ofxDatGui *gui)
     dropDown = gui->getDropdown(LCGUIDropChannelNum);
     if (dropDown->getName() != "X") {
         dropDown->select(m_currentChannelNum);
+        dropDown->onDropdownEvent(this, &ofxLedController::onDropdownEvent);
+    }
+
+    dropDown = gui->getDropdown(LCGUIDropLedType);
+    if (dropDown->getName() != "X") {
+        dropDown->select(find(s_ledTypeList.begin(), s_ledTypeList.end(), m_currentLedType)
+                         - s_ledTypeList.begin());
         dropDown->onDropdownEvent(this, &ofxLedController::onDropdownEvent);
     }
 
@@ -269,18 +277,42 @@ void ofxLedController::updatePixels(const ofPixels &grabbedImg)
 void ofxLedController::setupUdp(const string &host, unsigned int port)
 {
     if (bUdpSend || m_curUdpIp != host || m_curUdpPort != port) {
-        udpConnection.Close();
-        udpConnection.Create();
-        if (udpConnection.Connect(host.c_str(), port)) {
-            ofLogVerbose("[ofxLedController] setupUdp connect to " + host);
+        m_frameConnection.Close();
+        m_frameConnection.Create();
+
+        m_confConnection.Close();
+        m_confConnection.Create();
+
+        if (m_frameConnection.Connect(host.c_str(), port)) {
+            ofLogVerbose() << "[ofxLedController] setupUdp connect to " << host;
         }
-        udpConnection.SetSendBufferSize(4096 * 3);
-        udpConnection.SetNonBlocking(true);
-        //    }
+        if (m_confConnection.Connect(host.c_str(), RPI_CONF_PORT))
+            ofLogVerbose() << "[ofxLedController] setupUdp connect to conf port=" << RPI_CONF_PORT;
+
+        m_frameConnection.SetSendBufferSize(4096 * 3);
+        m_frameConnection.SetNonBlocking(true);
+        m_confConnection.SetNonBlocking(true);
+
         m_curUdpIp = host;
         m_curUdpPort = port;
         bUdpSetup = true;
+
+        sendLedType(m_currentLedType);
     }
+}
+
+void ofxLedController::sendLedType(const string &ledType)
+{
+    if (!bUdpSetup)
+        return;
+
+    if (std::find(s_ledTypeList.begin(), s_ledTypeList.end(), ledType) == s_ledTypeList.end())
+        return;
+    ofLogVerbose() << "Update LedType with " << ledType;
+    m_currentLedType = ledType;
+    /// send type 5 times to be sure UDP packet won't lost
+    for (size_t i = 0; i < 5; ++i)
+        m_confConnection.Send(m_currentLedType.c_str(), m_currentLedType.size());
 }
 
 /// Send by UDP grab points data updated with grabbedImg
@@ -308,7 +340,7 @@ void ofxLedController::sendUdp()
     if (m_output.size() <= m_outputHeaderOffset)
         return;
 
-    m_statusOk = (udpConnection.Send(m_output.data(), m_output.size()) != -1);
+    m_statusOk = (m_frameConnection.Send(m_output.data(), m_output.size()) != -1);
     if (m_statusOk != prevStatus && m_statusChanged != nullptr)
         m_statusChanged();
 }
@@ -325,7 +357,8 @@ void ofxLedController::setSelected(bool state)
             grab->setActive(bSelected);
 }
 
-void ofxLedController::setGrabsSelected(bool state) {
+void ofxLedController::setGrabsSelected(bool state)
+{
     for (auto &channelGrabs : m_channelGrabObjects)
         for (auto &grab : channelGrabs)
             grab->setSelected(state);
@@ -357,6 +390,7 @@ void ofxLedController::save(const string &path)
     XML.clear();
     int tagNum = XML.addTag("CONF");
     XML.setValue("CONF:colorType", m_colorType, tagNum);
+    XML.setValue("CONF:LedType", m_currentLedType, tagNum);
     XML.setValue("CONF:PixInLed", m_pixelsInLed, tagNum);
     XML.setValue("CONF:fps", m_fps, tagNum);
     XML.setValue("CONF:UdpSend", bUdpSend, tagNum);
@@ -417,6 +451,8 @@ void ofxLedController::load(const string &path)
     m_udpIp = XML.getValue("IpAddress", RPI_IP, 0);
     m_udpPort = XML.getValue("Port", RPI_PORT, 0);
     m_fps = XML.getValue("fps", 25, 0);
+    m_currentLedType = XML.getValue("LedType", s_ledTypeList.front(), 0);
+
     XML.popTag();
 
     if (bUdpSend)
@@ -501,7 +537,6 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
 
     for (auto &grab : *m_currentChannel)
         grab->mousePressed(args);
-
 
     switch (m_currentGrabType) {
         case LMGrabType::GRAB_EMPTY:
@@ -644,6 +679,9 @@ void ofxLedController::onDropdownEvent(ofxDatGuiDropdownEvent e)
     }
     if (e.target->getName() == LCGUIDropChannelNum) {
         setCurrentChannel(e.child);
+    }
+    if (e.target->getName() == LCGUIDropLedType) {
+        sendLedType(s_ledTypeList[e.child]);
     }
 }
 

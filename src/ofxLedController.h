@@ -96,6 +96,7 @@ public:
     bool isStatusOk() const { return m_statusOk; }
 
     void setupUdp(const string &host, unsigned int port);
+    void sendLedType(const string &ledType);
     void sendUdp();
     void sendUdp(const ofPixels &sidesGrabImg);
     string getIP() const { return m_curUdpIp; }
@@ -133,6 +134,7 @@ private:
     ChannelsGrabObjects m_channelGrabObjects;
     vector<unique_ptr<ofxLedGrab>> *m_currentChannel;
     size_t m_currentChannelNum;
+    string m_currentLedType;
 
     vector<uint16_t> m_channelTotalLeds;
     vector<LedMapper::Point> m_ledPoints;
@@ -148,7 +150,7 @@ private:
     string path;
     void parseXml(ofxXmlSettings &XML);
 
-    ofxUDPManager udpConnection;
+    ofxUDPManager m_frameConnection, m_confConnection;
 
     COLOR_TYPE m_colorType;
     float m_pixelsInLed;
