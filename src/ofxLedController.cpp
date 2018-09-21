@@ -543,17 +543,21 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
             }
             break;
         case LMGrabType::GRAB_LINE: {
+            /// deselect previous active grabs
+            setGrabsSelected(false);
             auto lineGrab = ofxLedGrabLine(args, args, m_pixelsInLed);
             addGrab(GetUniqueTypedGrab(LMGrabType::GRAB_LINE, lineGrab));
             markDirtyGrabPoints();
             break;
         }
         case LMGrabType::GRAB_MATRIX: {
+            setGrabsSelected(false);
             auto matGrab = ofxLedGrabMatrix(args, args, m_pixelsInLed);
             addGrab(GetUniqueTypedGrab(LMGrabType::GRAB_MATRIX, matGrab));
             break;
         }
         case LMGrabType::GRAB_CIRCLE: {
+            setGrabsSelected(false);
             auto circGrab = ofxLedGrabCircle(args, args + ofVec2f(20.f), m_pixelsInLed);
             addGrab(GetUniqueTypedGrab(LMGrabType::GRAB_CIRCLE, circGrab));
             markDirtyGrabPoints();
@@ -577,7 +581,7 @@ void ofxLedController::mouseDragged(ofMouseEventArgs &args)
 void ofxLedController::mouseReleased(ofMouseEventArgs &args)
 {
     /// delete zero length grab, that was created with one click - not counted
-    if (m_currentChannel->back()->getFrom() == m_currentChannel->back()->getTo()) {
+    if (m_currentChannel->back()->points().empty()) {
         m_currentChannel->pop_back();
         markDirtyGrabPoints();
     }
