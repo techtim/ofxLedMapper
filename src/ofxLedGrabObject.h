@@ -86,16 +86,17 @@ public:
     virtual bool mouseReleased(const ofMouseEventArgs &args) = 0;
     virtual bool pressedFromTo(const ofVec2f &args)
     {
-        if (m_from.distance(args) <= POINT_RAD) {
-            m_bSelectedFrom = true;
-            m_bSelectedTo = false;
-            return true;
-        }
-        else if (m_to.distance(args) <= POINT_RAD) {
+        if (m_to.distance(args) <= POINT_RAD) {
             m_bSelectedFrom = false;
             m_bSelectedTo = true;
             return true;
         }
+        else if (m_from.distance(args) <= POINT_RAD) {
+            m_bSelectedFrom = true;
+            m_bSelectedTo = false;
+            return true;
+        }
+
         return false;
     }
     void deselectFromTo() { m_bSelectedFrom = m_bSelectedTo = false; }
@@ -255,6 +256,11 @@ public:
 
     bool mouseDragged(const ofMouseEventArgs &args) override
     {
+        // set drag end on freshly created grab
+        if (m_from == m_to) {
+            m_bSelectedTo = true;
+        }
+
         if (m_bSelectedFrom) {
             ofxLedGrab::setFrom(args);
             return true;
@@ -524,6 +530,11 @@ public:
 
     bool mouseDragged(const ofMouseEventArgs &args) override
     {
+        // set drag end on freshly created grab
+        if (m_bSelected && m_from == m_to) {
+            m_bSelectedTo = true;
+        }
+
         if (m_bSelectedFrom) {
             m_bSelected = true;
             ofxLedGrab::setFrom(args);

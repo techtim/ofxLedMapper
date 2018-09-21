@@ -535,92 +535,30 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
     if (!bSelected)
         return;
 
-    for (auto &grab : *m_currentChannel)
-        grab->mousePressed(args);
-
     switch (m_currentGrabType) {
         case LMGrabType::GRAB_EMPTY:
         case LMGrabType::GRAB_SELECT:
+            for (auto &grab : *m_currentChannel) {
+                grab->mousePressed(args);
+            }
             break;
-
-        case LMGrabType::GRAB_LINE:
-            if (m_pointsCount == 0) {
-                m_pointsCount++;
-                auto tmpGrab = ofxLedGrabLine(args, args, m_pixelsInLed);
-                addGrab(GetUniqueTypedGrab(LMGrabType::GRAB_LINE, tmpGrab));
-            }
-            else {
-                m_pointsCount = 0;
-                if (!m_currentChannel->empty())
-                    m_currentChannel->back()->setTo(args);
-            }
+        case LMGrabType::GRAB_LINE: {
+            auto lineGrab = ofxLedGrabLine(args, args, m_pixelsInLed);
+            addGrab(GetUniqueTypedGrab(LMGrabType::GRAB_LINE, lineGrab));
             markDirtyGrabPoints();
             break;
-
-        case LMGrabType::GRAB_MATRIX:
-            if (m_pointsCount == 0) {
-                m_pointsCount++;
-                auto tmpGrab = ofxLedGrabMatrix(args, args, m_pixelsInLed);
-                addGrab(GetUniqueTypedGrab(LMGrabType::GRAB_MATRIX, tmpGrab));
-            }
-            else {
-                m_pointsCount = 0;
-                if (!m_currentChannel->empty())
-                    m_currentChannel->back()->setTo(args);
-            }
-            break;
-
-        case LMGrabType::GRAB_CIRCLE:
-            auto tmpGrab = ofxLedGrabCircle(args, args + ofVec2f(20.f), m_pixelsInLed);
-            addGrab(GetUniqueTypedGrab(LMGrabType::GRAB_CIRCLE, tmpGrab));
-            markDirtyGrabPoints();
-            break;
-    }
-}
-
-unique_ptr<ofxLedGrab> ofxLedController::GetUniqueTypedGrab(int type, const ofxLedGrab &grab)
-{
-    switch (type) {
-        case LMGrabType::GRAB_LINE:
-            return make_unique<ofxLedGrabLine>(grab.getFrom(), grab.getTo(), grab.getPixelsInLed());
-        case LMGrabType::GRAB_MATRIX:
-            return make_unique<ofxLedGrabMatrix>(grab.getFrom(), grab.getTo(),
-                                                 grab.getPixelsInLed());
-        case LMGrabType::GRAB_CIRCLE:
-            return make_unique<ofxLedGrabCircle>(grab.getFrom(), grab.getTo(),
-                                                 grab.getPixelsInLed());
-        default:
-            break;
-    }
-    assert(false);
-    return nullptr;
-}
-
-void ofxLedController::addGrab(unique_ptr<ofxLedGrab> &&object)
-{
-    object->setObjectId(m_currentChannel->size());
-    object->setChannel(m_currentChannelNum);
-    object->setActive(true);
-    object->setSelected(true);
-    m_currentChannel->emplace_back(move(object));
-    markDirtyGrabPoints();
-}
-
-void ofxLedController::deleteSelectedGrabs()
-{
-    size_t grabCntr = 0;
-    for (auto it = m_currentChannel->begin(); it != m_currentChannel->end();) {
-        if ((*it) == nullptr)
-            continue;
-        if ((*it)->isSelected()) {
-            /// erase grab and don't increment grab counter
-            it = m_currentChannel->erase(it);
-            markDirtyGrabPoints();
-            continue;
         }
-        (*it)->setObjectId(grabCntr);
-        ++grabCntr;
-        ++it;
+        case LMGrabType::GRAB_MATRIX: {
+            auto matGrab = ofxLedGrabMatrix(args, args, m_pixelsInLed);
+            addGrab(GetUniqueTypedGrab(LMGrabType::GRAB_MATRIX, matGrab));
+            break;
+        }
+        case LMGrabType::GRAB_CIRCLE: {
+            auto circGrab = ofxLedGrabCircle(args, args + ofVec2f(20.f), m_pixelsInLed);
+            addGrab(GetUniqueTypedGrab(LMGrabType::GRAB_CIRCLE, circGrab));
+            markDirtyGrabPoints();
+            break;
+        }
     }
 }
 
@@ -628,6 +566,7 @@ void ofxLedController::mouseDragged(ofMouseEventArgs &args)
 {
     if (!bSelected)
         return;
+
     int y = args.y > LM_GUI_TOP_BAR ? args.y : LM_GUI_TOP_BAR;
     if (!m_currentChannel->empty())
         for (auto &grab : *m_currentChannel)
@@ -637,6 +576,11 @@ void ofxLedController::mouseDragged(ofMouseEventArgs &args)
 
 void ofxLedController::mouseReleased(ofMouseEventArgs &args)
 {
+    /// delete zero length grab, that was created with one click - not counted
+    if (m_currentChannel->back()->getFrom() == m_currentChannel->back()->getTo()) {
+        m_currentChannel->pop_back();
+        markDirtyGrabPoints();
+    }
 
     if (!m_currentChannel->empty()) {
         for (auto &grab : *m_currentChannel)
@@ -733,6 +677,52 @@ void ofxLedController::onSliderEvent(ofxDatGuiSliderEvent e)
     }
 }
 #endif // LED_MAPPER_NO_GUI
+
+unique_ptr<ofxLedGrab> ofxLedController::GetUniqueTypedGrab(int type, const ofxLedGrab &grab)
+{
+    switch (type) {
+        case LMGrabType::GRAB_LINE:
+            return make_unique<ofxLedGrabLine>(grab.getFrom(), grab.getTo(), grab.getPixelsInLed());
+        case LMGrabType::GRAB_MATRIX:
+            return make_unique<ofxLedGrabMatrix>(grab.getFrom(), grab.getTo(),
+                                                 grab.getPixelsInLed());
+        case LMGrabType::GRAB_CIRCLE:
+            return make_unique<ofxLedGrabCircle>(grab.getFrom(), grab.getTo(),
+                                                 grab.getPixelsInLed());
+        default:
+            break;
+    }
+    assert(false);
+    return nullptr;
+}
+
+void ofxLedController::addGrab(unique_ptr<ofxLedGrab> &&object)
+{
+    object->setObjectId(m_currentChannel->size());
+    object->setChannel(m_currentChannelNum);
+    object->setActive(true);
+    object->setSelected(true);
+    m_currentChannel->emplace_back(move(object));
+    markDirtyGrabPoints();
+}
+
+void ofxLedController::deleteSelectedGrabs()
+{
+    size_t grabCntr = 0;
+    for (auto it = m_currentChannel->begin(); it != m_currentChannel->end();) {
+        if ((*it) == nullptr)
+            continue;
+        if ((*it)->isSelected()) {
+            /// erase grab and don't increment grab counter
+            it = m_currentChannel->erase(it);
+            markDirtyGrabPoints();
+            continue;
+        }
+        (*it)->setObjectId(grabCntr);
+        ++grabCntr;
+        ++it;
+    }
+}
 
 ofxLedController::COLOR_TYPE ofxLedController::getColorType(int num) const
 {
