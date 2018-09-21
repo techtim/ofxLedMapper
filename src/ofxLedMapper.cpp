@@ -224,22 +224,18 @@ void ofxLedMapper::setupGui()
     m_iconsMenu->setWidth(LM_GUI_ICON_WIDTH);
     m_iconsMenu->setAutoDraw(false);
 
-    m_iconsMenu->addButtonImage(LMGUIMouseSelect, "gui/mouse_select.png")
+    m_iconsMenu->addButtonImage(LMGUIMouseSelect, "gui/mouse_select.jpg")
         ->onButtonEvent(
             [this](ofxDatGuiButtonEvent) { m_grabTypeSelected = LMGrabType::GRAB_SELECT; });
-    //            , "gui/mouse_select_over.png"
-    m_iconsMenu->addButtonImage(LMGUIMouseGrabLine, "gui/mouse_grab_line.png")
+    m_iconsMenu->addButtonImage(LMGUIMouseGrabLine, "gui/mouse_grab_line.jpg")
         ->onButtonEvent(
             [this](ofxDatGuiButtonEvent) { m_grabTypeSelected = LMGrabType::GRAB_LINE; });
-    //            , "gui/mouse_grab_line_over.png"
-    m_iconsMenu->addButtonImage(LMGUIMouseGrabCircle, "gui/mouse_grab_circle.png")
+    m_iconsMenu->addButtonImage(LMGUIMouseGrabCircle, "gui/mouse_grab_circle.jpg")
         ->onButtonEvent(
             [this](ofxDatGuiButtonEvent) { m_grabTypeSelected = LMGrabType::GRAB_CIRCLE; });
-    //            , "gui/mouse_grab_circle_over.png"
-    m_iconsMenu->addButtonImage(LMGUIMouseGrabMatrix, "gui/mouse_grab_matrix.png")
+    m_iconsMenu->addButtonImage(LMGUIMouseGrabMatrix, "gui/mouse_grab_matrix.jpg")
         ->onButtonEvent(
             [this](ofxDatGuiButtonEvent) { m_grabTypeSelected = LMGrabType::GRAB_MATRIX; });
-    //            , "gui/mouse_grab_line.png"
 
     m_iconsMenu->update();
 
@@ -371,6 +367,7 @@ bool ofxLedMapper::load()
         m_listControllers->sort();
 #endif
         setCurrentController(0);
+        setCurrentController(0); /// double select to deselect
         return true;
     }
 

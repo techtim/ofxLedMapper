@@ -568,28 +568,26 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
 
 void ofxLedController::mouseDragged(ofMouseEventArgs &args)
 {
-    if (!bSelected)
+    if (!bSelected || m_currentChannel->empty())
         return;
 
-    int y = args.y > LM_GUI_TOP_BAR ? args.y : LM_GUI_TOP_BAR;
-    if (!m_currentChannel->empty())
-        for (auto &grab : *m_currentChannel)
-            if (grab->mouseDragged(args))
-                markDirtyGrabPoints();
+    for (auto &grab : *m_currentChannel)
+        if (grab->mouseDragged(args))
+            markDirtyGrabPoints();
 }
 
 void ofxLedController::mouseReleased(ofMouseEventArgs &args)
 {
+    if (m_currentChannel->empty())
+        return;
     /// delete zero length grab, that was created with one click - not counted
     if (m_currentChannel->back()->points().empty()) {
         m_currentChannel->pop_back();
         markDirtyGrabPoints();
     }
 
-    if (!m_currentChannel->empty()) {
-        for (auto &grab : *m_currentChannel)
-            grab->mouseReleased(args);
-    }
+    for (auto &grab : *m_currentChannel)
+        grab->mouseReleased(args);
 }
 
 void ofxLedController::keyPressed(ofKeyEventArgs &data)

@@ -38,7 +38,7 @@ static const string LMGUIButtonAdd = "Add Controller";
 static const string LMGUIButtonDel = "Delete Controller";
 static const string LMGUIButtonSave = "Save";
 static const string LMGUIButtonLoad = "Load";
-static const string LMGUISliderFadeTime = "Fade in sec";
+static const string LMGUISliderFadeTime = "Fade(sec)";
 static const string LMGUIListPlaylist = "Playlist";
 static const string LMGUIListPlaylistDelete = "Delete item";
 
