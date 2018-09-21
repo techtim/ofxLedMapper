@@ -433,16 +433,22 @@ void ofxLedMapper::pasteGrabs()
 
 void ofxLedMapper::mousePressed(ofMouseEventArgs &args)
 {
+    if (m_currentCtrl >= m_controllers.size())
+        return;
     m_controllers[m_currentCtrl]->setGrabType(m_grabTypeSelected);
     m_controllers[m_currentCtrl]->mousePressed(args);
 }
 
 void ofxLedMapper::mouseDragged(ofMouseEventArgs &args)
 {
+    if (m_currentCtrl >= m_controllers.size())
+        return;
     m_controllers[m_currentCtrl]->mouseDragged(args);
 }
 void ofxLedMapper::mouseReleased(ofMouseEventArgs &args)
 {
+    if (m_currentCtrl >= m_controllers.size())
+        return;
     if (!args.hasModifier(OF_KEY_SHIFT)) {
         m_controllers[m_currentCtrl]->mouseReleased(args);
     }
