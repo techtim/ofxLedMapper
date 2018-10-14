@@ -27,7 +27,9 @@ namespace LedMapper {
 
 static const vector<string> s_colorTypes = { "RGB", "RBG", "BRG", "BGR", "GRB", "GBR" };
 static const vector<string> s_channelList = { "channel 1", "channel 2" };
-static const vector<string> s_ledTypeList = { "WS2811", "SK9822" };
+
+/// s_ledTypeList elements must be the same as keys in s_ledTypeToEnum map in lmListener on RPI side
+static const vector<string> s_ledTypeList = { "WS281X", "SK9822" };
 
 ofxLedController::ofxLedController(const int &__id, const string &_path)
     : bSelected(false)
@@ -125,10 +127,9 @@ unique_ptr<ofxDatGui> ofxLedController::GenerateGui()
     slider = gui->addSlider(LMGUISliderFps, 10, 60);
     slider->setPrecision(0);
 
-    gui->addDropdown(LCGUIDropColorType, s_colorTypes);
-
     gui->addTextInput(LCGUITextIP, "127.0.0.1");
-    gui->addTextInput(LCGUITextPort, "3000");
+
+    gui->addDropdown(LCGUIDropColorType, s_colorTypes);
     gui->addDropdown(LCGUIDropLedType, s_ledTypeList);
     gui->addDropdown(LCGUIDropChannelNum, s_channelList);
 
@@ -184,12 +185,6 @@ void ofxLedController::bindGui(ofxDatGui *gui)
     auto text = gui->getTextInput(LCGUITextIP);
     if (text->getName() != "X") {
         text->setText(m_udpIp);
-        text->onTextInputEvent(this, &ofxLedController::onTextInputEvent);
-    }
-
-    text = gui->getTextInput(LCGUITextPort);
-    if (text->getName() != "X") {
-        text->setText(ofToString(m_udpPort));
         text->onTextInputEvent(this, &ofxLedController::onTextInputEvent);
     }
 }
@@ -519,8 +514,8 @@ void ofxLedController::parseXml(ofxXmlSettings &XML)
                 ofLogError() << "ofxLedController Malformed XML config, LN:TYPE unknown or empty"
                              << XML.getValue("LN:TYPE", 0, i);
 
-            tmpObj->setObjectId(i);
             int chan = XML.getValue("LN:CHANNEL", 0, i);
+            tmpObj->setObjectId(m_channelGrabObjects[chan].size());
             m_channelGrabObjects[chan].emplace_back(move(tmpObj));
         }
     }

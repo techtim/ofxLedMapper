@@ -80,7 +80,6 @@ public:
     virtual void updatePoints() = 0;
     virtual void draw(const ofColor &color = ofColor(200, 200, 200, 150)) = 0;
     virtual void drawGui() = 0;
-    virtual void updateBounds() = 0;
     virtual bool mousePressed(ofMouseEventArgs &args) = 0;
     virtual bool mouseDragged(const ofMouseEventArgs &args) = 0;
     virtual bool mouseReleased(const ofMouseEventArgs &args) = 0;
@@ -172,7 +171,6 @@ public:
     int m_channel, m_pixelsInObject;
 
     vector<ofVec2f> m_points;
-    ofRectangle m_bounds;
 
 #ifndef LED_MAPPER_NO_GUI
     unique_ptr<ofxDatGui> gui;
@@ -241,8 +239,12 @@ public:
     bool mousePressed(ofMouseEventArgs &args) override
     {
         ofxLedGrab::setClickedPos(args);
-        auto dist = getPointDistanceToLine(args, m_from, m_to);
-        if (abs(dist) < POINT_RAD * 2) {
+        if (pressedFromTo(args)) {
+            ofxLedGrab::setSelected(true);
+            return true;
+        }
+
+        if (getPointDistanceToLine(args, m_from, m_to) < POINT_RAD * 2) {
             ofxLedGrab::setSelected(true);
             ofxLedGrab::pressedFromTo(args);
             return true;
@@ -309,7 +311,6 @@ public:
 
     void updatePoints() override
     {
-        updateBounds();
         float dist = m_from.distance(m_to);
         m_pixelsInObject = static_cast<int>(dist / m_pixelsInLed);
         m_points.clear();
@@ -325,12 +326,6 @@ public:
             std::reverse(tmpPoints.begin(), tmpPoints.end());
             m_points.insert(m_points.end(), tmpPoints.begin(), tmpPoints.end());
         }
-    }
-    void updateBounds() override
-    {
-        auto min = ofVec2f(MIN(m_from.x, m_to.x), MIN(m_from.y, m_to.y));
-        auto max = ofVec2f(MAX(m_from.x, m_to.x), MAX(m_from.y, m_to.y));
-        m_bounds.set(min - ofVec2f(POINT_RAD), max + ofVec2f(POINT_RAD));
     }
     void save(ofxXmlSettings &xml, const int tagNum) override
     {
@@ -373,18 +368,20 @@ public:
     bool mousePressed(ofMouseEventArgs &args) override
     {
         ofxLedGrab::setClickedPos(args);
-        if (m_bounds.inside(args)) {
+
+        if (m_from.distance(args) <= POINT_RAD) {
+            m_bSelectedFrom = true;
+            m_bSelectedTo = false;
             m_bSelected = true;
-            if (m_from.distance(args) <= POINT_RAD) {
-                m_bSelectedFrom = true;
-                m_bSelectedTo = false;
-            }
-            else if (m_from.distance(args) <= m_radius + POINT_RAD) {
-                m_bSelectedFrom = false;
-                m_bSelectedTo = true;
-            }
             return true;
         }
+        if (m_from.distance(args) <= m_radius + POINT_RAD) {
+            m_bSelectedFrom = false;
+            m_bSelectedTo = true;
+            m_bSelected = true;
+            return true;
+        }
+
         if (!args.hasModifier(OF_KEY_SHIFT))
             ofxLedGrab::setSelected(false);
 
@@ -444,7 +441,6 @@ public:
     void updatePoints() override
     {
         m_radius = m_from.distance(m_to);
-        updateBounds();
         float dist = m_radius * TWO_PI;
         int pixelsInLine = static_cast<int>(dist / m_pixelsInLed);
         float degreeStep = 360.f / static_cast<float>(pixelsInLine);
@@ -459,11 +455,6 @@ public:
                 m_points.push_back(tmp);
             m_bClockwise ? currStep -= degreeStep : currStep += degreeStep;
         }
-    }
-    void updateBounds() override
-    {
-        m_bounds.setPosition(m_from.x - m_radius + POINT_RAD, m_from.y - m_radius + POINT_RAD);
-        m_bounds.setSize((m_radius + POINT_RAD) * 2.f, (m_radius + POINT_RAD) * 2.f);
     }
 
     void save(ofxXmlSettings &xml, const int tagNum) override
@@ -485,6 +476,7 @@ public:
 class ofxLedGrabMatrix : public ofxLedGrab {
     int m_columns, m_rows;
     bool m_isVertical, m_isZigzag;
+    ofRectangle m_bounds;
 
 public:
     ofxLedGrabMatrix(const ofVec2f &from = ofVec2f(0), const ofVec2f &to = ofVec2f(0),
@@ -492,6 +484,7 @@ public:
         : ofxLedGrab(from, to, pixInLed)
         , m_isVertical(isVertical)
         , m_isZigzag(isZigzag)
+        , m_bounds(0,0,0,0)
     {
         ofxLedGrab::m_type = LMGrabType::GRAB_MATRIX;
         updatePoints();
@@ -652,7 +645,7 @@ public:
             }
         }
     }
-    void updateBounds() override
+    void updateBounds()
     {
         auto min = ofVec2f(MIN(m_from.x, m_to.x), MIN(m_from.y, m_to.y));
         auto max = ofVec2f(MAX(m_from.x, m_to.x), MAX(m_from.y, m_to.y));
