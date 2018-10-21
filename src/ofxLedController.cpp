@@ -444,7 +444,7 @@ void ofxLedController::load(const string &path)
     ofLogVerbose() << "UdpSend=" << (XML.getValue("UdpSend", false, 0) ? "true" : "false");
     bUdpSend = XML.getValue("UdpSend", false, 0) ? true : false;
     m_udpIp = XML.getValue("IpAddress", RPI_IP, 0);
-    m_udpPort = XML.getValue("Port", RPI_PORT, 0);
+    m_udpPort = RPI_PORT;
     m_fps = XML.getValue("fps", 25, 0);
     m_currentLedType = XML.getValue("LedType", s_ledTypeList.front(), 0);
 

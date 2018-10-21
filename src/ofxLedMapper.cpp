@@ -97,7 +97,7 @@ void ofxLedMapper::drawGui()
 
     m_iconsMenu->update();
     m_iconsMenu->draw();
-    if (m_guiController) {
+    if (m_guiController != nullptr) {
         m_guiController->update();
         m_guiController->draw();
     }
@@ -178,7 +178,6 @@ bool ofxLedMapper::checkUniqueId(unsigned int _ctrlId)
 void ofxLedMapper::setupGui()
 {
 #ifndef LED_MAPPER_NO_GUI
-    m_guiController = ofxLedController::GenerateGui();
     m_gui = make_unique<ofxDatGui>(ofxDatGuiAnchor::TOP_RIGHT);
     m_guiTheme = make_unique<LedMapper::ofxDatGuiThemeLM>();
     m_gui->setTheme(m_guiTheme.get());
@@ -399,7 +398,8 @@ void ofxLedMapper::copyGrabs()
     auto &grabs = m_controllers[m_currentCtrl]->peekGrabObjects();
     for (const auto &grab : m_controllers[m_currentCtrl]->peekCurrentGrabs())
         if (grab->isSelected()) {
-            auto newGrab = move(ofxLedController::GetUniqueTypedGrab(grab->getType(), grab.operator*()));
+            auto newGrab
+                = move(ofxLedController::GetUniqueTypedGrab(grab->getType(), grab.operator*()));
             m_copyPasteGrabs.emplace_back(move(newGrab));
         }
     ofLogVerbose() << "Copied controller #" << m_currentCtrl
@@ -415,7 +415,8 @@ void ofxLedMapper::pasteGrabs()
     for (auto &grab : m_copyPasteGrabs) {
         grab->set(grab->getFrom() + ofVec2f(10), grab->getTo() + ofVec2f(10));
         ofLogVerbose() << "Pasting Grab: " << *grab;
-        m_controllers[m_currentCtrl]->addGrab(move(ofxLedController::GetUniqueTypedGrab(grab->getType(), grab.operator*())));
+        m_controllers[m_currentCtrl]->addGrab(
+            move(ofxLedController::GetUniqueTypedGrab(grab->getType(), grab.operator*())));
     }
 
     ofLogVerbose() << "Copied controller #" << m_currentCtrl
