@@ -42,7 +42,7 @@ inline float getPointDistanceToLine(const ofVec2f &point, const ofVec2f &lineFro
     float LineLength = lineFrom.distance(lineTo);
     glm::fvec2 Vector = point - lineFrom;
     glm::fvec2 LineDirection = (lineTo - lineFrom) / LineLength;
-    // Project Vector to LineDirection to get the distance of point from a
+    // Project Vector to LineDirection to get the distance of point from line
     float Distance = glm::dot(Vector, LineDirection);
     if (Distance < 0.f)
         return POINT_RAD * 10; // miss
@@ -80,6 +80,7 @@ public:
     virtual void updatePoints() = 0;
     virtual void draw(const ofColor &color = ofColor(200, 200, 200, 150)) = 0;
     virtual void drawGui() = 0;
+    virtual void updateBounds() = 0;
     virtual bool mousePressed(ofMouseEventArgs &args) = 0;
     virtual bool mouseDragged(const ofMouseEventArgs &args) = 0;
     virtual bool mouseReleased(const ofMouseEventArgs &args) = 0;
@@ -126,7 +127,9 @@ public:
 
     void setClickedPos(const ofVec2f &pos) { m_clickedPos = pos; }
     const ofVec2f &getClickedPos() const { return m_clickedPos; }
-
+    
+    const ofRectangle &getBounds() { return m_bounds; }
+    
     void setPixelsInLed(float _pixs)
     {
         m_pixelsInLed = _pixs;
@@ -171,6 +174,7 @@ public:
     int m_channel, m_pixelsInObject;
 
     vector<ofVec2f> m_points;
+    ofRectangle m_bounds;
 
 #ifndef LED_MAPPER_NO_GUI
     unique_ptr<ofxDatGui> gui;
@@ -210,7 +214,6 @@ public:
     {
 #ifndef LED_MAPPER_NO_GUI
         gui = make_unique<ofxDatGui>(ofxDatGuiAnchor::TOP_RIGHT);
-        gui->setAssetPath("");
         gui->setWidth(LM_GUI_WIDTH);
 
         //    ofxDatGuiFolder* folder = gui->addFolder("parameters", ofColor::white);
@@ -327,6 +330,14 @@ public:
             m_points.insert(m_points.end(), tmpPoints.begin(), tmpPoints.end());
         }
     }
+
+    void updateBounds() override
+    {
+        auto min = ofVec2f(MIN(m_from.x, m_to.x), MIN(m_from.y, m_to.y));
+        auto max = ofVec2f(MAX(m_from.x, m_to.x), MAX(m_from.y, m_to.y));
+        m_bounds.set(min - ofVec2f(POINT_RAD), max + ofVec2f(POINT_RAD));
+    }
+
     void save(ofxXmlSettings &xml, const int tagNum) override
     {
         ofxLedGrab::save(xml, tagNum);
@@ -440,6 +451,7 @@ public:
 
     void updatePoints() override
     {
+        updateBounds();
         m_radius = m_from.distance(m_to);
         float dist = m_radius * TWO_PI;
         int pixelsInLine = static_cast<int>(dist / m_pixelsInLed);
@@ -455,6 +467,10 @@ public:
                 m_points.push_back(tmp);
             m_bClockwise ? currStep -= degreeStep : currStep += degreeStep;
         }
+    }
+    void updateBounds() override
+    {
+        m_bounds.set(ofVec2f(m_from - ofVec2f(m_radius + POINT_RAD)), ofVec2f((m_radius + POINT_RAD) * 2.f));
     }
 
     void save(ofxXmlSettings &xml, const int tagNum) override
@@ -476,7 +492,6 @@ public:
 class ofxLedGrabMatrix : public ofxLedGrab {
     int m_columns, m_rows;
     bool m_isVertical, m_isZigzag;
-    ofRectangle m_bounds;
 
 public:
     ofxLedGrabMatrix(const ofVec2f &from = ofVec2f(0), const ofVec2f &to = ofVec2f(0),
@@ -484,7 +499,6 @@ public:
         : ofxLedGrab(from, to, pixInLed)
         , m_isVertical(isVertical)
         , m_isZigzag(isZigzag)
-        , m_bounds(0,0,0,0)
     {
         ofxLedGrab::m_type = LMGrabType::GRAB_MATRIX;
         updatePoints();
@@ -645,11 +659,10 @@ public:
             }
         }
     }
-    void updateBounds()
+    void updateBounds() override
     {
-        auto min = ofVec2f(MIN(m_from.x, m_to.x), MIN(m_from.y, m_to.y));
-        auto max = ofVec2f(MAX(m_from.x, m_to.x), MAX(m_from.y, m_to.y));
-        m_bounds.set(min, max);
+        m_bounds.set(ofVec2f(MIN(m_from.x, m_to.x), MIN(m_from.y, m_to.y)),
+                     ofVec2f(MAX(m_from.x, m_to.x), MAX(m_from.y, m_to.y)));
     }
 
     void save(ofxXmlSettings &xml, const int tagNum) override

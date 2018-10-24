@@ -94,7 +94,8 @@ public:
 
     bool isSelected() const { return bSelected; }
     bool isStatusOk() const { return m_statusOk; }
-
+    bool isSending() const { return bUdpSend; }
+    
     void setupUdp(const string &host, unsigned int port);
     void sendLedType(const string &ledType);
     void sendUdp();
