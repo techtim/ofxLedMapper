@@ -44,6 +44,7 @@ using ChannelsGrabObjects = vector<vector<unique_ptr<ofxLedGrab>>>;
 /// Class represents connection to one client recieving led data and
 /// control transmittion params like fps, pixel color order, LED IC Type
 
+template<typename LedOut>
 class ofxLedController {
 public:
     enum COLOR_TYPE { RGB = 0, RBG = 1, BRG = 2, BGR = 3, GRB = 4, GBR = 5 };
@@ -100,6 +101,8 @@ public:
     void sendLedType(const string &ledType);
     void sendUdp();
     void sendUdp(const ofPixels &sidesGrabImg);
+    void sendArtnet(const ofPixels &data);
+
     string getIP() const { return m_curUdpIp; }
 
     void setupDmx(const string &port_name);
@@ -125,7 +128,7 @@ private:
     ofColor m_colorLine, m_colorActive, m_colorInactive;
 
     vector<char> m_output;
-
+    LedOut m_ledOut;
     unsigned int m_totalLeds, m_pointsCount, m_outputHeaderOffset;
 
     std::function<void(vector<char> &output, ofColor &color)> m_colorUpdator;

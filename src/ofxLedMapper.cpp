@@ -182,6 +182,7 @@ void ofxLedMapper::setupGui()
     m_guiTheme = make_unique<LedMapper::ofxDatGuiThemeLM>();
     m_gui->setTheme(m_guiTheme.get());
     m_gui->setWidth(LM_GUI_WIDTH);
+    m_gui->setAutoDraw(false);
 
     m_gui->addHeader(LMGUIListControllers);
     m_currentCtrl = 0;
@@ -190,7 +191,6 @@ void ofxLedMapper::setupGui()
     button->onButtonEvent([this](ofxDatGuiButtonEvent) { this->save(); });
     button->setLabelAlignment(ofxDatGuiAlignment::CENTER);
     button = m_gui->addButton(LMGUIButtonLoad);
-    //    button->onButtonEvent(this, &ofxLedMapper::onButtonClick);
     button->onButtonEvent([this](ofxDatGuiButtonEvent) { this->load(); });
     button->setLabelAlignment(ofxDatGuiAlignment::CENTER);
 
@@ -223,18 +223,18 @@ void ofxLedMapper::setupGui()
     m_iconsMenu->setWidth(LM_GUI_ICON_WIDTH);
     m_iconsMenu->setAutoDraw(false);
 
-    m_iconsMenu->addButtonImage(LMGUIMouseSelect, "gui/mouse_select.jpg")
-        ->onButtonEvent(
-            [this](ofxDatGuiButtonEvent) { m_grabTypeSelected = LMGrabType::GRAB_SELECT; });
-    m_iconsMenu->addButtonImage(LMGUIMouseGrabLine, "gui/mouse_grab_line.jpg")
-        ->onButtonEvent(
-            [this](ofxDatGuiButtonEvent) { m_grabTypeSelected = LMGrabType::GRAB_LINE; });
-    m_iconsMenu->addButtonImage(LMGUIMouseGrabCircle, "gui/mouse_grab_circle.jpg")
-        ->onButtonEvent(
-            [this](ofxDatGuiButtonEvent) { m_grabTypeSelected = LMGrabType::GRAB_CIRCLE; });
-    m_iconsMenu->addButtonImage(LMGUIMouseGrabMatrix, "gui/mouse_grab_matrix.jpg")
-        ->onButtonEvent(
-            [this](ofxDatGuiButtonEvent) { m_grabTypeSelected = LMGrabType::GRAB_MATRIX; });
+    m_iconsMenu->addToggleImage(LMGUIMouseSelect, "gui/mouse_select.jpg")
+        ->onToggleEvent(
+            [this](ofxDatGuiToggleEvent) { m_grabTypeSelected = LMGrabType::GRAB_SELECT; });
+    m_iconsMenu->addToggleImage(LMGUIMouseGrabLine, "gui/mouse_grab_line.jpg")
+        ->onToggleEvent(
+            [this](ofxDatGuiToggleEvent) { m_grabTypeSelected = LMGrabType::GRAB_LINE; });
+    m_iconsMenu->addToggleImage(LMGUIMouseGrabCircle, "gui/mouse_grab_circle.jpg")
+        ->onToggleEvent(
+            [this](ofxDatGuiToggleEvent) { m_grabTypeSelected = LMGrabType::GRAB_CIRCLE; });
+    m_iconsMenu->addToggleImage(LMGUIMouseGrabMatrix, "gui/mouse_grab_matrix.jpg")
+        ->onToggleEvent(
+            [this](ofxDatGuiToggleEvent) { m_grabTypeSelected = LMGrabType::GRAB_MATRIX; });
 
     m_iconsMenu->update();
 

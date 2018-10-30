@@ -314,6 +314,7 @@ public:
 
     void updatePoints() override
     {
+        updateBounds();
         float dist = m_from.distance(m_to);
         m_pixelsInObject = static_cast<int>(dist / m_pixelsInLed);
         m_points.clear();
@@ -347,6 +348,7 @@ public:
     void load(ofxXmlSettings &xml, int tagNum) override
     {
         m_bDoubleLine = xml.getValue("LN:bDouble", false, tagNum);
+        updatePoints();
     }
 };
 

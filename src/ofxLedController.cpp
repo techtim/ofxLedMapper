@@ -87,7 +87,6 @@ ofxLedController::~ofxLedController()
     ofLogVerbose("[ofxLedController] Dtor: clear lines + remove event listeners + remove gui");
     disableEvents();
     m_channelGrabObjects.clear();
-
     m_frameConnection.Close();
     m_confConnection.Close();
 }
@@ -305,7 +304,7 @@ void ofxLedController::sendLedType(const string &ledType)
         return;
     ofLogVerbose() << "Update LedType with " << ledType;
     m_currentLedType = ledType;
-    /// send type 5 times to be sure UDP packet won't lost
+    /// send type 5 times hoping UDP packet won't lost
     for (size_t i = 0; i < 5; ++i)
         m_confConnection.Send(m_currentLedType.c_str(), m_currentLedType.size());
 }
@@ -705,20 +704,20 @@ void ofxLedController::addGrab(unique_ptr<ofxLedGrab> &&object)
 
 void ofxLedController::deleteSelectedGrabs()
 {
+    /// remove selected if has
+    auto it = std::remove_if(begin(*m_currentChannel), end(*m_currentChannel),
+                             [](auto &grab) { return (*grab).isSelected(); });
+    if (it == end(*m_currentChannel))
+        return;
+
+    m_currentChannel->erase(it, end(*m_currentChannel));
+    /// update grab ids
     size_t grabCntr = 0;
-    for (auto it = m_currentChannel->begin(); it != m_currentChannel->end();) {
-        if ((*it) == nullptr)
-            continue;
-        if ((*it)->isSelected()) {
-            /// erase grab and don't increment grab counter
-            it = m_currentChannel->erase(it);
-            markDirtyGrabPoints();
-            continue;
-        }
-        (*it)->setObjectId(grabCntr);
-        ++grabCntr;
-        ++it;
-    }
+    std::for_each(begin(*m_currentChannel), end(*m_currentChannel),
+                  [&grabCntr](auto &grab) { (*grab).setObjectId(grabCntr++); });
+
+    markDirtyGrabPoints();
+    return;
 }
 
 ofxLedController::COLOR_TYPE ofxLedController::getColorType(int num) const
@@ -784,56 +783,4 @@ void ofxLedController::setCurrentChannel(int chan)
     m_currentChannel = &m_channelGrabObjects[m_currentChannelNum];
 }
 
-/// ----------- DMX ------------
-void ofxLedController::setupDmx(const string &serialName)
-{
-#ifdef USE_DMX_FTDI
-    else if (dmxFtdi.open()) { ofLog(OF_LOG_NOTICE, "******** DMX FDI SETUP ********"); }
-#elif USE_DMX
-    if (serialName == "" && dmx.connect(0, 512)) {
-        ofLog(OF_LOG_NOTICE, "******** DMX PRO Default SETUP ********");
-    }
-    else if (dmx.connect(serialName, 512)) { // DMX_MODULES * DMX_CHANNELS);
-        dmx.update(true); // black on startup
-        ofLog(OF_LOG_NOTICE, "******** DMX PRO " + serialName + " SETUP ********");
-    }
-#endif // DMX
-}
-
-void ofxLedController::sendDmx(const ofPixels &grabbedImg)
-{
-    if (!bDmxSend)
-        return;
-
-    updatePixels(grabbedImg);
-
-#ifdef USE_DMX
-    if (dmx.isConnected()) {
-        int cntr = getTotalLeds() * 3;
-        for (int i = 1; i < 513; i++) {
-            if (i > 512)
-                return;
-            dmxFtdiVal[i] = i > cntr ? (char)0 : (char)m_output[i - 1];
-            dmx.setLevel(i, dmxFtdiVal[i]);
-        }
-        dmx.update();
-    }
-    else {
-        ofLogVerbose("NO USB->DMX");
-    }
-#elif USE_DMX_FTDI
-    if (dmxFtdi.isOpen()) {
-        int cntr = getTotalLeds() * 3;
-        for (int i = 1; i < 513; i++) {
-            if (i > 512)
-                return;
-            dmxFtdiVal[i] = i > cntr ? (char)0 : (char)m_output[i - 1];
-        }
-        dmxFtdi.writeDmx(dmxFtdiVal, 513);
-    }
-    else {
-        ofLogVerbose("NO USB->DMX");
-    }
-#endif // DMX
-}
 } // namespace LedMapper
