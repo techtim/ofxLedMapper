@@ -23,7 +23,7 @@
 #pragma once
 
 #ifndef LED_MAPPER_NO_GUI
-
+#include <regex>
 #include "ofxDatGui.h"
 
 static const int LM_GUI_WIDTH = 200;
@@ -60,13 +60,14 @@ static const string LCFileName = "Ctrl-";
 
 #endif
 
-// typedef unique_ptr<ofxLedController> ofxLedController_ptr;
-
+/// Config for Rpi
 static const string LMCtrlsFolderPath = "Ctrls";
-
 static const string RPI_IP = "192.168.2.102";
 static const int RPI_PORT = 3001;
 static const int RPI_CONF_PORT = 3002;
+
+/// type for output data stream
+using ChannelsToPix = vector<vector<char>>;
 
 /// include json in oF versions prior to 1.0
 #if (OF_VERSION_MINOR < 10)
@@ -90,7 +91,7 @@ static const int LM_KEY_CONTROL = 0x2; // OF_KEY_CONTROL
 
 static const std::string LM_CONFIG_EXTENSION = ".lmjson";
 
-/// JSON Utils
+/// Types for JSON export
 struct Color {
     uint8_t r;
     uint8_t g;
@@ -119,10 +120,17 @@ static void from_json(const ofJson &j, Point &p)
     p.y = j.at("y").get<uint16_t>();
 }
 
-/// hashing function
-constexpr unsigned int hash(const char *str, int h = 0)
+/// Useful functions
+constexpr unsigned int Hash(const char *str, int h = 0)
 {
-    return !str[h] ? 5381 : (hash(str, h + 1) * 33) ^ str[h];
+    return !str[h] ? 5381 : (Hash(str, h + 1) * 33) ^ str[h];
+}
+
+static bool ValidateIP(const string &ip) {
+    std::smatch base_match;
+    std::regex ip_addr("(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})");
+    std::regex_match(ip, base_match, ip_addr);
+    return base_match.size() > 0;
 }
 
 /// COLORS

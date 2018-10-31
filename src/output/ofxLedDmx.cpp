@@ -3,7 +3,7 @@
 //
 
 #include "ofxLedDmx.h"
-
+/*
 void ofxLedDmx::setup(const string &serialName)
 {
 #ifdef USE_DMX_FTDI
@@ -55,3 +55,4 @@ void ofxLedDmx::send(const ofPixels &grabbedImg)
     }
 #endif // DMX
 }
+*/

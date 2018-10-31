@@ -23,7 +23,6 @@
 #pragma once
 
 #include "ofMain.h"
-#include "ofxNetwork.h"
 #include "ofxXmlSettings.h"
 
 #include "Common.h"
@@ -35,6 +34,7 @@
 #endif
 
 #include "ofxLedGrabObject.h"
+#include "output/ofxLedOutput.h"
 
 namespace LedMapper {
 
@@ -44,11 +44,9 @@ using ChannelsGrabObjects = vector<vector<unique_ptr<ofxLedGrab>>>;
 /// Class represents connection to one client recieving led data and
 /// control transmittion params like fps, pixel color order, LED IC Type
 
-template<typename LedOut>
 class ofxLedController {
 public:
     enum COLOR_TYPE { RGB = 0, RBG = 1, BRG = 2, BGR = 3, GRB = 4, GBR = 5 };
-    enum LED_TYPE { DATA, DATACLOCK };
 
     ofxLedController() = delete;
     ofxLedController(const ofxLedController &) = delete;
@@ -78,12 +76,6 @@ public:
 #ifndef LED_MAPPER_NO_GUI
     static unique_ptr<ofxDatGui> GenerateGui();
     void bindGui(ofxDatGui *gui);
-
-    void onDropdownEvent(ofxDatGuiDropdownEvent e);
-    void onButtonEvent(ofxDatGuiButtonEvent e);
-    void onTextInputEvent(ofxDatGuiTextInputEvent e);
-    void onSliderEvent(ofxDatGuiSliderEvent e);
-
     ofVec2f getGuiSize() const { return ofVec2f(LM_GUI_WIDTH, 100); }
 #endif
 
@@ -96,21 +88,19 @@ public:
     bool isSelected() const { return bSelected; }
     bool isStatusOk() const { return m_statusOk; }
     bool isSending() const { return bUdpSend; }
-    
-    void setupUdp(const string &host, unsigned int port);
-    void sendLedType(const string &ledType);
-    void sendUdp();
-    void sendUdp(const ofPixels &sidesGrabImg);
-    void sendArtnet(const ofPixels &data);
 
-    string getIP() const { return m_curUdpIp; }
+    void send(const ofTexture &texIn);
+
+    string getIP() const { return m_ledOut.getIP(); }
 
     void setupDmx(const string &port_name);
     void sendDmx(const ofPixels &grabbedImg);
 
+
     void markDirtyGrabPoints() { m_bDirtyPoints = true; }
+    void updatePixInLed(const float pixInled);
     void updateGrabPoints();
-    void updatePixels(const ofPixels &grabbedImg);
+    ChannelsToPix updatePixels(const ofTexture &);
 
     void setFps(float fps);
     void setSelected(bool state);
@@ -128,7 +118,8 @@ private:
     ofColor m_colorLine, m_colorActive, m_colorInactive;
 
     vector<char> m_output;
-    LedOut m_ledOut;
+    ofxLedRpi m_ledOut;
+
     unsigned int m_totalLeds, m_pointsCount, m_outputHeaderOffset;
 
     std::function<void(vector<char> &output, ofColor &color)> m_colorUpdator;
@@ -138,13 +129,14 @@ private:
     ChannelsGrabObjects m_channelGrabObjects;
     vector<unique_ptr<ofxLedGrab>> *m_currentChannel;
     size_t m_currentChannelNum;
-    string m_currentLedType;
 
+    vector<string> m_channelList;
     vector<uint16_t> m_channelTotalLeds;
     vector<LedMapper::Point> m_ledPoints;
 
+
     bool bSelected, bDeletePoints;
-    bool bUdpSetup, bDmxSetup;
+    bool m_bSend, bDmxSetup;
 
     LMGrabType m_currentGrabType;
 
@@ -154,26 +146,12 @@ private:
     string path;
     void parseXml(ofxXmlSettings &XML);
 
-    ofxUDPManager m_frameConnection, m_confConnection;
-
     COLOR_TYPE m_colorType;
     float m_pixelsInLed;
-    bool bUdpSend, bDmxSend, bDoubleLine, m_statusOk, m_bDirtyPoints;
+    bool bUdpSend, m_statusOk, m_bDirtyPoints;
     int m_fps;
 
-    int dmxChannel;
-    string m_udpIp, m_curUdpIp;
-    int m_udpPort, m_curUdpPort;
-
     uint64_t m_lastFrameTime, m_msecInFrame;
-
-// DMX
-#ifdef USE_DMX
-    ofxDmx dmx;
-#elif USE_DMX_FTDI
-    ofxDmxFtdi dmxFtdi;
-    unsigned char dmxFtdiVal[513];
-#endif
 };
 
 } // namespace LedMapper

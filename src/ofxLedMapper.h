@@ -36,7 +36,7 @@ public:
     ofxLedMapper();
     ~ofxLedMapper();
 
-    void update(const ofPixels &grabImg);
+    void update(const ofTexture &);
     void draw();
     void drawGui();
     bool add(string folder_path);

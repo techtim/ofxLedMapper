@@ -104,19 +104,19 @@ void ofxLedMapper::drawGui()
 #endif
 }
 
-void ofxLedMapper::update(const ofPixels &grabImg)
+void ofxLedMapper::update(const ofTexture &texIn)
 {
 #ifndef LED_MAPPER_NO_GUI
     /// Send only to selected controller when Debug Toggle enabled
     if (m_toggleDebugController->getChecked()) {
-        m_controllers[m_currentCtrl]->sendUdp(grabImg);
+        m_controllers[m_currentCtrl]->send(texIn);
         return;
     }
     if (m_togglePlay->getChecked())
 #endif
     {
         for (auto &ctrl : m_controllers) {
-            ctrl.second->sendUdp(grabImg);
+            ctrl.second->send(texIn);
         }
     }
 }
