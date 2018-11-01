@@ -297,6 +297,9 @@ public:
         ofSetColor(color);
         ofDrawLine(m_from, m_to);
         if (isActive()) {
+            ofFill();
+            ofDrawCircle(m_from, 3);
+            ofDrawCircle(m_to, 3);
             ofSetColor(s_colorGreen);
             ofDrawBitmapString("id" + ofToString(objID), m_from + ofVec2f(0, 2));
             if (!m_bSelected)
@@ -429,10 +432,7 @@ public:
         if (isActive()) {
             ofFill();
             ofSetColor(150, 150, 150, 150); /// color for first point
-            for (vector<ofVec2f>::iterator i = m_points.begin(); i != m_points.end(); i++) {
-                ofDrawCircle((*i), m_pixelsInLed / 2);
-                ofSetColor(color);
-            }
+                ofDrawCircle((*m_points.begin()), m_pixelsInLed / 1.5);
             ofSetColor(s_colorGreen);
             ofDrawBitmapString("id" + ofToString(objID), m_from);
             if (!m_bSelected)
@@ -568,20 +568,15 @@ public:
 
     void draw(const ofColor &color = ofColor(100, 100, 100, 150)) override
     {
-        ofSetColor(0, 191, 165, 200);
-        ofFill();
-        ofDrawCircle(m_from, 3);
-        ofDrawCircle(m_to, 3);
         ofSetColor(color);
         ofNoFill();
         ofDrawRectangle(m_bounds);
 
         if (isActive()) {
-            ofSetColor(color);
             ofFill();
-            for (auto &it : m_points) {
-                ofDrawCircle(it, m_pixelsInLed / 4);
-            }
+            ofDrawCircle(m_from, 3);
+            ofDrawCircle(m_to, 3);
+
             ofSetColor(0, 250, 150, 250);
             ofDrawBitmapString("id" + ofToString(objID), m_from);
 

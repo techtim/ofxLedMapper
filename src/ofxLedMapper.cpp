@@ -69,6 +69,8 @@ ofxLedMapper::~ofxLedMapper()
 
 void ofxLedMapper::update()
 {
+    if (!m_bSetup)
+        return;
 #ifndef LED_MAPPER_NO_GUI
     m_gui->update();
     m_listControllers->update();

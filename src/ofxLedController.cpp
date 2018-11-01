@@ -149,11 +149,11 @@ void ofxLedController::draw()
     int chanNum = 0;
     ofColor color;
     for (auto &channelGrabs : m_channelGrabObjects) {
-//        color = (chanNum == m_currentChannelNum ? m_colorActive : m_colorInactive);
-//        for (auto &grab : channelGrabs) {
-//            grab->draw(color);
-//        }
-//        ++chanNum;
+        color = (chanNum == m_currentChannelNum ? m_colorActive : m_colorInactive);
+        for (auto &grab : channelGrabs) {
+            grab->draw(color);
+        }
+        ++chanNum;
     }
 
     m_bSelected ? ofSetColor(m_colorActive) : ofSetColor(50);
@@ -161,7 +161,7 @@ void ofxLedController::draw()
     GLfloat pointSize;
     glGetFloatv(GL_POINT_SIZE, &pointSize);
     glPointSize(m_pixelsInLed / 2);
-    m_vboLeds.draw();
+    m_vboLeds.draw(OF_MESH_FILL);
     glPointSize(pointSize);
 
     if (!m_bSelected)
@@ -169,8 +169,8 @@ void ofxLedController::draw()
 
     /// draw grabbed texture
     ofSetColor(255);
-    ofDrawRectangle(0, 10, m_fboLeds.getWidth(), m_fboLeds.getHeight());
-    m_fboLeds.draw(0, 10);
+    ofDrawRectangle(0, ofGetHeight()-10, m_fboLeds.getWidth(), m_fboLeds.getHeight());
+    m_fboLeds.draw(0, ofGetHeight()-10);
 }
 
 /// Send by UDP grab points data updated with grabbedImg
@@ -208,7 +208,7 @@ void ofxLedController::updateGrabPoints()
 
     m_vboLeds.clear();
     m_vboLeds.setMode(OF_PRIMITIVE_POINTS);
-    m_vboLeds.setUsage(GL_STATIC_DRAW);
+    m_vboLeds.setUsage(GL_DYNAMIC_DRAW);
 
     for (size_t i = 0; i < m_channelGrabObjects.size(); ++i) {
         m_channelTotalLeds[i] = 0;
