@@ -113,7 +113,6 @@ struct Point {
 };
 
 static void to_json(ofJson &j, const Point &p) { j = ofJson{ { "x", p.x }, { "y", p.y } }; }
-
 static void from_json(const ofJson &j, Point &p)
 {
     p.x = j.at("x").get<uint16_t>();

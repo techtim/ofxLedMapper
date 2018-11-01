@@ -22,18 +22,10 @@
 
 #pragma once
 
-#include "ofMain.h"
-#include "ofxXmlSettings.h"
-
 #include "Common.h"
-
-#ifdef USE_DMX_FTDI
-#include "ofxDmxFtdi.h"
-#elif USE_DMX
-#include "ofxDmx.h"
-#endif
-
+#include "ofMain.h"
 #include "ofxLedGrabObject.h"
+#include "ofxXmlSettings.h"
 #include "output/ofxLedOutput.h"
 
 namespace LedMapper {
@@ -48,10 +40,11 @@ class ofxLedController {
 public:
     enum COLOR_TYPE { RGB = 0, RBG = 1, BRG = 2, BGR = 3, GRB = 4, GBR = 5 };
 
+    ofxLedController(const int _id, const string &_path);
     ofxLedController() = delete;
     ofxLedController(const ofxLedController &) = delete;
     ofxLedController(ofxLedController &&) = delete;
-    ofxLedController(const int &__id, const string &_path);
+
     void setOnControllerStatusChange(function<void(void)> callback);
     ~ofxLedController();
 
@@ -62,6 +55,8 @@ public:
     void addGrab(unique_ptr<ofxLedGrab> &&object);
     void deleteSelectedGrabs();
     void draw();
+
+    void send(const ofTexture &texIn);
 
     /// mouse and keyboard events
     void mousePressed(ofMouseEventArgs &args);
@@ -79,33 +74,25 @@ public:
     ofVec2f getGuiSize() const { return ofVec2f(LM_GUI_WIDTH, 100); }
 #endif
 
-    const ChannelsGrabObjects &peekGrabObjects() const;
+    const ChannelsGrabObjects &peekGrabObjects() const { return m_channelGrabObjects; };
     const vector<unique_ptr<ofxLedGrab>> &peekCurrentGrabs() const { return *m_currentChannel; };
 
-    unsigned int getId() const;
-    unsigned int getTotalLeds() const;
-
-    bool isSelected() const { return bSelected; }
+    bool isSelected() const { return m_bSelected; }
     bool isStatusOk() const { return m_statusOk; }
-    bool isSending() const { return bUdpSend; }
-
-    void send(const ofTexture &texIn);
+    bool isSending() const { return m_bSend; }
 
     string getIP() const { return m_ledOut.getIP(); }
-
-    void setupDmx(const string &port_name);
-    void sendDmx(const ofPixels &grabbedImg);
-
+    unsigned int getId() const { return m_id; }
+    unsigned int getTotalLeds() const { return m_totalLeds; }
 
     void markDirtyGrabPoints() { m_bDirtyPoints = true; }
-    void updatePixInLed(const float pixInled);
+    void setPixInLed(const float pixInled);
     void updateGrabPoints();
     ChannelsToPix updatePixels(const ofTexture &);
 
     void setFps(float fps);
     void setSelected(bool state);
     void setGrabsSelected(bool state);
-    void setPixelsBetweenLeds(float dist) { m_pixelsInLed = dist; };
     void setGrabType(LMGrabType type) { m_currentGrabType = type; }
 
     COLOR_TYPE getColorType(int num) const;
@@ -115,12 +102,18 @@ public:
 
 private:
     unsigned int m_id;
+    string m_path;
+
+    bool m_bSelected, m_bSend, m_statusOk, m_bDirtyPoints;
     ofColor m_colorLine, m_colorActive, m_colorInactive;
 
+    unsigned int m_totalLeds;
     vector<char> m_output;
     ofxLedRpi m_ledOut;
 
-    unsigned int m_totalLeds, m_pointsCount, m_outputHeaderOffset;
+    ofVboMesh m_vboLeds;
+    ofShader m_shaderGrab;
+    ofFbo m_fboLeds;
 
     std::function<void(vector<char> &output, ofColor &color)> m_colorUpdator;
     function<void(void)> m_statusChanged;
@@ -132,23 +125,16 @@ private:
 
     vector<string> m_channelList;
     vector<uint16_t> m_channelTotalLeds;
-    vector<LedMapper::Point> m_ledPoints;
-
-
-    bool bSelected, bDeletePoints;
-    bool m_bSend, bDmxSetup;
+    vector<glm::vec3> m_ledPoints;
 
     LMGrabType m_currentGrabType;
-
     ofRectangle m_grabBounds;
 
     ofxXmlSettings XML;
-    string path;
     void parseXml(ofxXmlSettings &XML);
 
     COLOR_TYPE m_colorType;
     float m_pixelsInLed;
-    bool bUdpSend, m_statusOk, m_bDirtyPoints;
     int m_fps;
 
     uint64_t m_lastFrameTime, m_msecInFrame;

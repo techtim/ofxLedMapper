@@ -64,19 +64,13 @@ void ofxLedRpi::bindGui(ofxDatGui *gui)
     dropdown->select(find(s_ledTypeList.begin(), s_ledTypeList.end(), m_currentLedType)
                      - s_ledTypeList.begin());
     dropdown->onDropdownEvent(
-        [this](ofxDatGuiDropdownEvent e) { sendLedType(s_ledTypeList[e.child]); });
+        [this](ofxDatGuiDropdownEvent e) { this->sendLedType(s_ledTypeList[e.child]); });
 
     gui->addTextInput(LCGUITextIP, m_ip)->onTextInputEvent([this](ofxDatGuiTextInputEvent e) {
         if (ValidateIP(e.text)) {
-            setup(e.text);
+            this->setup(e.text, m_port);
         }
     });
-
-    //    auto text = gui->getTextInput(LCGUITextIP);
-    //    if (text->getName() != "X") {
-    //        text->setText(m_udpIp);
-    //        text->onTextInputEvent(this, &ofxLedController::onTextInputEvent);
-    //    }
 }
 
 bool ofxLedRpi::send(ChannelsToPix &&output)

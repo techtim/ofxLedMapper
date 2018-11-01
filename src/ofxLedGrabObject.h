@@ -23,7 +23,7 @@
 #pragma once
 
 #include "ofMain.h"
-
+#include "ofxXmlSettings.h"
 #include "Common.h"
 
 namespace LedMapper {
@@ -150,12 +150,12 @@ public:
 
     const vector<ofVec2f> &points() const { return m_points; }
 
-    vector<LedMapper::Point> getLedPoints()
+    vector<glm::vec3> getLedPoints()
     {
-        vector<LedMapper::Point> ledPoints;
+        vector<glm::vec3> ledPoints;
         ledPoints.reserve(m_points.size());
         for_each(m_points.begin(), m_points.end(), [&ledPoints](const ofVec2f &point) {
-            ledPoints.push_back({ static_cast<uint16_t>(point.x), static_cast<uint16_t>(point.y) });
+            ledPoints.push_back({ point.x, point.y, 0.f });
         });
 
         return ledPoints;
@@ -297,10 +297,6 @@ public:
         ofSetColor(color);
         ofDrawLine(m_from, m_to);
         if (isActive()) {
-            ofFill();
-            for (vector<ofVec2f>::iterator i = m_points.begin(); i != m_points.end(); i++) {
-                ofDrawCircle((*i), m_pixelsInLed / 2);
-            }
             ofSetColor(s_colorGreen);
             ofDrawBitmapString("id" + ofToString(objID), m_from + ofVec2f(0, 2));
             if (!m_bSelected)

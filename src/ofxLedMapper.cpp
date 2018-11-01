@@ -37,6 +37,9 @@ ofxLedMapper::ofxLedMapper()
 #endif
     , m_configFolderPath(LedMapper::LM_CONFIG_PATH)
 {
+    /// Disable all textures be rect
+    // ofDisableArbTex();
+
     setupGui();
 
     ofAddListener(ofEvents().mousePressed, this, &ofxLedMapper::mousePressed);
@@ -64,19 +67,27 @@ ofxLedMapper::~ofxLedMapper()
     ofRemoveListener(ofEvents().mouseDragged, this, &ofxLedMapper::mouseDragged);
 }
 
+void ofxLedMapper::update()
+{
+#ifndef LED_MAPPER_NO_GUI
+    m_gui->update();
+    m_listControllers->update();
+    m_iconsMenu->update();
+    if (m_guiController != nullptr)
+        m_guiController->update();
+#endif
+}
+
 void ofxLedMapper::draw()
 {
-    if (!m_bSetup)
-        return;
-
-    if (m_controllers.empty())
+    if (!m_bSetup || m_controllers.empty())
         return;
 
 // If no debug toggled show lines from all m_controllers
 #ifndef LED_MAPPER_NO_GUI
-    if (m_toggleDebugController->getChecked() && m_currentCtrl < m_controllers.size()) {
+    if (m_toggleDebugController->getChecked()) {
         // If debug toggled show lines from selected controller and its gui
-        m_controllers[m_currentCtrl]->draw();
+        m_controllers.at(m_currentCtrl)->draw();
     }
     else
 #endif
@@ -89,27 +100,22 @@ void ofxLedMapper::draw()
 void ofxLedMapper::drawGui()
 {
 #ifndef LED_MAPPER_NO_GUI
-    m_gui->update();
     m_gui->draw();
 
-    m_listControllers->update();
     m_listControllers->draw();
 
-    m_iconsMenu->update();
     m_iconsMenu->draw();
-    if (m_guiController != nullptr) {
-        m_guiController->update();
+    if (m_guiController != nullptr)
         m_guiController->draw();
-    }
 #endif
 }
 
-void ofxLedMapper::update(const ofTexture &texIn)
+void ofxLedMapper::send(const ofTexture &texIn)
 {
 #ifndef LED_MAPPER_NO_GUI
     /// Send only to selected controller when Debug Toggle enabled
     if (m_toggleDebugController->getChecked()) {
-        m_controllers[m_currentCtrl]->send(texIn);
+        m_controllers.at(m_currentCtrl)->send(texIn);
         return;
     }
     if (m_togglePlay->getChecked())
@@ -161,6 +167,9 @@ bool ofxLedMapper::remove(unsigned int _ctrlId)
     m_guiController.reset();
 #endif
 
+    if (m_currentCtrl == _ctrlId)
+        setCurrentController(_ctrlId - 1);
+
     return true;
 }
 
@@ -185,7 +194,6 @@ void ofxLedMapper::setupGui()
     m_gui->setAutoDraw(false);
 
     m_gui->addHeader(LMGUIListControllers);
-    m_currentCtrl = 0;
 
     auto button = m_gui->addButton(LMGUIButtonSave);
     button->onButtonEvent([this](ofxDatGuiButtonEvent) { this->save(); });
@@ -255,27 +263,33 @@ void ofxLedMapper::setGuiPosition(int x, int y)
     m_iconsMenu->setPosition(ofxDatGuiAnchor::BOTTOM_LEFT);
 #endif
 }
-void ofxLedMapper::setGuiActive()
+void ofxLedMapper::setGuiActive(bool active)
 {
 #ifndef LED_MAPPER_NO_GUI
-    m_gui->focus();
+    m_gui->setVisible(active);
 #endif
 }
 
 void ofxLedMapper::setCurrentController(unsigned int _curCtrl)
 {
-    if (m_controllers.empty() || m_controllers.find(_curCtrl) == m_controllers.end())
+    if (m_controllers.empty()) {
+        add(m_configFolderPath);
         return;
+    }
+
+    if (m_controllers.find(_curCtrl) == m_controllers.end())
+        _curCtrl = m_controllers.begin()->first;
 
     /// hide Controller gui if select already selected
-    bool isDoubleSelect = m_currentCtrl == _curCtrl && m_controllers[m_currentCtrl]->isSelected();
+    bool isDoubleSelect
+        = m_currentCtrl == _curCtrl && m_controllers.at(m_currentCtrl)->isSelected();
 
     m_currentCtrl = _curCtrl;
     for (auto &ctrl : m_controllers)
         ctrl.second->setSelected(false);
 
     if (!isDoubleSelect)
-        m_controllers[m_currentCtrl]->setSelected(true);
+        m_controllers.at(m_currentCtrl)->setSelected(true);
 
 #ifndef LED_MAPPER_NO_GUI
     /// reset gui pointer to hide active Controllers gui
@@ -288,7 +302,7 @@ void ofxLedMapper::setCurrentController(unsigned int _curCtrl)
             m_guiController->setPosition(m_listControllers->getX() - LM_GUI_WIDTH,
                                          m_listControllers->getY());
         }
-        m_controllers[m_currentCtrl]->bindGui(m_guiController.get());
+        m_controllers.at(m_currentCtrl)->bindGui(m_guiController.get());
     }
 #endif
 
@@ -306,7 +320,7 @@ void ofxLedMapper::updateControllersListGui()
                                       : ofColor::fromHex(LedMapper::LM_COLOR_RED_DARK));
     }
     m_listControllers->get(ofToString(m_currentCtrl))
-        ->setBackgroundColor(m_controllers[m_currentCtrl]->isStatusOk()
+        ->setBackgroundColor(m_controllers.at(m_currentCtrl)->isStatusOk()
                                  ? ofColor::fromHex(LedMapper::LM_COLOR_GREEN)
                                  : ofColor::fromHex(LedMapper::LM_COLOR_RED));
 
@@ -392,11 +406,13 @@ bool ofxLedMapper::save()
 
     return true;
 }
+//
+// ------------------------------ COPY / PASTE ------------------------------
+//
 void ofxLedMapper::copyGrabs()
 {
     m_copyPasteGrabs.clear();
-    auto &grabs = m_controllers[m_currentCtrl]->peekGrabObjects();
-    for (const auto &grab : m_controllers[m_currentCtrl]->peekCurrentGrabs())
+    for (const auto &grab : m_controllers.at(m_currentCtrl)->peekCurrentGrabs())
         if (grab->isSelected()) {
             auto newGrab
                 = move(ofxLedController::GetUniqueTypedGrab(grab->getType(), grab.operator*()));
@@ -411,12 +427,13 @@ void ofxLedMapper::pasteGrabs()
     if (m_copyPasteGrabs.empty())
         return;
     /// deselect currently selected
-    m_controllers[m_currentCtrl]->setGrabsSelected(false);
+    m_controllers.at(m_currentCtrl)->setGrabsSelected(false);
     for (auto &grab : m_copyPasteGrabs) {
         grab->set(grab->getFrom() + ofVec2f(10), grab->getTo() + ofVec2f(10));
         ofLogVerbose() << "Pasting Grab: " << *grab;
-        m_controllers[m_currentCtrl]->addGrab(
-            move(ofxLedController::GetUniqueTypedGrab(grab->getType(), grab.operator*())));
+        m_controllers.at(m_currentCtrl)
+            ->addGrab(
+                move(ofxLedController::GetUniqueTypedGrab(grab->getType(), grab.operator*())));
     }
 
     ofLogVerbose() << "Copied controller #" << m_currentCtrl
@@ -431,30 +448,23 @@ void ofxLedMapper::pasteGrabs()
 
 void ofxLedMapper::mousePressed(ofMouseEventArgs &args)
 {
-    if (m_currentCtrl >= m_controllers.size())
-        return;
-    m_controllers[m_currentCtrl]->setGrabType(m_grabTypeSelected);
-    m_controllers[m_currentCtrl]->mousePressed(args);
+    m_controllers.at(m_currentCtrl)->setGrabType(m_grabTypeSelected);
+    m_controllers.at(m_currentCtrl)->mousePressed(args);
 }
 
 void ofxLedMapper::mouseDragged(ofMouseEventArgs &args)
 {
-    if (m_currentCtrl >= m_controllers.size())
-        return;
-    m_controllers[m_currentCtrl]->mouseDragged(args);
+    m_controllers.at(m_currentCtrl)->mouseDragged(args);
 }
 void ofxLedMapper::mouseReleased(ofMouseEventArgs &args)
 {
-    if (m_currentCtrl >= m_controllers.size())
-        return;
     if (!args.hasModifier(OF_KEY_SHIFT)) {
-        m_controllers[m_currentCtrl]->mouseReleased(args);
+        m_controllers.at(m_currentCtrl)->mouseReleased(args);
     }
 }
 
 void ofxLedMapper::keyPressed(ofKeyEventArgs &data)
 {
-
     switch (data.key) {
         case OF_KEY_UP:
             setCurrentController(m_currentCtrl - 1);
@@ -463,7 +473,7 @@ void ofxLedMapper::keyPressed(ofKeyEventArgs &data)
             setCurrentController(m_currentCtrl + 1);
             break;
         case OF_KEY_ESC:
-            /// selecting same Controller deselecs all
+            /// selection of the same Controller deselects all
             setCurrentController(m_currentCtrl);
             break;
         case '1':
@@ -487,7 +497,7 @@ void ofxLedMapper::keyPressed(ofKeyEventArgs &data)
                 copyGrabs();
             break;
         case OF_KEY_BACKSPACE:
-            m_controllers[m_currentCtrl]->deleteSelectedGrabs();
+            m_controllers.at(m_currentCtrl)->deleteSelectedGrabs();
             break;
         default:
             break;

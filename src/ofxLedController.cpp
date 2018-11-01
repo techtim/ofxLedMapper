@@ -28,40 +28,34 @@ namespace LedMapper {
 static const vector<string> s_colorTypes = { "RGB", "RBG", "BRG", "BGR", "GRB", "GBR" };
 static const vector<string> m_channelList = { "channel 1", "channel 2" };
 
-ofxLedController::ofxLedController(const int &__id, const string &_path)
-    : bSelected(false)
-    , bDeletePoints(false)
-    , m_currentGrabType(LMGrabType::GRAB_SELECT)
+ofxLedController::ofxLedController(const int _id, const string &_path)
+    : m_id(_id)
+    , m_path(_path)
+    , m_bSelected(false)
     , m_bSend(false)
     , m_statusOk(false)
     , m_bDirtyPoints(false)
+    , m_colorLine(ofColor(ofRandom(0, 100), ofRandom(50, 200), ofRandom(150, 255)))
+    , m_colorActive(ofColor(0, m_colorLine.g, m_colorLine.b, 200))
+    , m_colorInactive(ofColor(m_colorLine.r, m_colorLine.g, 0, 200))
+    , m_currentGrabType(LMGrabType::GRAB_SELECT)
     , m_grabBounds(0, 0, 100, 100)
     , m_pixelsInLed(5.f)
     , m_fps(25.f)
     , m_totalLeds(0)
-    , m_pointsCount(0)
-    , m_outputHeaderOffset(2)
     , m_colorUpdator(nullptr)
     , m_statusChanged(nullptr)
-    , m_channelList({m_ledOut.getChannels()})
-    , m_channelTotalLeds(m_channelList.size(), 0)
     , m_currentChannelNum(0)
+    , m_channelList({ m_ledOut.getChannels() })
+    , m_channelTotalLeds(m_channelList.size(), 0)
     , m_ledPoints(0)
 {
-    m_id = __id;
-
     m_channelGrabObjects.resize(m_channelList.size());
 
     setColorType(COLOR_TYPE::RGB);
     setFps(m_fps);
 
-    path = _path;
-
-    m_colorLine = ofColor(ofRandom(0, 100), ofRandom(50, 200), ofRandom(150, 255));
-    m_colorActive = ofColor(0, m_colorLine.g, m_colorLine.b, 200);
-    m_colorInactive = ofColor(m_colorLine.r, m_colorLine.g, 0, 200);
-
-    load(path);
+    load(m_path);
 
     setCurrentChannel(m_currentChannelNum);
 
@@ -129,19 +123,19 @@ void ofxLedController::bindGui(ofxDatGui *gui)
     slider = gui->addSlider(LCGUISliderPix, 1, 50);
     slider->setPrecision(1);
     slider->setValue(m_pixelsInLed);
-    slider->onSliderEvent([this](ofxDatGuiSliderEvent e) { this->updatePixInLed(e.value); });
+    slider->onSliderEvent([this](ofxDatGuiSliderEvent e) { this->setPixInLed(e.value); });
 
     auto dropdown = gui->addDropdown(LCGUIDropColorType, s_colorTypes);
     dropdown->select(m_colorType);
     dropdown->onDropdownEvent(
-            [this](ofxDatGuiDropdownEvent e) { this->setColorType(this->getColorType(e.child)); });
+        [this](ofxDatGuiDropdownEvent e) { this->setColorType(this->getColorType(e.child)); });
 
     m_ledOut.bindGui(gui);
 
     dropdown = gui->addDropdown(LCGUIDropChannelNum, m_channelList);
     dropdown->select(m_currentChannelNum);
     dropdown->onDropdownEvent(
-            [this](ofxDatGuiDropdownEvent e) { this->setCurrentChannel(e.child); });
+        [this](ofxDatGuiDropdownEvent e) { this->setCurrentChannel(e.child); });
 
     LedMapper::ofxDatGuiThemeLM theme;
     unique_ptr<ofxDatGuiTheme> guiTheme = make_unique<LedMapper::ofxDatGuiThemeLM>();
@@ -155,15 +149,54 @@ void ofxLedController::draw()
     int chanNum = 0;
     ofColor color;
     for (auto &channelGrabs : m_channelGrabObjects) {
-        color = (chanNum == m_currentChannelNum ? m_colorActive : m_colorInactive);
-        for (auto &grab : channelGrabs) {
-            grab->draw(color);
-        }
-        ++chanNum;
+//        color = (chanNum == m_currentChannelNum ? m_colorActive : m_colorInactive);
+//        for (auto &grab : channelGrabs) {
+//            grab->draw(color);
+//        }
+//        ++chanNum;
     }
+
+    m_bSelected ? ofSetColor(m_colorActive) : ofSetColor(50);
+
+    GLfloat pointSize;
+    glGetFloatv(GL_POINT_SIZE, &pointSize);
+    glPointSize(m_pixelsInLed / 2);
+    m_vboLeds.draw();
+    glPointSize(pointSize);
+
+    if (!m_bSelected)
+        return;
+
+    /// draw grabbed texture
+    ofSetColor(255);
+    ofDrawRectangle(0, 10, m_fboLeds.getWidth(), m_fboLeds.getHeight());
+    m_fboLeds.draw(0, 10);
 }
 
-/// Update grab points from grab objects
+/// Send by UDP grab points data updated with grabbedImg
+void ofxLedController::send(const ofTexture &texIn)
+{
+    updateGrabPoints();
+
+    auto now = ofGetSystemTimeMillis();
+
+    if (!m_bSend || now - m_lastFrameTime < m_msecInFrame)
+        return;
+
+    m_lastFrameTime = now;
+
+    auto grabbedPixs = updatePixels(texIn);
+
+    bool prevStatus = m_statusOk;
+
+    /// TODO: uncomment
+    // m_statusOk = m_ledOut.send(move(grabbedPixs));
+
+    if (m_statusOk != prevStatus && m_statusChanged != nullptr)
+        m_statusChanged();
+}
+
+/// Update grab points from grab objects and put them to VBO
 void ofxLedController::updateGrabPoints()
 {
     if (!m_bDirtyPoints)
@@ -173,12 +206,19 @@ void ofxLedController::updateGrabPoints()
     m_totalLeds = 0;
     m_ledPoints.clear();
 
+    m_vboLeds.clear();
+    m_vboLeds.setMode(OF_PRIMITIVE_POINTS);
+    m_vboLeds.setUsage(GL_STATIC_DRAW);
+
     for (size_t i = 0; i < m_channelGrabObjects.size(); ++i) {
         m_channelTotalLeds[i] = 0;
         for (auto &object : m_channelGrabObjects[i]) {
             m_channelTotalLeds[i] += object->points().size();
             auto grabPoints = object->getLedPoints();
             m_ledPoints.reserve(m_ledPoints.size() + grabPoints.size());
+
+            m_vboLeds.addVertices(grabPoints);
+
             std::move(grabPoints.begin(), grabPoints.end(), std::back_inserter(m_ledPoints));
         }
         m_totalLeds += m_channelTotalLeds[i];
@@ -186,7 +226,7 @@ void ofxLedController::updateGrabPoints()
 
     /// set minimal bounds
     ofVec2f res(100.f, 100.f);
-    for_each(m_ledPoints.begin(), m_ledPoints.end(), [&res](const LedMapper::Point &p1) {
+    for_each(m_ledPoints.begin(), m_ledPoints.end(), [&res](const auto &p1) {
         if (res.x < p1.x)
             res.x = p1.x;
         if (res.y < p1.y)
@@ -198,64 +238,43 @@ void ofxLedController::updateGrabPoints()
 /// Update color for grab points pixels
 ChannelsToPix ofxLedController::updatePixels(const ofTexture &texIn)
 {
-    updateGrabPoints();
+    m_fboLeds.begin();
+    ofClear(0, 0, 0, 255);
+
+    m_shaderGrab.begin();
+    m_shaderGrab.setUniformTexture("texIn", texIn, 1);
+    m_shaderGrab.setUniform2i("inTexResolution", texIn.getWidth(), texIn.getHeight());
+    m_shaderGrab.setUniform2i("outTexResolution", m_fboLeds.getWidth(), m_fboLeds.getHeight());
+
+    ofPushStyle();
+    ofEnableBlendMode(OF_BLENDMODE_ADD);
+    ofSetColor(255);
+
+    m_vboLeds.draw(OF_MESH_POINTS);
+
+    ofDisableBlendMode();
+    glEnd();
+
+    ofPopStyle();
+
+    m_shaderGrab.end();
+    m_fboLeds.end();
 
     ChannelsToPix output;
 
-    m_output.clear();
-    for (size_t i = 0; i < m_channelGrabObjects.size(); ++i) {
-        // uint16_t number of leds per chan
-        m_output.push_back(m_channelTotalLeds[i] & 0xff);
-        m_output.push_back(m_channelTotalLeds[i] >> 8);
-    }
-    /// mark end of header (num leds per channel)
-    m_output.emplace_back(0xff);
-    m_output.emplace_back(0xff);
-    m_outputHeaderOffset = 2 * m_channelGrabObjects.size() + 2;
-    /// 2 * uint8 = uint16 leds number x 2 + grab points size
-    m_output.reserve(m_outputHeaderOffset + m_totalLeds * 3);
-
     return output;
-//    if (m_colorUpdator != nullptr)
-//        for (auto &point : m_ledPoints) {
-//            if (point.x >= grabbedImg.getWidth() || point.y >= grabbedImg.getHeight()) {
-//                ofLogWarning() << "add point outside of texture: [" << point.x << ", " << point.y
-//                               << "]";
-//                continue;
-//            }
-//            ofColor color = grabbedImg.getColor(point.x, point.y);
-//            m_colorUpdator(m_output, color);
-//        }
-}
-
-/// Send by UDP grab points data updated with grabbedImg
-void ofxLedController::send(const ofTexture &texIn)
-{
-    auto now = ofGetSystemTimeMillis();
-    if (now - m_lastFrameTime < m_msecInFrame)
-        return;
-
-    m_lastFrameTime = now;
-
-    auto grabbedPixs = updatePixels(texIn);
-
-    bool prevStatus = m_statusOk;
-
-    m_statusOk = m_ledOut.send(move(grabbedPixs));
-    if (m_statusOk != prevStatus && m_statusChanged != nullptr)
-        m_statusChanged();
 }
 
 /// Make controllers grab objects highligted and editable
 void ofxLedController::setSelected(bool state)
 {
-    if (bSelected == state)
+    if (m_bSelected == state)
         return;
 
-    bSelected = state;
+    m_bSelected = state;
     for (auto &channelGrabs : m_channelGrabObjects)
         for (auto &grab : channelGrabs)
-            grab->setActive(bSelected);
+            grab->setActive(m_bSelected);
 }
 
 void ofxLedController::setGrabsSelected(bool state)
@@ -269,15 +288,6 @@ void ofxLedController::setFps(float fps)
 {
     m_fps = fps;
     m_msecInFrame = 1000 / m_fps;
-}
-
-unsigned int ofxLedController::getId() const { return m_id; }
-
-unsigned int ofxLedController::getTotalLeds() const { return m_totalLeds; }
-
-const ChannelsGrabObjects &ofxLedController::peekGrabObjects() const
-{
-    return m_channelGrabObjects;
 }
 
 //
@@ -321,7 +331,7 @@ void ofxLedController::save(const string &path)
     config["ipAddress"] = m_ledOut.getIP();
     config["port"] = m_ledOut.getPort();
     config["colorType"] = m_colorType;
-    config["points"] = m_ledPoints;
+    //    config["points"] = m_ledPoints;
     ofstream jsonFile(path + ofToString(m_id) + ".json");
     jsonFile << config.dump(4);
     jsonFile.close();
@@ -365,6 +375,14 @@ void ofxLedController::load(const string &path)
 
     markDirtyGrabPoints();
     updateGrabPoints();
+
+    /// Grabbing stuff
+    m_shaderGrab.load("grab.vert", "grab.frag");
+    /// Max leds per controller = 5000
+    m_fboLeds.allocate(500, 10, GL_RGB);
+    m_fboLeds.begin();
+    ofClear(0, 0, 0, 255);
+    m_fboLeds.end();
 }
 
 void ofxLedController::parseXml(ofxXmlSettings &XML)
@@ -378,9 +396,7 @@ void ofxLedController::parseXml(ofxXmlSettings &XML)
     m_channelGrabObjects.resize(m_channelList.size());
 
     ofLogVerbose("[ofxLedController] Load lines from XML");
-    // we push into the last STROKE tag
-    // this temporarirly treats the tag as
-    // the document root.
+    // we push into the last STROKE tag this temporarirly treats the tag as the document root.
     XML.pushTag("STROKE", numDragTags - 1);
 
     // we see how many points we have stored in <LN> tags
@@ -429,7 +445,7 @@ void ofxLedController::parseXml(ofxXmlSettings &XML)
 //
 void ofxLedController::mousePressed(ofMouseEventArgs &args)
 {
-    if (!bSelected)
+    if (!m_bSelected)
         return;
 
     switch (m_currentGrabType) {
@@ -465,7 +481,7 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
 
 void ofxLedController::mouseDragged(ofMouseEventArgs &args)
 {
-    if (!bSelected || m_currentChannel->empty())
+    if (!m_bSelected || m_currentChannel->empty())
         return;
 
     for (auto &grab : *m_currentChannel)
@@ -508,12 +524,10 @@ void ofxLedController::keyPressed(ofKeyEventArgs &data)
 }
 
 void ofxLedController::keyReleased(ofKeyEventArgs &data)
-{
-    m_currentGrabType = LMGrabType::GRAB_SELECT;
-    bDeletePoints = false;
+{ /* no-op */
 }
 
-void ofxLedController::updatePixInLed(const float pixInled)
+void ofxLedController::setPixInLed(const float pixInled)
 {
     m_pixelsInLed = pixInled;
     for (auto &channelGrabs : m_channelGrabObjects)
