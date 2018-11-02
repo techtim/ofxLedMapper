@@ -69,8 +69,9 @@ ofxLedMapper::~ofxLedMapper()
 
 void ofxLedMapper::update()
 {
-    if (!m_bSetup)
+    if (!m_bSetup || !m_gui->getVisible())
         return;
+
 #ifndef LED_MAPPER_NO_GUI
     m_gui->update();
     m_listControllers->update();
@@ -215,14 +216,14 @@ void ofxLedMapper::setupGui()
         this->remove(m_currentCtrl);
     });
 
-    m_listControllers = make_unique<ofxDatGuiScrollView>(LMGUIListControllers, 10);
+    m_listControllers = make_unique<ofxDatGuiScrollView>(LMGUIListControllers, 5);
     m_listControllers->setTheme(m_guiTheme.get());
     m_listControllers->onScrollViewEvent([this](ofxDatGuiScrollViewEvent e) {
         this->setCurrentController(ofToInt(e.target->getName()));
     });
 
     m_listControllers->setWidth(LM_GUI_WIDTH);
-    m_listControllers->setBackgroundColor(ofColor(10));
+    m_listControllers->setBackgroundColor(ofColor(30));
 
     m_gui->update();
 
@@ -257,18 +258,17 @@ void ofxLedMapper::setGuiPosition(int x, int y)
 #ifndef LED_MAPPER_NO_GUI
     m_gui->setPosition(x, y);
     m_listControllers->setPosition(x, y + m_gui->getHeight());
-    m_listControllers->update();
-    if (m_guiController)
-        m_guiController->setPosition(m_listControllers->getX() - LM_GUI_WIDTH,
-                                     m_listControllers->getY());
-
     m_iconsMenu->setPosition(ofxDatGuiAnchor::BOTTOM_LEFT);
+    if (m_guiController)
+        m_guiController->setPosition(m_listControllers->getX(),
+                                   m_listControllers->getY()+m_listControllers->getHeight());
 #endif
 }
 void ofxLedMapper::setGuiActive(bool active)
 {
 #ifndef LED_MAPPER_NO_GUI
     m_gui->setVisible(active);
+    m_grabTypeSelected = LMGrabType::GRAB_SELECT;
 #endif
 }
 
@@ -302,8 +302,6 @@ void ofxLedMapper::setCurrentController(unsigned int _curCtrl)
     else {
         if (!m_guiController) {
             m_guiController = ofxLedController::GenerateGui();
-            m_guiController->setPosition(m_listControllers->getX() - LM_GUI_WIDTH,
-                                         m_listControllers->getY());
         }
         m_controllers.at(m_currentCtrl)->bindGui(m_guiController.get());
     }
@@ -451,16 +449,22 @@ void ofxLedMapper::pasteGrabs()
 
 void ofxLedMapper::mousePressed(ofMouseEventArgs &args)
 {
+    if (args.x > ofGetWidth()-LM_GUI_WIDTH)
+        return;
     m_controllers.at(m_currentCtrl)->setGrabType(m_grabTypeSelected);
     m_controllers.at(m_currentCtrl)->mousePressed(args);
 }
 
 void ofxLedMapper::mouseDragged(ofMouseEventArgs &args)
 {
+    if (args.x > ofGetWidth()-LM_GUI_WIDTH)
+        return;
     m_controllers.at(m_currentCtrl)->mouseDragged(args);
 }
 void ofxLedMapper::mouseReleased(ofMouseEventArgs &args)
 {
+    if (args.x > ofGetWidth()-LM_GUI_WIDTH)
+        return;
     if (!args.hasModifier(OF_KEY_SHIFT)) {
         m_controllers.at(m_currentCtrl)->mouseReleased(args);
     }
