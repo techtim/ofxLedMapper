@@ -286,6 +286,7 @@ void ofxLedMapper::setCurrentController(unsigned int _curCtrl)
     bool isDoubleSelect
         = m_currentCtrl == _curCtrl && m_controllers.at(m_currentCtrl)->isSelected();
 
+    ofLogVerbose() << "[ofxLedMapper] Set CurrentController from" << m_currentCtrl << " to " << _curCtrl;
     m_currentCtrl = _curCtrl;
     for (auto &ctrl : m_controllers)
         ctrl.second->setSelected(false);

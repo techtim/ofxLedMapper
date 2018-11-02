@@ -11,6 +11,8 @@ static const vector<string> s_channelList = { "channel 1", "channel 2" };
 /// s_ledTypeList elements must be the same as keys in s_ledTypeToEnum map in lmListener on RPI side
 static const vector<string> s_ledTypeList = { "WS281X", "SK9822" };
 
+constexpr size_t s_maxSendBufferSize = 4096 * 3;
+
 vector<string> ofxLedRpi::getChannels() const noexcept { return s_channelList; }
 
 ofxLedRpi::ofxLedRpi()
@@ -48,7 +50,7 @@ void ofxLedRpi::setup(const string ip, int port)
     if (m_confConnection.Connect(m_ip.c_str(), RPI_CONF_PORT))
         ofLogVerbose() << "[ofxLedRpi] setup config connect to conf port=" << RPI_CONF_PORT;
 
-    m_frameConnection.SetSendBufferSize(4096 * 3);
+    m_frameConnection.SetSendBufferSize(s_maxSendBufferSize);
     m_frameConnection.SetNonBlocking(true);
     m_confConnection.SetNonBlocking(true);
 
@@ -80,16 +82,21 @@ bool ofxLedRpi::send(ChannelsToPix &&output)
 
     m_output.clear();
 
-    size_t num_pix = 0;
-    std::for_each(output.begin(), output.end(), [&](const auto &vec) { num_pix += vec.size(); });
-    m_output.reserve(output.size() * 2 + 2 + num_pix);
+    size_t num_bytes = 0;
+    std::for_each(output.begin(), output.end(), [&](const auto &vec) { num_bytes += vec.size(); });
+    m_output.reserve(output.size() * 2 + 2 + num_bytes);
+
+    /// don't send too much data
+    if (m_output.capacity() >= s_maxSendBufferSize)
+        return false;
 
     for (size_t i = 0; i < output.size(); ++i) {
-        // uint16_t number of leds per chan
-        m_output.emplace_back(output[i].size() & 0xff);
-        m_output.emplace_back(output[i].size() >> 8);
+        // setup header => uint16_t number of leds per chan for each chan
+        uint16_t num_leds = output[i].size() / 3;
+        m_output.push_back(num_leds & 0xff);
+        m_output.push_back(num_leds >> 8);
     }
-    /// mark end of header (num leds per channel)
+    /// mark end of header
     m_output.emplace_back(0xff);
     m_output.emplace_back(0xff);
     for (auto &vec : output)

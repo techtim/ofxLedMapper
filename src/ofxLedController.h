@@ -38,8 +38,6 @@ using ChannelsGrabObjects = vector<vector<unique_ptr<ofxLedGrab>>>;
 
 class ofxLedController {
 public:
-    enum COLOR_TYPE { RGB = 0, RBG = 1, BRG = 2, BGR = 3, GRB = 4, GBR = 5 };
-
     ofxLedController(const int _id, const string &_path);
     ofxLedController() = delete;
     ofxLedController(const ofxLedController &) = delete;
@@ -95,8 +93,8 @@ public:
     void setGrabsSelected(bool state);
     void setGrabType(LMGrabType type) { m_currentGrabType = type; }
 
-    COLOR_TYPE getColorType(int num) const;
-    void setColorType(COLOR_TYPE);
+    GRAB_COLOR_TYPE getColorType(int num) const;
+    void setColorType(GRAB_COLOR_TYPE);
 
     const ofRectangle &peekBounds() const { return m_grabBounds; }
 
@@ -114,6 +112,7 @@ private:
     ofVboMesh m_vboLeds;
     ofShader m_shaderGrab;
     ofFbo m_fboLeds;
+    ofPixels m_pixels;
 
     std::function<void(vector<char> &output, ofColor &color)> m_colorUpdator;
     function<void(void)> m_statusChanged;
@@ -124,7 +123,7 @@ private:
     size_t m_currentChannelNum;
 
     vector<string> m_channelList;
-    vector<uint16_t> m_channelTotalLeds;
+    vector<uint16_t> m_channelsTotalLeds;
     vector<glm::vec3> m_ledPoints;
 
     LMGrabType m_currentGrabType;
@@ -133,7 +132,7 @@ private:
     ofxXmlSettings XML;
     void parseXml(ofxXmlSettings &XML);
 
-    COLOR_TYPE m_colorType;
+    GRAB_COLOR_TYPE m_colorType;
     float m_pixelsInLed;
     int m_fps;
 

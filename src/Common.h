@@ -139,6 +139,14 @@ static const int LM_COLOR_GREEN_LIGHT = 0x6BE6B4;
 static const int LM_COLOR_RED = 0xbf093a;
 static const int LM_COLOR_RED_DARK = 0x870427;
 
+/// COLOR TYPES
+enum GRAB_COLOR_TYPE { RGB = 0, RBG = 1, BRG = 2, BGR = 3, GRB = 4, GBR = 5 };
+static const vector<string> s_grabColorTypes = { "RGB", "RBG", "BRG", "BGR", "GRB", "GBR" };
+static GRAB_COLOR_TYPE GetColorType(int num)
+{
+    return num < s_grabColorTypes.size() ? static_cast<GRAB_COLOR_TYPE>(num) : GRAB_COLOR_TYPE::RGB;
+}
+
 /// CONSTANTS
 static const int POINT_RAD = 4;
 

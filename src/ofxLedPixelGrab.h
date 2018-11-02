@@ -22,40 +22,97 @@
 
 #pragma once
 
+#include "ofFbo.h"
+#include "ofBufferObject.h"
+#include "ofShader.h"
+
+#define STRINGIFY(x) #x
+
 namespace LedMapper {
 
+static const string GLSL_VERSION = "#version 330\n\n";
+
 static const string VERTEX_SHADER_GRAB = STRINGIFY(
-    #version 330
+    precision mediump float;\n
+    uniform mat4 modelViewProjectionMatrix;\n
+    uniform ivec2 outTexResolution;\n
 
-    precision mediump float;
-    uniform mat4 modelViewProjectionMatrix;
-    uniform ivec2 outTexResolution;
+    layout(location = 0) in vec3 VertexPosition;\n
+    out vec2 ledPos;\n
 
-    layout(location = 0) in vec3 VertexPosition;
-    out vec2 ledPos;
-
-    void main()
-    {
-        ledPos = VertexPosition.xy;
+    void main()\n
+    {\n
+        ledPos = VertexPosition.xy;\n
         gl_Position = modelViewProjectionMatrix
                       * vec4(gl_VertexID % outTexResolution.x, 1+floor(gl_VertexID / outTexResolution.x),
-                             0.0, 1.0);
+                             0.0, 1.0);\n
     }
 );
 
 static const string FRAGMENT_SHADER_GRAB = STRINGIFY(
-    #version 330
+    uniform sampler2DRect texIn;\n
+    in vec2 ledPos;\n
+    out vec4 vFragColor;\n
 
-    uniform sampler2DRect texIn;
-    in vec2 ledPos;
-    out vec4 vFragColor;
+    %colorConvert%\n
 
-    void main()
-    {
-        vFragColor = texture(texIn, ledPos);
+    void main()\n
+    {\n
+        vFragColor = colorConvert(texture(texIn, ledPos));\n
     }
 );
+static const string GetColorConvert(GRAB_COLOR_TYPE type) {
+    string func = "vec4 colorConvert(vec4 color) { return vec4(";
+    switch (type) {
+        case BRG:
+            func += "color.b, color.r, color.g";
+            break;
+        case BGR:
+            func += "color.b, color.g, color.r";
+            break;
+        case GRB:
+            func += "color.g, color.r, color.b";
+            break;
+        case GBR:
+            func += "color.g, color.b, color.r";
+            break;
+        case RBG:
+            func += "color.r, color.b, color.g";
+            break;
+        case RGB:
+        default: // RGB
+            func += "color.r, color.g, color.b";
+            break;
+    }
+    return func + ", 1.0); }";
+}
 
+static ofShader GetShaderForColorGrab(GRAB_COLOR_TYPE type) {
+    string frag = GLSL_VERSION + FRAGMENT_SHADER_GRAB;
+    ofStringReplace(frag,"%colorConvert%", GetColorConvert(type));
+    ofShader shader;
+    shader.setupShaderFromSource(GL_VERTEX_SHADER, GLSL_VERSION + VERTEX_SHADER_GRAB);
+    shader.setupShaderFromSource(GL_FRAGMENT_SHADER, frag);
+    shader.bindDefaults();
+    shader.linkProgram();
+    return shader;
+}
+
+static void FboCopyTo(ofFbo &fbo, ofBufferObject & buffer, GLint internalformat, int width, int height) {
+    if(!fbo.isAllocated())
+        return;
+
+    int glFormat = ofGetGLFormatFromInternal(internalformat);
+    if (buffer.size() <= ofGetNumChannelsFromGLFormat(glFormat))
+        buffer.allocate(width * height * ofGetNumChannelsFromGLFormat(glFormat), GL_STATIC_READ);
+
+    fbo.bind();
+    buffer.bind(GL_PIXEL_PACK_BUFFER);
+    glReadPixels(0, 0, width, height, ofGetGLFormatFromInternal(internalformat),
+                 ofGetGLTypeFromInternal(internalformat), NULL);
+    buffer.unbind(GL_PIXEL_PACK_BUFFER);
+    fbo.unbind();
+}
 
 
 } // namespace LedMapper

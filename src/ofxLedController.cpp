@@ -21,11 +21,10 @@
  */
 
 #include "ofxLedController.h"
-#include <regex>
+#include "ofxLedPixelGrab.h"
 
 namespace LedMapper {
 
-static const vector<string> s_colorTypes = { "RGB", "RBG", "BRG", "BGR", "GRB", "GBR" };
 static const vector<string> m_channelList = { "channel 1", "channel 2" };
 
 ofxLedController::ofxLedController(const int _id, const string &_path)
@@ -47,12 +46,12 @@ ofxLedController::ofxLedController(const int _id, const string &_path)
     , m_statusChanged(nullptr)
     , m_currentChannelNum(0)
     , m_channelList({ m_ledOut.getChannels() })
-    , m_channelTotalLeds(m_channelList.size(), 0)
+    , m_channelsTotalLeds(m_channelList.size(), 0)
     , m_ledPoints(0)
 {
     m_channelGrabObjects.resize(m_channelList.size());
 
-    setColorType(COLOR_TYPE::RGB);
+    setColorType(GRAB_COLOR_TYPE::RGB);
     setFps(m_fps);
 
     load(m_path);
@@ -125,10 +124,10 @@ void ofxLedController::bindGui(ofxDatGui *gui)
     slider->setValue(m_pixelsInLed);
     slider->onSliderEvent([this](ofxDatGuiSliderEvent e) { this->setPixInLed(e.value); });
 
-    auto dropdown = gui->addDropdown(LCGUIDropColorType, s_colorTypes);
+    auto dropdown = gui->addDropdown(LCGUIDropColorType, s_grabColorTypes);
     dropdown->select(m_colorType);
     dropdown->onDropdownEvent(
-        [this](ofxDatGuiDropdownEvent e) { this->setColorType(this->getColorType(e.child)); });
+        [this](ofxDatGuiDropdownEvent e) { this->setColorType(GetColorType(e.child)); });
 
     m_ledOut.bindGui(gui);
 
@@ -147,14 +146,6 @@ void ofxLedController::bindGui(ofxDatGui *gui)
 void ofxLedController::draw()
 {
     int chanNum = 0;
-    ofColor color;
-    for (auto &channelGrabs : m_channelGrabObjects) {
-        color = (chanNum == m_currentChannelNum ? m_colorActive : m_colorInactive);
-        for (auto &grab : channelGrabs) {
-            grab->draw(color);
-        }
-        ++chanNum;
-    }
 
     m_bSelected ? ofSetColor(m_colorActive) : ofSetColor(50);
 
@@ -164,13 +155,22 @@ void ofxLedController::draw()
     m_vboLeds.draw(OF_MESH_FILL);
     glPointSize(pointSize);
 
+    ofColor color;
+    for (auto &channelGrabs : m_channelGrabObjects) {
+        color = (chanNum == m_currentChannelNum ? m_colorActive : m_colorInactive);
+        for (auto &grab : channelGrabs) {
+            grab->draw(color);
+        }
+        ++chanNum;
+    }
+
     if (!m_bSelected)
         return;
 
     /// draw grabbed texture
     ofSetColor(255);
-    ofDrawRectangle(0, ofGetHeight()-10, m_fboLeds.getWidth(), m_fboLeds.getHeight());
-    m_fboLeds.draw(0, ofGetHeight()-10);
+    ofDrawRectangle(0, ofGetHeight() - 10, m_fboLeds.getWidth(), m_fboLeds.getHeight());
+    m_fboLeds.draw(0, ofGetHeight() - 10);
 }
 
 /// Send by UDP grab points data updated with grabbedImg
@@ -190,7 +190,7 @@ void ofxLedController::send(const ofTexture &texIn)
     bool prevStatus = m_statusOk;
 
     /// TODO: uncomment
-    // m_statusOk = m_ledOut.send(move(grabbedPixs));
+    m_statusOk = m_ledOut.send(move(grabbedPixs));
 
     if (m_statusOk != prevStatus && m_statusChanged != nullptr)
         m_statusChanged();
@@ -211,9 +211,9 @@ void ofxLedController::updateGrabPoints()
     m_vboLeds.setUsage(GL_DYNAMIC_DRAW);
 
     for (size_t i = 0; i < m_channelGrabObjects.size(); ++i) {
-        m_channelTotalLeds[i] = 0;
+        m_channelsTotalLeds[i] = 0;
         for (auto &object : m_channelGrabObjects[i]) {
-            m_channelTotalLeds[i] += object->points().size();
+            m_channelsTotalLeds[i] += object->points().size();
             auto grabPoints = object->getLedPoints();
             m_ledPoints.reserve(m_ledPoints.size() + grabPoints.size());
 
@@ -221,7 +221,7 @@ void ofxLedController::updateGrabPoints()
 
             std::move(grabPoints.begin(), grabPoints.end(), std::back_inserter(m_ledPoints));
         }
-        m_totalLeds += m_channelTotalLeds[i];
+        m_totalLeds += m_channelsTotalLeds[i];
     }
 
     /// set minimal bounds
@@ -260,7 +260,24 @@ ChannelsToPix ofxLedController::updatePixels(const ofTexture &texIn)
     m_shaderGrab.end();
     m_fboLeds.end();
 
-    ChannelsToPix output;
+    m_fboLeds.readToPixels(m_pixels);
+
+    ChannelsToPix output(m_channelsTotalLeds.size());
+
+    size_t ledsOffset = 0;
+    size_t ledChannel = 0;
+
+    for (auto ledsInChan : m_channelsTotalLeds) {
+        ledsInChan *= 3; // for GL_RGB
+        ledsInChan = ledsOffset + ledsInChan < m_pixels.size() ? ledsInChan : m_pixels.size() - ledsOffset;
+        if (ledsInChan <= 0)
+            break;
+
+        std::move(m_pixels.begin() + ledsOffset, m_pixels.begin() + ledsOffset + ledsInChan,
+                  std::back_inserter(output[ledChannel]));
+        ledsOffset += ledsInChan;
+        ledChannel++;
+    }
 
     return output;
 }
@@ -354,7 +371,7 @@ void ofxLedController::load(const string &path)
 
     XML.pushTag("CONF", 0);
 
-    setColorType(getColorType(XML.getValue("colorType", 0, 0)));
+    setColorType(GetColorType(XML.getValue("colorType", 0, 0)));
 
     m_pixelsInLed = XML.getValue("PixInLed", 1.f, 0);
     m_bSend = XML.getValue("UdpSend", false, 0) ? true : false;
@@ -376,8 +393,6 @@ void ofxLedController::load(const string &path)
     markDirtyGrabPoints();
     updateGrabPoints();
 
-    /// Grabbing stuff
-    m_shaderGrab.load("grab.vert", "grab.frag");
     /// Max leds per controller = 5000
     m_fboLeds.allocate(500, 10, GL_RGB);
     m_fboLeds.begin();
@@ -584,60 +599,10 @@ void ofxLedController::deleteSelectedGrabs()
     return;
 }
 
-ofxLedController::COLOR_TYPE ofxLedController::getColorType(int num) const
-{
-    return num < s_colorTypes.size() ? static_cast<COLOR_TYPE>(num) : COLOR_TYPE::RGB;
-}
-
-void ofxLedController::setColorType(COLOR_TYPE type)
+void ofxLedController::setColorType(GRAB_COLOR_TYPE type)
 {
     m_colorType = type;
-
-    switch (m_colorType) {
-        case RBG:
-            m_colorUpdator = [](vector<char> &output, ofColor &color) {
-                output.emplace_back(color.r);
-                output.emplace_back(color.b);
-                output.emplace_back(color.g);
-            };
-            break;
-        case BRG:
-            m_colorUpdator = [](vector<char> &output, ofColor &color) {
-                output.emplace_back(color.b);
-                output.emplace_back(color.r);
-                output.emplace_back(color.g);
-            };
-            break;
-        case BGR:
-            m_colorUpdator = [](vector<char> &output, ofColor &color) {
-                output.emplace_back(color.b);
-                output.emplace_back(color.g);
-                output.emplace_back(color.r);
-            };
-            break;
-        case GRB:
-            m_colorUpdator = [](vector<char> &output, ofColor &color) {
-                output.emplace_back(color.g);
-                output.emplace_back(color.r);
-                output.emplace_back(color.b);
-            };
-            break;
-        case GBR:
-            m_colorUpdator = [](vector<char> &output, ofColor &color) {
-                output.emplace_back(color.g);
-                output.emplace_back(color.b);
-                output.emplace_back(color.r);
-            };
-            break;
-        case RGB:
-        default: // RGB
-            m_colorUpdator = [](vector<char> &output, ofColor &color) {
-                output.emplace_back(color.r);
-                output.emplace_back(color.g);
-                output.emplace_back(color.b);
-            };
-            break;
-    }
+    m_shaderGrab = GetShaderForColorGrab(m_colorType);
 }
 
 void ofxLedController::setCurrentChannel(int chan)
