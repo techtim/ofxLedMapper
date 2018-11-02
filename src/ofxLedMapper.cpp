@@ -239,12 +239,12 @@ void ofxLedMapper::setupGui()
     m_iconsMenu->addToggleImage(LMGUIMouseGrabLine, "gui/mouse_grab_line.jpg")
         ->onToggleEvent(
             [this](ofxDatGuiToggleEvent) { m_grabTypeSelected = LMGrabType::GRAB_LINE; });
-    m_iconsMenu->addToggleImage(LMGUIMouseGrabCircle, "gui/mouse_grab_circle.jpg")
-        ->onToggleEvent(
-            [this](ofxDatGuiToggleEvent) { m_grabTypeSelected = LMGrabType::GRAB_CIRCLE; });
     m_iconsMenu->addToggleImage(LMGUIMouseGrabMatrix, "gui/mouse_grab_matrix.jpg")
         ->onToggleEvent(
             [this](ofxDatGuiToggleEvent) { m_grabTypeSelected = LMGrabType::GRAB_MATRIX; });
+    //    m_iconsMenu->addToggleImage(LMGUIMouseGrabCircle, "gui/mouse_grab_circle.jpg")
+    //        ->onToggleEvent(
+    //            [this](ofxDatGuiToggleEvent) { m_grabTypeSelected = LMGrabType::GRAB_CIRCLE; });
 
     m_iconsMenu->update();
 
@@ -486,10 +486,10 @@ void ofxLedMapper::keyPressed(ofKeyEventArgs &data)
             m_grabTypeSelected = LMGrabType::GRAB_LINE;
             break;
         case '3':
-            m_grabTypeSelected = LMGrabType::GRAB_CIRCLE;
+            m_grabTypeSelected = LMGrabType::GRAB_MATRIX;
             break;
         case '4':
-            m_grabTypeSelected = LMGrabType::GRAB_MATRIX;
+            m_grabTypeSelected = LMGrabType::GRAB_CIRCLE;
             break;
         case 'v':
             if (data.hasModifier(LM_KEY_CONTROL))

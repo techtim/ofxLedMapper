@@ -45,7 +45,7 @@ void ofxLedRpi::setup(const string ip, int port)
     m_confConnection.Create();
 
     if (m_frameConnection.Connect(m_ip.c_str(), m_port)) {
-        ofLogVerbose() << "[ofxLedRpi] setup frame connect to " << m_ip;
+        ofLogVerbose() << "[ofxLedRpi] setup frame connect to " << m_ip << " : " << m_port;
     }
     if (m_confConnection.Connect(m_ip.c_str(), RPI_CONF_PORT))
         ofLogVerbose() << "[ofxLedRpi] setup config connect to conf port=" << RPI_CONF_PORT;
@@ -102,7 +102,12 @@ bool ofxLedRpi::send(ChannelsToPix &&output)
     for (auto &vec : output)
         move(vec.begin(), vec.end(), back_inserter(m_output));
 
-    return m_frameConnection.Send(m_output.data(), m_output.size()) != -1;
+    if (m_frameConnection.Send(m_output.data(), m_output.size()) != -1) {
+        return true;
+    } else {
+        resetup();
+        return false;
+    }
 }
 
 void ofxLedRpi::sendLedType(const string &ledType)

@@ -189,7 +189,6 @@ void ofxLedController::send(const ofTexture &texIn)
 
     bool prevStatus = m_statusOk;
 
-    /// TODO: uncomment
     m_statusOk = m_ledOut.send(move(grabbedPixs));
 
     if (m_statusOk != prevStatus && m_statusChanged != nullptr)
