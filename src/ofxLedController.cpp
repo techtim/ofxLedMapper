@@ -25,8 +25,6 @@
 
 namespace LedMapper {
 
-static const vector<string> m_channelList = { "channel 1", "channel 2" };
-
 ofxLedController::ofxLedController(const int _id, const string &_path)
     : m_id(_id)
     , m_path(_path)
@@ -48,6 +46,7 @@ ofxLedController::ofxLedController(const int _id, const string &_path)
     , m_channelList({ m_ledOut.getChannels() })
     , m_channelsTotalLeds(m_channelList.size(), 0)
     , m_ledPoints(0)
+    , m_maxPixInChannel(MAX_PIX_IN_CTRL / m_channelList.size())
 {
     m_channelGrabObjects.resize(m_channelList.size());
 
@@ -212,10 +211,12 @@ void ofxLedController::updateGrabPoints()
     for (size_t i = 0; i < m_channelGrabObjects.size(); ++i) {
         m_channelsTotalLeds[i] = 0;
         for (auto &object : m_channelGrabObjects[i]) {
-            m_channelsTotalLeds[i] += object->points().size();
             auto grabPoints = object->getLedPoints();
-            m_ledPoints.reserve(m_ledPoints.size() + grabPoints.size());
+            if (m_channelsTotalLeds[i] + grabPoints.size() > m_maxPixInChannel)
+                break;
 
+            m_channelsTotalLeds[i] += grabPoints.size();
+            m_ledPoints.reserve(m_ledPoints.size() + grabPoints.size());
             m_vboLeds.addVertices(grabPoints);
 
             std::move(grabPoints.begin(), grabPoints.end(), std::back_inserter(m_ledPoints));

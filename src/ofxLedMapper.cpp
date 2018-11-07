@@ -261,7 +261,7 @@ void ofxLedMapper::setGuiPosition(int x, int y)
     m_iconsMenu->setPosition(ofxDatGuiAnchor::BOTTOM_LEFT);
     if (m_guiController)
         m_guiController->setPosition(m_listControllers->getX(),
-                                   m_listControllers->getY()+m_listControllers->getHeight());
+                                     m_listControllers->getY() + m_listControllers->getHeight());
 #endif
 }
 void ofxLedMapper::setGuiActive(bool active)
@@ -286,7 +286,8 @@ void ofxLedMapper::setCurrentController(unsigned int _curCtrl)
     bool isDoubleSelect
         = m_currentCtrl == _curCtrl && m_controllers.at(m_currentCtrl)->isSelected();
 
-    ofLogVerbose() << "[ofxLedMapper] Set CurrentController from" << m_currentCtrl << " to " << _curCtrl;
+    ofLogVerbose() << "[ofxLedMapper] Set CurrentController from" << m_currentCtrl << " to "
+                   << _curCtrl;
     m_currentCtrl = _curCtrl;
     for (auto &ctrl : m_controllers)
         ctrl.second->setSelected(false);
@@ -449,7 +450,7 @@ void ofxLedMapper::pasteGrabs()
 
 void ofxLedMapper::mousePressed(ofMouseEventArgs &args)
 {
-    if (args.x > ofGetWidth()-LM_GUI_WIDTH)
+    if (args.x > ofGetWidth() - LM_GUI_WIDTH)
         return;
     m_controllers.at(m_currentCtrl)->setGrabType(m_grabTypeSelected);
     m_controllers.at(m_currentCtrl)->mousePressed(args);
@@ -457,13 +458,13 @@ void ofxLedMapper::mousePressed(ofMouseEventArgs &args)
 
 void ofxLedMapper::mouseDragged(ofMouseEventArgs &args)
 {
-    if (args.x > ofGetWidth()-LM_GUI_WIDTH)
+    if (args.x > ofGetWidth() - LM_GUI_WIDTH)
         return;
     m_controllers.at(m_currentCtrl)->mouseDragged(args);
 }
 void ofxLedMapper::mouseReleased(ofMouseEventArgs &args)
 {
-    if (args.x > ofGetWidth()-LM_GUI_WIDTH)
+    if (args.x > ofGetWidth() - LM_GUI_WIDTH)
         return;
     if (!args.hasModifier(OF_KEY_SHIFT)) {
         m_controllers.at(m_currentCtrl)->mouseReleased(args);
@@ -493,15 +494,23 @@ void ofxLedMapper::keyPressed(ofKeyEventArgs &data)
             m_grabTypeSelected = LMGrabType::GRAB_MATRIX;
             break;
         case '4':
-            m_grabTypeSelected = LMGrabType::GRAB_CIRCLE;
+            // m_grabTypeSelected = LMGrabType::GRAB_CIRCLE;
             break;
         case 'v':
-            if (data.hasModifier(LM_KEY_CONTROL))
+#ifndef WIN32
+            if (data.hasModifier(LM_KEY_CONTROL)) /// don't work on win
+#endif
+            {
                 pasteGrabs();
+            }
             break;
         case 'c':
-            if (data.hasModifier(LM_KEY_CONTROL))
-                copyGrabs();
+#ifndef WIN32
+            if (data.hasModifier(LM_KEY_CONTROL)) /// don't work on win
+#endif 
+			{
+				copyGrabs();
+			}
             break;
         case OF_KEY_BACKSPACE:
             m_controllers.at(m_currentCtrl)->deleteSelectedGrabs();

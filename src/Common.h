@@ -149,6 +149,7 @@ static GRAB_COLOR_TYPE GetColorType(int num)
 
 /// CONSTANTS
 static const int POINT_RAD = 4;
+static const int MAX_PIX_IN_CTRL = 4000;
 
 #ifndef LED_MAPPER_NO_GUI
 class ofxDatGuiThemeLM : public ofxDatGuiTheme {

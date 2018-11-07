@@ -125,6 +125,7 @@ private:
     vector<string> m_channelList;
     vector<uint16_t> m_channelsTotalLeds;
     vector<glm::vec3> m_ledPoints;
+    size_t m_maxPixInChannel;
 
     LMGrabType m_currentGrabType;
     ofRectangle m_grabBounds;
