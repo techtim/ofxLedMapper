@@ -253,7 +253,6 @@ ChannelsToPix ofxLedController::updatePixels(const ofTexture &texIn)
     m_vboLeds.draw(OF_MESH_POINTS);
 
     ofDisableBlendMode();
-    glEnd();
 
     ofPopStyle();
 

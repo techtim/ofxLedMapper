@@ -44,7 +44,7 @@ static const string VERTEX_SHADER_GRAB = STRINGIFY(
     {\n
         ledPos = VertexPosition.xy;\n
         gl_Position = modelViewProjectionMatrix
-                      * vec4(gl_VertexID % outTexResolution.x, 1+floor(gl_VertexID / outTexResolution.x),
+                      * vec4(gl_VertexID % outTexResolution.x, 1 + (gl_VertexID / outTexResolution.x),
                              0.0, 1.0);\n
     }
 );
