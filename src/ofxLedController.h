@@ -114,7 +114,6 @@ private:
     ofFbo m_fboLeds;
     ofPixels m_pixels;
 
-    std::function<void(vector<char> &output, ofColor &color)> m_colorUpdator;
     function<void(void)> m_statusChanged;
 
     void setCurrentChannel(int);

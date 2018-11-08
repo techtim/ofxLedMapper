@@ -40,7 +40,6 @@ ofxLedController::ofxLedController(const int _id, const string &_path)
     , m_pixelsInLed(5.f)
     , m_fps(25.f)
     , m_totalLeds(0)
-    , m_colorUpdator(nullptr)
     , m_statusChanged(nullptr)
     , m_currentChannelNum(0)
     , m_channelList({ m_ledOut.getChannels() })
@@ -52,6 +51,12 @@ ofxLedController::ofxLedController(const int _id, const string &_path)
 
     setColorType(GRAB_COLOR_TYPE::RGB);
     setFps(m_fps);
+
+    /// Max leds per controller = 5000
+    m_fboLeds.allocate(500, ceil(MAX_PIX_IN_CTRL / 500.f), GL_RGB);
+    m_fboLeds.begin();
+    ofClear(0, 0, 0, 255);
+    m_fboLeds.end();
 
     load(m_path);
 
@@ -87,19 +92,6 @@ void ofxLedController::setOnControllerStatusChange(function<void(void)> callback
 }
 
 #ifndef LED_MAPPER_NO_GUI
-/// Static function to generate ubniversal container for controllers GUI
-unique_ptr<ofxDatGui> ofxLedController::GenerateGui()
-{
-    ofLogVerbose() << "Generate scene gui";
-
-    unique_ptr<ofxDatGui> gui = make_unique<ofxDatGui>();
-    gui->setPosition(ofGetWidth() - 200, ofGetHeight() / 2 - 20);
-    gui->setAutoDraw(false);
-    gui->setWidth(LM_GUI_WIDTH);
-    /// set theme for gui and apply emediatly to all added components
-
-    return move(gui);
-}
 /// Bing generated GUI to controller
 void ofxLedController::bindGui(ofxDatGui *gui)
 {
@@ -268,7 +260,8 @@ ChannelsToPix ofxLedController::updatePixels(const ofTexture &texIn)
 
     for (auto ledsInChan : m_channelsTotalLeds) {
         ledsInChan *= 3; // for GL_RGB
-        ledsInChan = ledsOffset + ledsInChan < m_pixels.size() ? ledsInChan : m_pixels.size() - ledsOffset;
+        ledsInChan
+            = ledsOffset + ledsInChan < m_pixels.size() ? ledsInChan : m_pixels.size() - ledsOffset;
         if (ledsInChan <= 0)
             break;
 
@@ -347,6 +340,10 @@ void ofxLedController::save(const string &path)
     config["ipAddress"] = m_ledOut.getIP();
     config["port"] = m_ledOut.getPort();
     config["colorType"] = m_colorType;
+    config["pixInLed"] = m_pixelsInLed;
+    config["fps"] = m_fps;
+    config["bSend"] = m_bSend;
+    m_ledOut.saveJson(config);
     //    config["points"] = m_ledPoints;
     ofstream jsonFile(path + ofToString(m_id) + ".json");
     jsonFile << config.dump(4);
@@ -391,12 +388,6 @@ void ofxLedController::load(const string &path)
 
     markDirtyGrabPoints();
     updateGrabPoints();
-
-    /// Max leds per controller = 5000
-    m_fboLeds.allocate(500, 10, GL_RGB);
-    m_fboLeds.begin();
-    ofClear(0, 0, 0, 255);
-    m_fboLeds.end();
 }
 
 void ofxLedController::parseXml(ofxXmlSettings &XML)
@@ -462,12 +453,14 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
     if (!m_bSelected)
         return;
 
+    /// don't add grabs if pressed into existing
+    if (std::count_if(begin(*m_currentChannel), end(*m_currentChannel),
+                      [&args](const auto &grab) { return grab->mousePressed(args); }))
+        return;
+
     switch (m_currentGrabType) {
         case LMGrabType::GRAB_EMPTY:
         case LMGrabType::GRAB_SELECT:
-            for (auto &grab : *m_currentChannel) {
-                grab->mousePressed(args);
-            }
             break;
         case LMGrabType::GRAB_LINE: {
             /// deselect previous active grabs
@@ -498,23 +491,25 @@ void ofxLedController::mouseDragged(ofMouseEventArgs &args)
     if (!m_bSelected || m_currentChannel->empty())
         return;
 
-    for (auto &grab : *m_currentChannel)
-        if (grab->mouseDragged(args))
-            markDirtyGrabPoints();
+    if (std::count_if(begin(*m_currentChannel), end(*m_currentChannel),
+                      [&args](const auto &grab) { return grab->mouseDragged(args); })) {
+        markDirtyGrabPoints();
+    }
 }
 
 void ofxLedController::mouseReleased(ofMouseEventArgs &args)
 {
     if (m_currentChannel->empty())
         return;
+
     /// delete zero length grab, that was created with one click - not counted
     if (m_currentChannel->back()->points().empty()) {
         m_currentChannel->pop_back();
         markDirtyGrabPoints();
     }
 
-    for (auto &grab : *m_currentChannel)
-        grab->mouseReleased(args);
+    std::count_if(begin(*m_currentChannel), end(*m_currentChannel),
+                  [&args](const auto &grab) { return grab->mouseReleased(args); });
 }
 
 void ofxLedController::keyPressed(ofKeyEventArgs &data)

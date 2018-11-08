@@ -229,7 +229,7 @@ void ofxLedMapper::setupGui()
 
     /// Mouse Grab style buttons avalable when controllers tab selected
     /// and draw ledMappers gui
-    m_iconsMenu = make_unique<ofxDatGui>(ofxDatGuiAnchor::BOTTOM_LEFT);
+    m_iconsMenu = make_unique<ofxDatGui>(ofxDatGuiAnchor::BOTTOM_RIGHT);
     m_iconsMenu->setTheme(m_guiTheme.get());
     m_iconsMenu->setWidth(LM_GUI_ICON_WIDTH);
     m_iconsMenu->setAutoDraw(false);
@@ -258,7 +258,7 @@ void ofxLedMapper::setGuiPosition(int x, int y)
 #ifndef LED_MAPPER_NO_GUI
     m_gui->setPosition(x, y);
     m_listControllers->setPosition(x, y + m_gui->getHeight());
-    m_iconsMenu->setPosition(ofxDatGuiAnchor::BOTTOM_LEFT);
+    m_iconsMenu->setPosition(ofxDatGuiAnchor::BOTTOM_RIGHT);
     if (m_guiController)
         m_guiController->setPosition(m_listControllers->getX(),
                                      m_listControllers->getY() + m_listControllers->getHeight());
@@ -302,7 +302,7 @@ void ofxLedMapper::setCurrentController(unsigned int _curCtrl)
     }
     else {
         if (!m_guiController) {
-            m_guiController = ofxLedController::GenerateGui();
+            m_guiController = GenerateOutputGui();
         }
         m_controllers.at(m_currentCtrl)->bindGui(m_guiController.get());
     }

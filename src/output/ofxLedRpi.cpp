@@ -18,7 +18,7 @@ vector<string> ofxLedRpi::getChannels() const noexcept { return s_channelList; }
 ofxLedRpi::ofxLedRpi()
     : m_bSetup(false)
     , m_ip(RPI_IP)
-    , m_port(RPI_CONF_PORT)
+    , m_port(RPI_PORT)
     , m_currentLedType(s_ledTypeList.front())
 {
 }
@@ -32,9 +32,6 @@ void ofxLedRpi::resetup() { setup(m_ip, m_port); }
 
 void ofxLedRpi::setup(const string ip, int port)
 {
-    //    if (m_ip == ip && bUdpSetup)
-    //        return;
-
     m_ip = move(ip);
     m_port = port;
 
@@ -61,7 +58,6 @@ void ofxLedRpi::setup(const string ip, int port)
 
 void ofxLedRpi::bindGui(ofxDatGui *gui)
 {
-
     auto dropdown = gui->addDropdown(LCGUIDropLedType, s_ledTypeList);
     dropdown->select(find(s_ledTypeList.begin(), s_ledTypeList.end(), m_currentLedType)
                      - s_ledTypeList.begin());
@@ -104,7 +100,8 @@ bool ofxLedRpi::send(ChannelsToPix &&output)
 
     if (m_frameConnection.Send(m_output.data(), m_output.size()) != -1) {
         return true;
-    } else {
+    }
+    else {
         resetup();
         return false;
     }
@@ -117,11 +114,28 @@ void ofxLedRpi::sendLedType(const string &ledType)
 
     if (find(s_ledTypeList.begin(), s_ledTypeList.end(), ledType) == s_ledTypeList.end())
         return;
+
     ofLogVerbose() << "Update LedType with " << ledType;
     m_currentLedType = ledType;
     /// send type 5 times hoping UDP packet won't lost
     for (size_t i = 0; i < 5; ++i)
         m_confConnection.Send(m_currentLedType.c_str(), m_currentLedType.size());
+}
+
+void ofxLedRpi::saveJson(ofJson &config) const
+{
+    config["ledType"] = getLedType();
+    config["ipAddress"] = getIP();
+    config["port"] = getPort();
+}
+
+void ofxLedRpi::loadJson(const ofJson &config)
+{
+    m_currentLedType
+        = config.at("ledType") ? config.at("ledType").get<string>() : s_ledTypeList.front();
+
+    setup(config.at("ipAddress") ? config.at("ipAddress").get<string>() : RPI_IP,
+          config.at("port") ? config.at("port").get<int>() : RPI_PORT);
 }
 
 } // namespace LedMapper

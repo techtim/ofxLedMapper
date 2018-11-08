@@ -46,6 +46,9 @@ public:
     bool send(ChannelsToPix &&output);
     void sendLedType(const string &ledType);
 
+    void saveJson(ofJson &) const;
+    void loadJson(const ofJson &config);
+
     vector<string> getChannels() const noexcept;
 
     string getIP() const noexcept { return m_ip; }
