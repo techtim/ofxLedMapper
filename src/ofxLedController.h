@@ -49,7 +49,7 @@ public:
     void save(const string &path);
     void load(const string &path);
 
-    static unique_ptr<ofxLedGrab> GetUniqueTypedGrab(int type, const ofxLedGrab &grab);
+    static unique_ptr<ofxLedGrab> GetUniqueTypedGrab(const ofxLedGrab *grab);
     void addGrab(unique_ptr<ofxLedGrab> &&object);
     void deleteSelectedGrabs();
     void draw();

@@ -22,12 +22,13 @@
 
 #pragma once
 
+#include "Common.h"
 #include "ofMain.h"
 #include "ofxXmlSettings.h"
-#include "Common.h"
 
 namespace LedMapper {
 
+class ofxLedGrab;
 class ofxLedGrabLine;
 class ofxLedGrabCircle;
 class ofxLedGrabMatrix;
@@ -111,6 +112,24 @@ public:
         xml.setValue("LN:toY", m_to.y, tagNum);
     }
 
+    virtual ofJson toJson() const
+    {
+        return ofJson{ { "type", typeid(*this).name() },
+                       { "channel", m_channel },
+                       { "fromX", m_from.x },
+                       { "fromY", m_from.y },
+                       { "toX", m_to.x },
+                       { "toY", m_to.y } };
+    }
+    virtual void fromJson(const ofJson &j)
+    {
+        m_channel = j.count("channel") ? j.at("channel").get<int>() : 0;
+        m_from = { j.count("fromX") ? j.at("fromX").get<float>() : 0.f,
+                   j.count("fromY") ? j.at("fromY").get<float>() : 0.f };
+        m_to = { j.count("toX") ? j.at("toX").get<float>() : 0.f,
+                 j.count("toY") ? j.at("toY").get<float>() : 0.f };
+    }
+
     void set(const ofVec2f &from, const ofVec2f &to)
     {
         if (from.x < 0 || from.y < 0 || to.x < 0 || to.y < 0)
@@ -127,17 +146,17 @@ public:
 
     void setClickedPos(const ofVec2f &pos) { m_clickedPos = pos; }
     const ofVec2f &getClickedPos() const { return m_clickedPos; }
-    
+
     const ofRectangle &getBounds() { return m_bounds; }
-    
+
     void setPixelsInLed(float _pixs)
     {
         m_pixelsInLed = _pixs;
         updatePoints();
     };
     float getPixelsInLed() const { return m_pixelsInLed; }
-    void setObjectId(unsigned int _objID) { objID = _objID; };
-    unsigned int getObjectId() const { return objID; };
+    void setObjectId(unsigned int _objID) { m_id = _objID; };
+    unsigned int getObjectId() const { return m_id; };
     void setChannel(int _channel) { m_channel = _channel; }
     int getChannel() const { return m_channel; }
     void setActive(bool active) { m_bActive = active; }
@@ -163,7 +182,7 @@ public:
 
     /// ------- Variables -------
 
-    unsigned int objID;
+    unsigned int m_id;
 
     ofVec2f m_from, m_to, m_clickedPos;
     int m_type = LMGrabType::GRAB_EMPTY;
@@ -181,7 +200,7 @@ public:
 #endif
 
     friend std::ostream &operator<<(std::ostream &os, const ofxLedGrab &obj);
-};
+}; // namespace LedMapper
 
 inline std::ostream &operator<<(std::ostream &os, const ofxLedGrab &obj)
 {
@@ -191,13 +210,13 @@ inline std::ostream &operator<<(std::ostream &os, const ofxLedGrab &obj)
 }
 
 class ofxLedGrabLine : public ofxLedGrab {
-    bool m_bDoubleLine;
+    bool m_isDoubleLine;
 
 public:
     ofxLedGrabLine(const ofVec2f &from = ofVec2f(0), const ofVec2f &to = ofVec2f(0),
                    float pixInLed = 2.f, bool bDouble = false)
         : ofxLedGrab(from, to, pixInLed)
-        , m_bDoubleLine(bDouble)
+        , m_isDoubleLine(bDouble)
     {
         ofxLedGrab::m_type = LMGrabType::GRAB_LINE;
         updatePoints();
@@ -205,7 +224,7 @@ public:
 
     ofxLedGrabLine(const ofxLedGrabLine &line)
         : ofxLedGrab(line)
-        , m_bDoubleLine(line.m_bDoubleLine)
+        , m_isDoubleLine(line.m_isDoubleLine)
     {
         updatePoints();
     }
@@ -221,9 +240,9 @@ public:
         sInput = gui->addSlider("pixel step", 1, 20);
         sInput->bind(m_pixelsInLed);
 
-        //        sInput = gui->addToggle("double line", m_bDoubleLine);
+        //        sInput = gui->addToggle("double line", m_isDoubleLine);
         ofxDatGuiToggle *tInput = gui->addToggle("double line", false);
-        tInput->bind(m_bDoubleLine);
+        tInput->bind(m_isDoubleLine);
 
         sInput = gui->addSlider("from X", 0, 1000);
         sInput->bind(m_from.x);
@@ -301,7 +320,7 @@ public:
             ofDrawCircle(m_from, 3);
             ofDrawCircle(m_to, 3);
             ofSetColor(s_colorGreen);
-            ofDrawBitmapString("id" + ofToString(objID), m_from + ofVec2f(0, 2));
+            ofDrawBitmapString("id" + ofToString(m_id), m_from + ofVec2f(0, 2));
             if (!m_bSelected)
                 return;
             ofDrawBitmapString(ofToString(m_points.size()),
@@ -324,7 +343,7 @@ public:
             m_points.push_back(m_from.getInterpolated(m_to, step));
         }
 
-        if (m_bDoubleLine) {
+        if (m_isDoubleLine) {
             auto tmpPoints = m_points;
             std::reverse(tmpPoints.begin(), tmpPoints.end());
             m_points.insert(m_points.end(), tmpPoints.begin(), tmpPoints.end());
@@ -342,26 +361,38 @@ public:
     {
         ofxLedGrab::save(xml, tagNum);
         xml.setValue("LN:TYPE", this->m_type, tagNum);
-        xml.setValue("LN:bDouble", m_bDoubleLine, tagNum);
+        xml.setValue("LN:bDouble", m_isDoubleLine, tagNum);
     }
     void load(ofxXmlSettings &xml, int tagNum) override
     {
-        m_bDoubleLine = xml.getValue("LN:bDouble", false, tagNum);
+        m_isDoubleLine = xml.getValue("LN:bDouble", false, tagNum);
         updatePoints();
+    }
+
+    ofJson toJson() const override
+    {
+        ofJson out = ofxLedGrab::toJson();
+        out["isDouble"] = m_isDoubleLine;
+        return out;
+    }
+    void fromJson(const ofJson &j) override
+    {
+        ofxLedGrab::fromJson(j);
+        m_isDoubleLine = j.count("isDouble") ? j.at("isDouble").get<bool>() : false;
     }
 };
 
 class ofxLedGrabCircle : public ofxLedGrab {
     float m_radius;
     float m_startAngle;
-    bool m_bClockwise;
+    bool m_isClockwise;
 
 public:
     ofxLedGrabCircle(const ofVec2f &from = ofVec2f(0), const ofVec2f &to = ofVec2f(0),
                      float pixInLed = 2.f)
         : ofxLedGrab(from, to, pixInLed)
         , m_startAngle(-90.f)
-        , m_bClockwise(true)
+        , m_isClockwise(true)
     {
         ofxLedGrab::m_type = LMGrabType::GRAB_CIRCLE;
 
@@ -371,11 +402,12 @@ public:
     ofxLedGrabCircle(const ofxLedGrabCircle &circle)
         : ofxLedGrab(circle)
         , m_startAngle(circle.m_startAngle)
-        , m_bClockwise(circle.m_bClockwise)
+        , m_isClockwise(circle.m_isClockwise)
     {
+        updatePoints();
     }
 
-    ~ofxLedGrabCircle() { m_points.clear(); };
+    ~ofxLedGrabCircle(){};
 
     bool mousePressed(ofMouseEventArgs &args) override
     {
@@ -432,9 +464,9 @@ public:
         if (isActive()) {
             ofFill();
             ofSetColor(150, 150, 150, 150); /// color for first point
-                ofDrawCircle((*m_points.begin()), m_pixelsInLed / 1.5);
+            ofDrawCircle((*m_points.begin()), m_pixelsInLed / 1.5);
             ofSetColor(s_colorGreen);
-            ofDrawBitmapString("id" + ofToString(objID), m_from);
+            ofDrawBitmapString("id" + ofToString(m_id), m_from);
             if (!m_bSelected)
                 return;
             ofDrawBitmapString(ofToString(static_cast<int>(m_points.size())),
@@ -445,7 +477,7 @@ public:
     void drawGui() override { ; }
 
     void setStartAngle(float angle) override { m_startAngle = angle; }
-    void setClockwise(bool bClock) { m_bClockwise = bClock; }
+    void setClockwise(bool bClock) { m_isClockwise = bClock; }
 
     void updatePoints() override
     {
@@ -463,12 +495,13 @@ public:
             // check if point is on the screen
             if (tmp.x >= 0 && tmp.y >= 0)
                 m_points.push_back(tmp);
-            m_bClockwise ? currStep -= degreeStep : currStep += degreeStep;
+            m_isClockwise ? currStep -= degreeStep : currStep += degreeStep;
         }
     }
     void updateBounds() override
     {
-        m_bounds.set(ofVec2f(m_from - ofVec2f(m_radius + POINT_RAD)), ofVec2f((m_radius + POINT_RAD) * 2.f));
+        m_bounds.set(ofVec2f(m_from - ofVec2f(m_radius + POINT_RAD)),
+                     ofVec2f((m_radius + POINT_RAD) * 2.f));
     }
 
     void save(ofxXmlSettings &xml, const int tagNum) override
@@ -476,7 +509,7 @@ public:
         ofxLedGrab::save(xml, tagNum);
         xml.setValue("LN:TYPE", this->m_type, tagNum);
         xml.setValue("LN:startAngle", m_startAngle, tagNum);
-        xml.setValue("LN:isClockwise", m_bClockwise, tagNum);
+        xml.setValue("LN:isClockwise", m_isClockwise, tagNum);
     }
 
     void load(ofxXmlSettings &xml, int tagNum) override
@@ -484,6 +517,19 @@ public:
         setStartAngle(xml.getValue("LN:startAngle", -90, tagNum));
         setClockwise(xml.getValue("LN:isClockwise", true, tagNum));
         updatePoints();
+    }
+    ofJson toJson() const override
+    {
+        ofJson out = ofxLedGrab::toJson();
+        out["startAngle"] = m_startAngle;
+        out["isClockwise"] = m_isClockwise;
+        return out;
+    }
+    void fromJson(const ofJson &j) override
+    {
+        ofxLedGrab::fromJson(j);
+        m_startAngle = j.count("startAngle") ? j.at("startAngle").get<float>() : 0;
+        m_isClockwise = j.count("isClockwise") ? j.at("isClockwise").get<bool>() : true;
     }
 };
 
@@ -507,13 +553,10 @@ public:
         , m_isVertical(grab.m_isVertical)
         , m_isZigzag(grab.m_isZigzag)
     {
+        updatePoints();
     }
 
-    ~ofxLedGrabMatrix()
-    {
-        ofLogVerbose("[ofxLedGrabMatrix] Detor: clear m_points");
-        m_points.clear();
-    }
+    ~ofxLedGrabMatrix() {}
 
     bool mousePressed(ofMouseEventArgs &args) override
     {
@@ -578,7 +621,7 @@ public:
             ofDrawCircle(m_to, 3);
 
             ofSetColor(0, 250, 150, 250);
-            ofDrawBitmapString("id" + ofToString(objID), m_from);
+            ofDrawBitmapString("id" + ofToString(m_id), m_from);
 
             if (!m_bSelected)
                 return;
@@ -676,6 +719,56 @@ public:
         m_isZigzag = xml.getValue("LN:isZigzag", true, tagNum);
         updatePoints();
     }
-};
 
+    ofJson toJson() const override
+    {
+        ofJson out = ofxLedGrab::toJson();
+        out["isVertical"] = m_isVertical;
+        out["isZigzag"] = m_isZigzag;
+        return out;
+    }
+    void fromJson(const ofJson &j) override
+    {
+        ofxLedGrab::fromJson(j);
+        m_isVertical = j.count("isVertical") ? j.at("isVertical").get<bool>() : true;
+        m_isZigzag = j.count("isZigzag") ? j.at("isZigzag").get<bool>() : true;
+    }
+};
 } // namespace LedMapper
+
+namespace nlohmann {
+template <> struct adl_serializer<std::unique_ptr<LedMapper::ofxLedGrab>> {
+
+    static void to_json(json &j, const std::unique_ptr<LedMapper::ofxLedGrab> &grab)
+    {
+        if (grab) {
+            j = grab->toJson();
+        }
+        else {
+            j = nullptr;
+        }
+    }
+
+    // this is the overload needed for non-copyable types,
+    static std::unique_ptr<LedMapper::ofxLedGrab> from_json(const json &j)
+    {
+        std::unique_ptr<LedMapper::ofxLedGrab> grab = nullptr;
+        if (j.is_null()) {
+            return grab;
+        }
+        else {
+            auto type = j.at("type").get<string>();
+            if (type == typeid(LedMapper::ofxLedGrabLine).name())
+                grab = make_unique<LedMapper::ofxLedGrabLine>();
+            else if (type == typeid(LedMapper::ofxLedGrabMatrix).name())
+                grab = make_unique<LedMapper::ofxLedGrabMatrix>();
+            else if (type == typeid(LedMapper::ofxLedGrabCircle).name())
+                grab = make_unique<LedMapper::ofxLedGrabCircle>();
+
+            grab->fromJson(j);
+        }
+
+        return grab;
+    }
+};
+} // namespace nlohmann

@@ -23,8 +23,8 @@
 #pragma once
 
 #ifndef LED_MAPPER_NO_GUI
-#include <regex>
 #include "ofxDatGui.h"
+#include <regex>
 
 static const int LM_GUI_WIDTH = 200;
 static const int LM_GUI_ICON_WIDTH = 24;
@@ -56,6 +56,7 @@ static const string LCGUIDropColorType = "Color Type";
 static const string LCGUIDropLedType = "LED IC Type";
 static const string LCGUIDropChannelNum = "Channel";
 static const string LCGUIButtonDmx = "DMX";
+static const string LCGUISliderUniInChan = "Uni in chan";
 static const string LCFileName = "Ctrl-";
 
 #endif
@@ -125,7 +126,8 @@ constexpr unsigned int Hash(const char *str, int h = 0)
     return !str[h] ? 5381 : (Hash(str, h + 1) * 33) ^ str[h];
 }
 
-static bool ValidateIP(const string &ip) {
+static bool ValidateIP(const string &ip)
+{
     std::smatch base_match;
     std::regex ip_addr("(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})");
     std::regex_match(ip, base_match, ip_addr);
@@ -146,10 +148,18 @@ static GRAB_COLOR_TYPE GetColorType(int num)
 {
     return num < s_grabColorTypes.size() ? static_cast<GRAB_COLOR_TYPE>(num) : GRAB_COLOR_TYPE::RGB;
 }
+static GRAB_COLOR_TYPE GetColorType(const string &name)
+{
+    auto it = find(cbegin(s_grabColorTypes), cend(s_grabColorTypes), name);
+    return it != cend(s_grabColorTypes)
+               ? static_cast<GRAB_COLOR_TYPE>(it - cbegin(s_grabColorTypes))
+               : GRAB_COLOR_TYPE::RGB;
+}
 
 /// CONSTANTS
 static const int POINT_RAD = 4;
 static const int MAX_PIX_IN_CTRL = 4000;
+constexpr size_t MAX_SENDBUFFER_SIZE = 4096 * 3; /// in bytes
 
 #ifndef LED_MAPPER_NO_GUI
 class ofxDatGuiThemeLM : public ofxDatGuiTheme {

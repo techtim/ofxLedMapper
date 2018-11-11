@@ -13,6 +13,7 @@ namespace LedMapper {
 class ofxLedArtnet {
     bool m_bSetup;
     string m_ip;
+    size_t m_universesInChannel;
     ofxUDPManager m_frameConnection;
 
 public:
@@ -20,11 +21,16 @@ public:
 
     void setup(const string ip);
 
-    bool send(const ofPixels &data) const;
+    bool send(ChannelsToPix &&output);
+    bool sendUniverse(vector<char> &pixels, size_t offset, size_t universe);
 
     void bindGui(ofxDatGui *gui);
 
-    size_t getNumChannels() const;
+    vector<string> getChannels() noexcept;
+    static size_t getMaxPixelsOut() noexcept;
+
+    void saveJson(ofJson &config) const;
+    void loadJson(const ofJson &config);
 };
 
 } // namespace LedMapper

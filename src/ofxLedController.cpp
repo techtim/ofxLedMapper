@@ -21,6 +21,7 @@
  */
 
 #include "ofxLedController.h"
+#include "grab/ofxLedGrabXmlLoad.h"
 #include "ofxLedPixelGrab.h"
 
 namespace LedMapper {
@@ -45,15 +46,14 @@ ofxLedController::ofxLedController(const int _id, const string &_path)
     , m_channelList({ m_ledOut.getChannels() })
     , m_channelsTotalLeds(m_channelList.size(), 0)
     , m_ledPoints(0)
-    , m_maxPixInChannel(MAX_PIX_IN_CTRL / m_channelList.size())
+    , m_maxPixInChannel(m_ledOut.getMaxPixelsOut() / m_channelList.size())
 {
     m_channelGrabObjects.resize(m_channelList.size());
 
     setColorType(GRAB_COLOR_TYPE::RGB);
     setFps(m_fps);
 
-    /// Max leds per controller = 5000
-    m_fboLeds.allocate(500, ceil(MAX_PIX_IN_CTRL / 500.f), GL_RGB);
+    m_fboLeds.allocate(500, ceil(m_ledOut.getMaxPixelsOut() / 500.f), GL_RGB);
     m_fboLeds.begin();
     ofClear(0, 0, 0, 255);
     m_fboLeds.end();
@@ -86,6 +86,7 @@ void ofxLedController::disableEvents()
     ofRemoveListener(ofEvents().keyReleased, this, &ofxLedController::keyReleased);
 }
 
+/// callback from ofxLedMapper to notify Controllers List to check color on violated connection
 void ofxLedController::setOnControllerStatusChange(function<void(void)> callback)
 {
     m_statusChanged = callback;
@@ -160,8 +161,7 @@ void ofxLedController::draw()
 
     /// draw grabbed texture
     ofSetColor(255);
-    ofDrawRectangle(0, ofGetHeight() - 10, m_fboLeds.getWidth(), m_fboLeds.getHeight());
-    m_fboLeds.draw(0, ofGetHeight() - 10);
+    m_fboLeds.draw(0, ofGetHeight() - m_fboLeds.getHeight());
 }
 
 /// Send by UDP grab points data updated with grabbedImg
@@ -227,7 +227,8 @@ void ofxLedController::updateGrabPoints()
     m_grabBounds.set(0, 0, res.x + 1, res.y + 1);
 }
 
-/// Update color for grab points pixels
+/// Update color for grab points, draw vbo mesh of points, grab texIn pixels in points positions
+/// put grabbed in fbo by mesh vertex id
 ChannelsToPix ofxLedController::updatePixels(const ofTexture &texIn)
 {
     m_fboLeds.begin();
@@ -258,6 +259,7 @@ ChannelsToPix ofxLedController::updatePixels(const ofTexture &texIn)
     size_t ledsOffset = 0;
     size_t ledChannel = 0;
 
+    /// Pack grabbed pixels from texture to channels
     for (auto ledsInChan : m_channelsTotalLeds) {
         ledsInChan *= 3; // for GL_RGB
         ledsInChan
@@ -304,145 +306,69 @@ void ofxLedController::setFps(float fps)
 //
 void ofxLedController::save(const string &path)
 {
-    m_ledPoints.clear();
-    m_ledPoints.reserve(m_totalLeds);
-
-    XML.clear();
-    int tagNum = XML.addTag("CONF");
-    XML.setValue("CONF:colorType", m_colorType, tagNum);
-    XML.setValue("CONF:LedType", m_ledOut.getLedType(), tagNum);
-    XML.setValue("CONF:PixInLed", m_pixelsInLed, tagNum);
-    XML.setValue("CONF:fps", m_fps, tagNum);
-    XML.setValue("CONF:UdpSend", m_bSend, tagNum);
-    XML.setValue("CONF:IpAddress", m_ledOut.getIP(), tagNum);
-    XML.setValue("CONF:Port", m_ledOut.getPort(), tagNum);
-    XML.popTag();
-
-    int lastStrokeNum = XML.addTag("STROKE");
-    int chanCtr = 0;
-    for (auto &channelGrabs : m_channelGrabObjects) {
-        for (auto &grab : channelGrabs) {
-            /// xml
-            if (XML.pushTag("STROKE", lastStrokeNum)) {
-                grab->setChannel(chanCtr);
-                int tagNum = XML.addTag("LN");
-                grab->save(XML, tagNum);
-                XML.popTag();
-            }
-            /// json
-            auto grabPoints = grab->getLedPoints();
-            m_ledPoints.insert(m_ledPoints.end(), grabPoints.begin(), grabPoints.end());
-        }
-        ++chanCtr;
-    }
-
     ofJson config;
-    config["ipAddress"] = m_ledOut.getIP();
-    config["port"] = m_ledOut.getPort();
-    config["colorType"] = m_colorType;
+    config["colorType"] = s_grabColorTypes[m_colorType];
     config["pixInLed"] = m_pixelsInLed;
     config["fps"] = m_fps;
     config["bSend"] = m_bSend;
     m_ledOut.saveJson(config);
-    //    config["points"] = m_ledPoints;
-    ofstream jsonFile(path + ofToString(m_id) + ".json");
+
+    ofJson grabs_array;
+    for (auto &channelGrabs : m_channelGrabObjects)
+        for (auto &grab : channelGrabs)
+            grabs_array.emplace_back(grab);
+
+    config["grabs"] = grabs_array;
+    ofstream jsonFile(path + LCFileName + ofToString(m_id) + ".json");
     jsonFile << config.dump(4);
     jsonFile.close();
 
-    auto xmlPath = ofFilePath::addTrailingSlash(path) + LCFileName + ofToString(m_id) + ".xml";
-    ofLogNotice() << "[ofxLedController] Save config to " << xmlPath;
-    XML.save(xmlPath);
+    ofLogNotice() << "[ofxLedController] Save config to " << path << LCFileName << m_id << ".json";
 }
 
 void ofxLedController::load(const string &path)
 {
-    auto xmlPath = ofFilePath::addTrailingSlash(path) + LCFileName + ofToString(m_id) + ".xml";
-
-    if (!XML.loadFile(xmlPath)) {
-        ofLogError() << "[ofxLedController] No config with path=" << xmlPath;
-        return;
-    }
-
-    ofLogNotice("[ofxLedController] Load file=" + xmlPath);
-
-    XML.pushTag("CONF", 0);
-
-    setColorType(GetColorType(XML.getValue("colorType", 0, 0)));
-
-    m_pixelsInLed = XML.getValue("PixInLed", 1.f, 0);
-    m_bSend = XML.getValue("UdpSend", false, 0) ? true : false;
-    ofLogVerbose() << "UdpSend=" << (m_bSend ? "true" : "false");
-
-    m_fps = XML.getValue("fps", 25, 0);
-
-    m_ledOut.setup(XML.getValue("IpAddress", RPI_IP, 0), RPI_PORT);
-    m_ledOut.sendLedType(XML.getValue("LedType", "", 0));
-
-    XML.popTag();
-
-    parseXml(XML);
-
-    for (auto &channelGrabs : m_channelGrabObjects)
-        for (auto &grab : channelGrabs)
-            grab->setPixelsInLed(m_pixelsInLed);
-
-    markDirtyGrabPoints();
-    updateGrabPoints();
-}
-
-void ofxLedController::parseXml(ofxXmlSettings &XML)
-{
-    int numDragTags = XML.getNumTags("STROKE:LN");
-
-    if (numDragTags == 0)
-        return;
-
     m_channelGrabObjects.clear();
     m_channelGrabObjects.resize(m_channelList.size());
 
-    ofLogVerbose("[ofxLedController] Load lines from XML");
-    // we push into the last STROKE tag this temporarirly treats the tag as the document root.
-    XML.pushTag("STROKE", numDragTags - 1);
-
-    // we see how many points we have stored in <LN> tags
-    int numPtTags = XML.getNumTags("LN");
-
-    if (numPtTags > 0) {
-        for (int i = 0; i < numPtTags; i++) {
-            // the last argument of getValue can be used to specify
-            // which tag out of multiple tags you are refering to.
-            unique_ptr<ofxLedGrab> tmpObj{ nullptr };
-            if (XML.getValue("LN:TYPE", LMGrabType::GRAB_EMPTY, i) == LMGrabType::GRAB_LINE) {
-                tmpObj = make_unique<ofxLedGrabLine>(
-                    ofVec2f(XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i)),
-                    ofVec2f(XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i)));
-                tmpObj->load(XML, i);
-            }
-            else if (XML.getValue("LN:TYPE", LMGrabType::GRAB_EMPTY, i)
-                     == LMGrabType::GRAB_CIRCLE) {
-                tmpObj = make_unique<ofxLedGrabCircle>(
-                    ofVec2f(XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i)),
-                    ofVec2f(XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i)));
-                tmpObj->load(XML, i);
-            }
-            else if (XML.getValue("LN:TYPE", LMGrabType::GRAB_EMPTY, i)
-                     == LMGrabType::GRAB_MATRIX) {
-                tmpObj = make_unique<ofxLedGrabMatrix>(
-                    ofVec2f(XML.getValue("LN:fromX", 0, i), XML.getValue("LN:fromY", 0, i)),
-                    ofVec2f(XML.getValue("LN:toX", 0, i), XML.getValue("LN:toY", 0, i)));
-                tmpObj->load(XML, i);
-            }
-
-            if (tmpObj == nullptr)
-                ofLogError() << "ofxLedController Malformed XML config, LN:TYPE unknown or empty"
-                             << XML.getValue("LN:TYPE", 0, i);
-
-            int chan = XML.getValue("LN:CHANNEL", 0, i);
-            tmpObj->setObjectId(m_channelGrabObjects[chan].size());
-            m_channelGrabObjects[chan].emplace_back(move(tmpObj));
-        }
+    auto json
+        = ofLoadJson(ofFilePath::addTrailingSlash(path) + LCFileName + ofToString(m_id) + ".json");
+    if (json.empty()) {
+        /// fallback for older XML config
+        if (!ParseXmlToGrabObjects(ofFilePath::addTrailingSlash(path) + LCFileName
+                                       + ofToString(m_id) + ".xml",
+                                   m_channelGrabObjects, json))
+            return;
     }
-    XML.popTag();
+
+    m_ledOut.loadJson(json);
+
+    setColorType(GetColorType(json.count("colorType") ? json.at("colorType").get<string>() : ""));
+
+    m_pixelsInLed = json.count("pixInLed") ? json.at("pixInLed").get<float>() : 2.0;
+    m_fps = json.count("fps") ? json.at("fps").get<int>() : 25;
+    m_bSend = json.count("bSend") ? json.at("bSend").get<bool>() : false;
+
+    if (!json.count("grabs"))
+        return;
+
+    vector<unique_ptr<ofxLedGrab>> jsonGrabs;
+    jsonGrabs = json.at("grabs").get<vector<unique_ptr<ofxLedGrab>>>();
+
+    unordered_map<size_t, size_t> chanIdCntr;
+    for (auto &grab : jsonGrabs) {
+        auto chan = grab->getChannel();
+        if (chan >= m_channelList.size())
+            continue;
+        grab->setPixelsInLed(m_pixelsInLed);
+        grab->setObjectId(chanIdCntr[chan]++);
+        m_channelGrabObjects[chan].emplace_back(move(grab));
+    }
+
+    markDirtyGrabPoints();
+    updateGrabPoints();
+
+    return;
 }
 
 //
@@ -465,22 +391,17 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
         case LMGrabType::GRAB_LINE: {
             /// deselect previous active grabs
             setGrabsSelected(false);
-            auto lineGrab = ofxLedGrabLine(args, args, m_pixelsInLed);
-            addGrab(GetUniqueTypedGrab(LMGrabType::GRAB_LINE, lineGrab));
-            markDirtyGrabPoints();
+            addGrab(make_unique<ofxLedGrabLine>(args, args, m_pixelsInLed));
             break;
         }
         case LMGrabType::GRAB_MATRIX: {
             setGrabsSelected(false);
-            auto matGrab = ofxLedGrabMatrix(args, args, m_pixelsInLed);
-            addGrab(GetUniqueTypedGrab(LMGrabType::GRAB_MATRIX, matGrab));
+            addGrab(make_unique<ofxLedGrabMatrix>(args, args, m_pixelsInLed));
             break;
         }
         case LMGrabType::GRAB_CIRCLE: {
             setGrabsSelected(false);
-            auto circGrab = ofxLedGrabCircle(args, args + ofVec2f(20.f), m_pixelsInLed);
-            addGrab(GetUniqueTypedGrab(LMGrabType::GRAB_CIRCLE, circGrab));
-            markDirtyGrabPoints();
+            addGrab(make_unique<ofxLedGrabCircle>(args, args, m_pixelsInLed));
             break;
         }
     }
@@ -547,17 +468,15 @@ void ofxLedController::setPixInLed(const float pixInled)
     markDirtyGrabPoints();
 }
 
-unique_ptr<ofxLedGrab> ofxLedController::GetUniqueTypedGrab(int type, const ofxLedGrab &grab)
+unique_ptr<ofxLedGrab> ofxLedController::GetUniqueTypedGrab(const ofxLedGrab *grab)
 {
-    switch (type) {
+    switch (grab->getType()) {
         case LMGrabType::GRAB_LINE:
-            return make_unique<ofxLedGrabLine>(grab.getFrom(), grab.getTo(), grab.getPixelsInLed());
+            return make_unique<ofxLedGrabLine>(*(dynamic_cast<const ofxLedGrabLine *>(grab)));
         case LMGrabType::GRAB_MATRIX:
-            return make_unique<ofxLedGrabMatrix>(grab.getFrom(), grab.getTo(),
-                                                 grab.getPixelsInLed());
+            return make_unique<ofxLedGrabMatrix>(*(dynamic_cast<const ofxLedGrabMatrix *>(grab)));
         case LMGrabType::GRAB_CIRCLE:
-            return make_unique<ofxLedGrabCircle>(grab.getFrom(), grab.getTo(),
-                                                 grab.getPixelsInLed());
+            return make_unique<ofxLedGrabCircle>(*(dynamic_cast<const ofxLedGrabCircle *>(grab)));
         default:
             break;
     }
@@ -579,7 +498,7 @@ void ofxLedController::deleteSelectedGrabs()
 {
     /// remove selected if has
     auto it = std::remove_if(begin(*m_currentChannel), end(*m_currentChannel),
-                             [](auto &grab) { return (*grab).isSelected(); });
+                             [](auto &grab) { return grab->isSelected(); });
     if (it == end(*m_currentChannel))
         return;
 

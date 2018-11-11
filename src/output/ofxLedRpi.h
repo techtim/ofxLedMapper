@@ -37,10 +37,13 @@ class ofxLedRpi {
     vector<char> m_output;
 
 public:
+    static vector<string> getChannels() noexcept;
+    static size_t getMaxPixelsOut() noexcept;
+
     ofxLedRpi();
     ~ofxLedRpi();
     void setup(const string ip, const int port = RPI_PORT);
-    void resetup();
+    bool resetup();
     void bindGui(ofxDatGui *gui);
 
     bool send(ChannelsToPix &&output);
@@ -48,8 +51,6 @@ public:
 
     void saveJson(ofJson &) const;
     void loadJson(const ofJson &config);
-
-    vector<string> getChannels() const noexcept;
 
     string getIP() const noexcept { return m_ip; }
     int getPort() const noexcept { return m_port; }

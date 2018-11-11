@@ -11,9 +11,10 @@ static const vector<string> s_channelList = { "channel 1", "channel 2" };
 /// s_ledTypeList elements must be the same as keys in s_ledTypeToEnum map in lmListener on RPI side
 static const vector<string> s_ledTypeList = { "WS281X", "SK9822" };
 
-constexpr size_t s_maxSendBufferSize = 4096 * 3;
+constexpr size_t s_maxPixelsOut = 4000;
 
-vector<string> ofxLedRpi::getChannels() const noexcept { return s_channelList; }
+vector<string> ofxLedRpi::getChannels() noexcept { return s_channelList; }
+size_t ofxLedRpi::getMaxPixelsOut() noexcept { return s_maxPixelsOut; }
 
 ofxLedRpi::ofxLedRpi()
     : m_bSetup(false)
@@ -28,7 +29,11 @@ ofxLedRpi::~ofxLedRpi()
     m_confConnection.Close();
 }
 
-void ofxLedRpi::resetup() { setup(m_ip, m_port); }
+bool ofxLedRpi::resetup()
+{
+    setup(m_ip, m_port);
+    return false; /// for ternary operator in send
+}
 
 void ofxLedRpi::setup(const string ip, int port)
 {
@@ -47,7 +52,7 @@ void ofxLedRpi::setup(const string ip, int port)
     if (m_confConnection.Connect(m_ip.c_str(), RPI_CONF_PORT))
         ofLogVerbose() << "[ofxLedRpi] setup config connect to conf port=" << RPI_CONF_PORT;
 
-    m_frameConnection.SetSendBufferSize(s_maxSendBufferSize);
+    m_frameConnection.SetSendBufferSize(MAX_SENDBUFFER_SIZE);
     m_frameConnection.SetNonBlocking(true);
     m_confConnection.SetNonBlocking(true);
 
@@ -83,7 +88,7 @@ bool ofxLedRpi::send(ChannelsToPix &&output)
     m_output.reserve(output.size() * 2 + 2 + num_bytes);
 
     /// don't send too much data
-    if (m_output.capacity() >= s_maxSendBufferSize)
+    if (m_output.capacity() >= MAX_SENDBUFFER_SIZE)
         return false;
 
     for (size_t i = 0; i < output.size(); ++i) {
@@ -98,13 +103,7 @@ bool ofxLedRpi::send(ChannelsToPix &&output)
     for (auto &vec : output)
         move(vec.begin(), vec.end(), back_inserter(m_output));
 
-    if (m_frameConnection.Send(m_output.data(), m_output.size()) != -1) {
-        return true;
-    }
-    else {
-        resetup();
-        return false;
-    }
+    return m_frameConnection.Send(m_output.data(), m_output.size()) != -1 ? true : resetup();
 }
 
 void ofxLedRpi::sendLedType(const string &ledType)
@@ -132,10 +131,10 @@ void ofxLedRpi::saveJson(ofJson &config) const
 void ofxLedRpi::loadJson(const ofJson &config)
 {
     m_currentLedType
-        = config.at("ledType") ? config.at("ledType").get<string>() : s_ledTypeList.front();
+        = config.count("ledType") ? config.at("ledType").get<string>() : s_ledTypeList.front();
 
-    setup(config.at("ipAddress") ? config.at("ipAddress").get<string>() : RPI_IP,
-          config.at("port") ? config.at("port").get<int>() : RPI_PORT);
+    setup(config.count("ipAddress") ? config.at("ipAddress").get<string>() : RPI_IP,
+          config.count("port") ? config.at("port").get<int>() : RPI_PORT);
 }
 
 } // namespace LedMapper

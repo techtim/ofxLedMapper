@@ -414,12 +414,11 @@ bool ofxLedMapper::save()
 void ofxLedMapper::copyGrabs()
 {
     m_copyPasteGrabs.clear();
+
     for (const auto &grab : m_controllers.at(m_currentCtrl)->peekCurrentGrabs())
-        if (grab->isSelected()) {
-            auto newGrab
-                = move(ofxLedController::GetUniqueTypedGrab(grab->getType(), grab.operator*()));
-            m_copyPasteGrabs.emplace_back(move(newGrab));
-        }
+        if (grab->isSelected())
+            m_copyPasteGrabs.emplace_back(ofxLedController::GetUniqueTypedGrab(grab.get()));
+
     ofLogVerbose() << "Copied controller #" << m_currentCtrl
                    << " grabs, size=" << m_copyPasteGrabs.size();
 }
@@ -431,14 +430,12 @@ void ofxLedMapper::pasteGrabs()
     /// deselect currently selected
     m_controllers.at(m_currentCtrl)->setGrabsSelected(false);
     for (auto &grab : m_copyPasteGrabs) {
-        grab->set(grab->getFrom() + ofVec2f(10), grab->getTo() + ofVec2f(10));
+        grab->set(grab->getFrom() + ofVec2f(20), grab->getTo() + ofVec2f(20));
         ofLogVerbose() << "Pasting Grab: " << *grab;
-        m_controllers.at(m_currentCtrl)
-            ->addGrab(
-                move(ofxLedController::GetUniqueTypedGrab(grab->getType(), grab.operator*())));
+        m_controllers.at(m_currentCtrl)->addGrab(ofxLedController::GetUniqueTypedGrab(grab.get()));
     }
 
-    ofLogVerbose() << "Copied controller #" << m_currentCtrl
+    ofLogVerbose() << "Copied to controller #" << m_currentCtrl
                    << " grabs, size=" << m_copyPasteGrabs.size();
 }
 
@@ -507,10 +504,10 @@ void ofxLedMapper::keyPressed(ofKeyEventArgs &data)
         case 'c':
 #ifndef WIN32
             if (data.hasModifier(LM_KEY_CONTROL)) /// don't work on win
-#endif 
-			{
-				copyGrabs();
-			}
+#endif
+            {
+                copyGrabs();
+            }
             break;
         case OF_KEY_BACKSPACE:
             m_controllers.at(m_currentCtrl)->deleteSelectedGrabs();
