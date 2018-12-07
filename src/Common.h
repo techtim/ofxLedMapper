@@ -140,7 +140,7 @@ static const int LM_COLOR_GREEN_DARK = 0x004d40;
 static const int LM_COLOR_GREEN_LIGHT = 0x6BE6B4;
 static const int LM_COLOR_RED = 0xbf093a;
 static const int LM_COLOR_RED_DARK = 0x870427;
-
+static const int LM_COLOR_EIGENGRAU = 0x16161D;
 /// COLOR TYPES
 enum GRAB_COLOR_TYPE { RGB = 0, RBG = 1, BRG = 2, BGR = 3, GRB = 4, GBR = 5 };
 static const vector<string> s_grabColorTypes = { "RGB", "RBG", "BRG", "BGR", "GRB", "GBR" };
@@ -158,7 +158,6 @@ static GRAB_COLOR_TYPE GetColorType(const string &name)
 
 /// CONSTANTS
 static const int POINT_RAD = 4;
-static const int MAX_PIX_IN_CTRL = 4000;
 constexpr size_t MAX_SENDBUFFER_SIZE = 4096 * 3; /// in bytes
 
 #ifndef LED_MAPPER_NO_GUI

@@ -85,6 +85,7 @@ bool ofxLedRpi::send(ChannelsToPix &&output)
 
     size_t num_bytes = 0;
     std::for_each(output.begin(), output.end(), [&](const auto &vec) { num_bytes += vec.size(); });
+    /// reserve space for header + end of header + num_bytes of pixels colors
     m_output.reserve(output.size() * 2 + 2 + num_bytes);
 
     /// don't send too much data

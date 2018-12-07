@@ -43,6 +43,7 @@ public:
     ofxLedController(const ofxLedController &) = delete;
     ofxLedController(ofxLedController &&) = delete;
 
+    void setOutput(OutputWrapper &&out);
     void setOnControllerStatusChange(function<void(void)> callback);
     ~ofxLedController();
 
@@ -107,7 +108,7 @@ private:
 
     unsigned int m_totalLeds;
     vector<char> m_output;
-    ofxLedRpi m_ledOut;
+    OutputWrapper m_ledOut;
 
     ofVboMesh m_vboLeds;
     ofShader m_shaderGrab;
@@ -121,9 +122,9 @@ private:
     vector<unique_ptr<ofxLedGrab>> *m_currentChannel;
     size_t m_currentChannelNum;
 
+    vector<glm::vec3> m_ledPoints;
     vector<string> m_channelList;
     vector<uint16_t> m_channelsTotalLeds;
-    vector<glm::vec3> m_ledPoints;
     size_t m_maxPixInChannel;
 
     LMGrabType m_currentGrabType;

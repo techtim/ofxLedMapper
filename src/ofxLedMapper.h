@@ -40,8 +40,8 @@ public:
     void draw();
     void drawGui();
     void send(const ofTexture &);
-    bool add(string folder_path);
-    bool add(unsigned int _ctrlId, string folder_path);
+    bool add(string folder_path, OutputType type = LedRpi);
+    bool add(unsigned int _ctrlId, string folder_path, OutputType type = LedRpi);
     bool remove(unsigned int _ctrlId);
     bool load(string folderPath);
     bool load();

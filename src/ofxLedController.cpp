@@ -43,17 +43,17 @@ ofxLedController::ofxLedController(const int _id, const string &_path)
     , m_totalLeds(0)
     , m_statusChanged(nullptr)
     , m_currentChannelNum(0)
-    , m_channelList({ m_ledOut.getChannels() })
-    , m_channelsTotalLeds(m_channelList.size(), 0)
     , m_ledPoints(0)
-    , m_maxPixInChannel(m_ledOut.getMaxPixelsOut() / m_channelList.size())
+    , m_channelList(0)
+    , m_channelsTotalLeds(m_channelList.size(), 0)
+    , m_maxPixInChannel(0)
 {
     m_channelGrabObjects.resize(m_channelList.size());
 
     setColorType(GRAB_COLOR_TYPE::RGB);
     setFps(m_fps);
 
-    m_fboLeds.allocate(500, ceil(m_ledOut.getMaxPixelsOut() / 500.f), GL_RGB);
+    m_fboLeds.allocate(500, 4000 / 500.f, GL_RGB);
     m_fboLeds.begin();
     ofClear(0, 0, 0, 255);
     m_fboLeds.end();
@@ -84,6 +84,20 @@ void ofxLedController::disableEvents()
     ofRemoveListener(ofEvents().mouseDragged, this, &ofxLedController::mouseDragged);
     ofRemoveListener(ofEvents().keyPressed, this, &ofxLedController::keyPressed);
     ofRemoveListener(ofEvents().keyReleased, this, &ofxLedController::keyReleased);
+}
+
+void ofxLedController::setOutput(OutputWrapper &&out) {
+    m_channelList = getChannels(out);
+    m_channelsTotalLeds.resize(m_channelList.size());
+    m_maxPixInChannel = getMaxPixelsOut(out) / m_channelList.size();
+
+    m_fboLeds.allocate(500, getMaxPixelsOut(out) / 500.f), GL_RGB);
+    m_fboLeds.begin();
+    ofClear(0, 0, 0, 255);
+    m_fboLeds.end();
+
+    m_ledOut = move(out);
+    m_ledOut.setup(m_ip);
 }
 
 /// callback from ofxLedMapper to notify Controllers List to check color on violated connection
@@ -239,15 +253,7 @@ ChannelsToPix ofxLedController::updatePixels(const ofTexture &texIn)
     m_shaderGrab.setUniform2i("inTexResolution", texIn.getWidth(), texIn.getHeight());
     m_shaderGrab.setUniform2i("outTexResolution", m_fboLeds.getWidth(), m_fboLeds.getHeight());
 
-    ofPushStyle();
-    ofEnableBlendMode(OF_BLENDMODE_ADD);
-    ofSetColor(255);
-
     m_vboLeds.draw(OF_MESH_POINTS);
-
-    ofDisableBlendMode();
-
-    ofPopStyle();
 
     m_shaderGrab.end();
     m_fboLeds.end();
@@ -270,7 +276,7 @@ ChannelsToPix ofxLedController::updatePixels(const ofTexture &texIn)
         std::move(m_pixels.begin() + ledsOffset, m_pixels.begin() + ledsOffset + ledsInChan,
                   std::back_inserter(output[ledChannel]));
         ledsOffset += ledsInChan;
-        ledChannel++;
+        ++ledChannel;
     }
 
     return output;

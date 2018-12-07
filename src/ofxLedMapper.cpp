@@ -130,19 +130,24 @@ void ofxLedMapper::send(const ofTexture &texIn)
     }
 }
 
-bool ofxLedMapper::add(string folder_path)
+bool ofxLedMapper::add(string folder_path, OutputType type)
 {
-    add(m_controllers.size(), folder_path);
+    add(m_controllers.size(), folder_path, type);
     return true;
 }
 
-bool ofxLedMapper::add(unsigned int _ctrlId, string folder_path)
+bool ofxLedMapper::add(unsigned int _ctrlId, string folder_path, OutputType type)
 {
     unsigned int ctrlId = _ctrlId;
     while (!checkUniqueId(ctrlId)) {
         ctrlId++;
     }
-    auto ctrl = make_unique<ofxLedController>(ctrlId, folder_path);
+    auto ctrl = make_unique<ofxLedController>(ctrlId, folder_path);;
+    if (type == LedRpi)
+        ctrl->setOutput(ofxLedRpi());
+    else
+        ctrl->setOutput(ofxLedArtNet());
+
     ctrl->disableEvents();
 #ifndef LED_MAPPER_NO_GUI
     function<void(void)> fnc = [this](void) { this->updateControllersListGui(); };
