@@ -144,6 +144,8 @@ public:
     ofVec2f getFrom() const { return m_from; }
     ofVec2f getTo() const { return m_to; }
 
+    void setStartAngle(float angle) { m_startAngle = angle; }
+
     void setClickedPos(const ofVec2f &pos) { m_clickedPos = pos; }
     const ofVec2f &getClickedPos() const { return m_clickedPos; }
 
@@ -164,7 +166,6 @@ public:
     void setSelected(bool selected) { m_bSelected = selected; }
     bool isSelected() const { return m_bSelected; }
 
-    virtual void setStartAngle(float angle) { startAngle = angle; }
     int getType() const { return m_type; };
 
     const vector<ofVec2f> &points() const { return m_points; }
@@ -181,16 +182,12 @@ public:
     }
 
     /// ------- Variables -------
-
-    unsigned int m_id;
-
-    ofVec2f m_from, m_to, m_clickedPos;
-    int m_type = LMGrabType::GRAB_EMPTY;
     bool m_bActive, m_bSelected, m_bSelectedFrom, m_bSelectedTo;
-
-    float m_pixelsInLed;
-    float startAngle;
+    unsigned int m_id;
+    int m_type = LMGrabType::GRAB_EMPTY;
     int m_channel, m_pixelsInObject;
+    float m_pixelsInLed, m_startAngle;
+    ofVec2f m_from, m_to, m_clickedPos;
 
     vector<ofVec2f> m_points;
     ofRectangle m_bounds;
@@ -384,7 +381,6 @@ public:
 
 class ofxLedGrabCircle : public ofxLedGrab {
     float m_radius;
-    float m_startAngle;
     bool m_isClockwise;
 
 public:
@@ -476,7 +472,6 @@ public:
 
     void drawGui() override { ; }
 
-    void setStartAngle(float angle) override { m_startAngle = angle; }
     void setClockwise(bool bClock) { m_isClockwise = bClock; }
 
     void updatePoints() override
