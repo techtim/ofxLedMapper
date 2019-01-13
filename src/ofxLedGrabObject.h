@@ -193,7 +193,33 @@ public:
     ofRectangle m_bounds;
 
 #ifndef LED_MAPPER_NO_GUI
-    unique_ptr<ofxDatGui> gui;
+    void bindGui(ofxDatGui *gui)
+    {
+        gui->clear();
+
+        gui->addHeader("Grab " + to_string(m_id));
+        auto sInput = gui->addSlider("pixel step", 1, 20);
+        sInput->bind(m_pixelsInLed);
+        sInput->setValue(m_pixelsInLed);
+        //        sInput = gui->addToggle("double line", m_isDoubleLine);
+//            ofxDatGuiToggle *tInput = gui->addToggle("double line", false);
+//            tInput->bind(m_isDoubleLine);
+
+        sInput = gui->addSlider("from X", 0, 1000);
+        sInput->bind(m_from.x);
+        sInput->setValue(m_from.x);
+        sInput = gui->addSlider("from Y", 0, 1000);
+        sInput->bind(m_from.y);
+        sInput->setValue(m_from.y);
+
+        sInput = gui->addSlider("to X", 0, 2000);
+        sInput->bind(m_to.x);
+        sInput->setValue(m_to.x);
+        sInput = gui->addSlider("to Y", 0, 2000);
+        sInput->bind(m_to.y);
+        sInput->setValue(m_to.y);
+    }
+
 #endif
 
     friend std::ostream &operator<<(std::ostream &os, const ofxLedGrab &obj);
@@ -224,33 +250,6 @@ public:
         , m_isDoubleLine(line.m_isDoubleLine)
     {
         updatePoints();
-    }
-
-    void setupGui()
-    {
-#ifndef LED_MAPPER_NO_GUI
-        gui = make_unique<ofxDatGui>(ofxDatGuiAnchor::TOP_RIGHT);
-        gui->setWidth(LM_GUI_WIDTH);
-
-        //    ofxDatGuiFolder* folder = gui->addFolder("parameters", ofColor::white);
-        ofxDatGuiSlider *sInput;
-        sInput = gui->addSlider("pixel step", 1, 20);
-        sInput->bind(m_pixelsInLed);
-
-        //        sInput = gui->addToggle("double line", m_isDoubleLine);
-        ofxDatGuiToggle *tInput = gui->addToggle("double line", false);
-        tInput->bind(m_isDoubleLine);
-
-        sInput = gui->addSlider("from X", 0, 1000);
-        sInput->bind(m_from.x);
-        sInput = gui->addSlider("from Y", 0, 1000);
-        sInput->bind(m_from.y);
-
-        sInput = gui->addSlider("to X", 0, 2000);
-        sInput->bind(m_to.x);
-        sInput = gui->addSlider("to Y", 0, 2000);
-        sInput->bind(m_to.y);
-#endif
     }
 
     ~ofxLedGrabLine(){};
@@ -387,19 +386,18 @@ public:
     ofxLedGrabCircle(const ofVec2f &from = ofVec2f(0), const ofVec2f &to = ofVec2f(0),
                      float pixInLed = 2.f)
         : ofxLedGrab(from, to, pixInLed)
-        , m_startAngle(-90.f)
         , m_isClockwise(true)
     {
         ofxLedGrab::m_type = LMGrabType::GRAB_CIRCLE;
-
+        ofxLedGrab::m_startAngle = -90.f;
         updatePoints();
     }
 
     ofxLedGrabCircle(const ofxLedGrabCircle &circle)
         : ofxLedGrab(circle)
-        , m_startAngle(circle.m_startAngle)
         , m_isClockwise(circle.m_isClockwise)
     {
+        ofxLedGrab::m_startAngle = circle.m_startAngle;
         updatePoints();
     }
 

@@ -15,14 +15,28 @@
 /// Static function to generate ubniversal container for controllers GUI
 static unique_ptr<ofxDatGui> GenerateOutputGui()
 {
-    ofLogVerbose() << "Generate scene gui";
+    ofLogVerbose() << "Generate Controller gui";
 
     unique_ptr<ofxDatGui> gui = make_unique<ofxDatGui>();
-    gui->setPosition(ofGetWidth() - 200, ofGetHeight() / 4);
+    gui->setPosition(ofGetWidth() - LM_GUI_WIDTH, ofGetHeight() / 4);
     gui->setAutoDraw(false);
     gui->setWidth(LM_GUI_WIDTH);
     /// set theme for gui and apply emediatly to all added components
 
-    return move(gui);
+    return gui;
 }
+
+static unique_ptr<ofxDatGui> GenerateGrabGui()
+{
+    ofLogVerbose() << "Generate Grab gui";
+
+    unique_ptr<ofxDatGui> gui = make_unique<ofxDatGui>();
+    gui->setPosition(ofGetWidth() - LM_GUI_WIDTH * 2, ofGetHeight() / 4);
+    gui->setAutoDraw(false);
+    gui->setWidth(LM_GUI_WIDTH);
+    /// set theme for gui and apply emediatly to all added components
+
+    return gui;
+}
+
 #endif
