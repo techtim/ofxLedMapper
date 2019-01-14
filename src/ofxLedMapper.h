@@ -64,7 +64,7 @@ public:
     void windowResized(ofResizeEventArgs &args);
 
 private:
-    map<size_t, unique_ptr<ofxLedController>> m_controllers;
+    map<size_t, unique_ptr<ofxLedControllerRpi>> m_controllers;
     unsigned int m_currentCtrl;
     ofxXmlSettings XML;
     ofDirectory m_dir;

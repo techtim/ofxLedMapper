@@ -24,6 +24,11 @@ ofxLedArtnet::ofxLedArtnet()
 {
 }
 
+ofxLedArtnet::~ofxLedArtnet()
+{
+    m_frameConnection.Close();
+}
+
 void ofxLedArtnet::setup(const string ip)
 {
     m_ip = move(ip);
@@ -39,6 +44,11 @@ void ofxLedArtnet::setup(const string ip)
     m_frameConnection.SetNonBlocking(true);
 
     m_bSetup = true;
+}
+bool ofxLedArtnet::resetup()
+{
+    setup(m_ip);
+    return false; /// for ternary operator in send
 }
 
 void ofxLedArtnet::bindGui(ofxDatGui *gui)

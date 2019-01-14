@@ -387,19 +387,18 @@ public:
     ofxLedGrabCircle(const ofVec2f &from = ofVec2f(0), const ofVec2f &to = ofVec2f(0),
                      float pixInLed = 2.f)
         : ofxLedGrab(from, to, pixInLed)
-        , m_startAngle(-90.f)
         , m_isClockwise(true)
     {
         ofxLedGrab::m_type = LMGrabType::GRAB_CIRCLE;
-
+        ofxLedGrab::m_startAngle = -90.f;
         updatePoints();
     }
 
     ofxLedGrabCircle(const ofxLedGrabCircle &circle)
         : ofxLedGrab(circle)
-        , m_startAngle(circle.m_startAngle)
         , m_isClockwise(circle.m_isClockwise)
     {
+        ofxLedGrab::m_startAngle = circle.m_startAngle;
         updatePoints();
     }
 

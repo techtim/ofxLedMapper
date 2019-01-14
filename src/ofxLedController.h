@@ -35,26 +35,26 @@ using ChannelsGrabObjects = vector<vector<unique_ptr<ofxLedGrab>>>;
 
 /// Class represents connection to one client recieving led data and
 /// control transmittion params like fps, pixel color order, LED IC Type
-
-class ofxLedController {
+template <class Out> class ofxLedController {
 public:
     ofxLedController(const int _id, const string &_path);
     ofxLedController() = delete;
     ofxLedController(const ofxLedController &) = delete;
-    ofxLedController(ofxLedController &&) = delete;
-
-    void setOutput(OutputWrapper &&out);
-    void setOnControllerStatusChange(function<void(void)> callback);
+    ofxLedController(ofxLedController &&) = default;
     ~ofxLedController();
+
+    void setOnControllerStatusChange(function<void(void)> callback);
 
     void save(const string &path);
     void load(const string &path);
 
-    static unique_ptr<ofxLedGrab> GetUniqueTypedGrab(const ofxLedGrab *grab);
     void addGrab(unique_ptr<ofxLedGrab> &&object);
     void deleteSelectedGrabs();
     void draw();
 
+    /// pixel related methods
+    void updateGrabPoints();
+    ChannelsToPix updatePixels(const ofTexture &);
     void send(const ofTexture &texIn);
 
     /// mouse and keyboard events
@@ -63,8 +63,8 @@ public:
     void mouseReleased(ofMouseEventArgs &args);
     void keyPressed(ofKeyEventArgs &data);
     void keyReleased(ofKeyEventArgs &data);
+
     /// turn off global ofListeners for mouse and keyboard events
-    /// used by ofxLedMapper
     void disableEvents();
 
 #ifndef LED_MAPPER_NO_GUI
@@ -73,6 +73,7 @@ public:
     ofVec2f getGuiSize() const { return ofVec2f(LM_GUI_WIDTH, 100); }
 #endif
 
+    /// Setters
     const ChannelsGrabObjects &peekGrabObjects() const { return m_channelGrabObjects; };
     const vector<unique_ptr<ofxLedGrab>> &peekCurrentGrabs() const { return *m_currentChannel; };
 
@@ -83,21 +84,49 @@ public:
     string getIP() const { return m_ledOut.getIP(); }
     unsigned int getId() const { return m_id; }
     unsigned int getTotalLeds() const { return m_totalLeds; }
+    const ofRectangle &peekBounds() const { return m_grabBounds; }
 
-    void markDirtyGrabPoints() { m_bDirtyPoints = true; }
-    void setPixInLed(const float pixInled);
-    void updateGrabPoints();
-    ChannelsToPix updatePixels(const ofTexture &);
-
-    void setFps(float fps);
-    void setSelected(bool state);
-    void setGrabsSelected(bool state);
     void setGrabType(LMGrabType type) { m_currentGrabType = type; }
 
-    GRAB_COLOR_TYPE getColorType(int num) const;
-    void setColorType(GRAB_COLOR_TYPE);
+    void setPixInLed(const float pixInled)
+    {
+        m_pixelsInLed = pixInled;
+        for (auto &channelGrabs : m_channelGrabObjects)
+            for (auto &grab : channelGrabs)
+                grab->setPixelsInLed(m_pixelsInLed);
+        markDirtyGrabPoints();
+    }
 
-    const ofRectangle &peekBounds() const { return m_grabBounds; }
+    void setFps(float fps)
+    {
+        m_fps = fps;
+        m_msecInFrame = 1000 / m_fps;
+    }
+
+    /// Make controllers grab objects highligted and editable
+    void setSelected(bool state)
+    {
+        if (m_bSelected == state)
+            return;
+
+        m_bSelected = state;
+        for (auto &channelGrabs : m_channelGrabObjects)
+            for (auto &grab : channelGrabs)
+                grab->setActive(m_bSelected);
+    }
+
+    void setGrabsSelected(bool state)
+    {
+        for (auto &channelGrabs : m_channelGrabObjects)
+            for (auto &grab : channelGrabs)
+                grab->setSelected(state);
+    }
+
+    void setColorType(GRAB_COLOR_TYPE type)
+    {
+        m_colorType = type;
+        m_shaderGrab = GetShaderForColorGrab(m_colorType);
+    }
 
 private:
     unsigned int m_id;
@@ -108,7 +137,7 @@ private:
 
     unsigned int m_totalLeds;
     vector<char> m_output;
-    OutputWrapper m_ledOut;
+    Out m_ledOut;
 
     ofVboMesh m_vboLeds;
     ofShader m_shaderGrab;
@@ -117,7 +146,6 @@ private:
 
     function<void(void)> m_statusChanged;
 
-    void setCurrentChannel(int);
     ChannelsGrabObjects m_channelGrabObjects;
     vector<unique_ptr<ofxLedGrab>> *m_currentChannel;
     size_t m_currentChannelNum;
@@ -135,9 +163,27 @@ private:
 
     GRAB_COLOR_TYPE m_colorType;
     float m_pixelsInLed;
-    int m_fps;
 
+    /// Frame rate related vars
+    int m_fps;
     uint64_t m_lastFrameTime, m_msecInFrame;
+
+    /// Private methods
+    void setCurrentChannel(int chan)
+    {
+        /// get mod from chan to be in bounds
+        m_currentChannelNum = chan % m_channelList.size();
+        m_currentChannel = &m_channelGrabObjects[m_currentChannelNum];
+    }
+    void markDirtyGrabPoints() { m_bDirtyPoints = true; }
 };
 
+} // namespace LedMapper
+
+#include "ofxLedController.inl"
+
+
+namespace LedMapper {
+    using ofxLedControllerRpi = ofxLedController<ofxLedRpi>;
+    using ofxLedControllerArtnet = ofxLedController<ofxLedArtnet>;
 } // namespace LedMapper

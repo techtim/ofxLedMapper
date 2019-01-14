@@ -7,6 +7,7 @@
 #include "ofMain.h"
 #include "ofxDatGui.h"
 #include "ofxNetwork.h"
+#include "ofxLedOutputBase.h"
 
 namespace LedMapper {
 
@@ -18,16 +19,18 @@ class ofxLedArtnet {
 
 public:
     ofxLedArtnet();
+    ~ofxLedArtnet();
 
     void setup(const string ip);
-
+    bool resetup();
     bool send(ChannelsToPix &&output);
     bool sendUniverse(vector<char> &pixels, size_t offset, size_t universe);
 
     void bindGui(ofxDatGui *gui);
 
     vector<string> getChannels() noexcept;
-    static size_t getMaxPixelsOut() noexcept;
+    size_t getMaxPixelsOut() noexcept;
+    string getIP() const noexcept { return m_ip; }
 
     void saveJson(ofJson &config) const;
     void loadJson(const ofJson &config);

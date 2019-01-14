@@ -142,11 +142,8 @@ bool ofxLedMapper::add(unsigned int _ctrlId, string folder_path, OutputType type
     while (!checkUniqueId(ctrlId)) {
         ctrlId++;
     }
-    auto ctrl = make_unique<ofxLedController>(ctrlId, folder_path);;
-    if (type == LedRpi)
-        ctrl->setOutput(ofxLedRpi());
-    else
-        ctrl->setOutput(ofxLedArtNet());
+
+    auto ctrl = make_unique<ofxLedControllerRpi>(ctrlId, folder_path);;
 
     ctrl->disableEvents();
 #ifndef LED_MAPPER_NO_GUI
@@ -422,7 +419,7 @@ void ofxLedMapper::copyGrabs()
 
     for (const auto &grab : m_controllers.at(m_currentCtrl)->peekCurrentGrabs())
         if (grab->isSelected())
-            m_copyPasteGrabs.emplace_back(ofxLedController::GetUniqueTypedGrab(grab.get()));
+            m_copyPasteGrabs.emplace_back(GetUniqueTypedGrab(grab.get()));
 
     ofLogVerbose() << "Copied controller #" << m_currentCtrl
                    << " grabs, size=" << m_copyPasteGrabs.size();
@@ -437,7 +434,7 @@ void ofxLedMapper::pasteGrabs()
     for (auto &grab : m_copyPasteGrabs) {
         grab->set(grab->getFrom() + ofVec2f(20), grab->getTo() + ofVec2f(20));
         ofLogVerbose() << "Pasting Grab: " << *grab;
-        m_controllers.at(m_currentCtrl)->addGrab(ofxLedController::GetUniqueTypedGrab(grab.get()));
+        m_controllers.at(m_currentCtrl)->addGrab(GetUniqueTypedGrab(grab.get()));
     }
 
     ofLogVerbose() << "Copied to controller #" << m_currentCtrl

@@ -37,11 +37,12 @@ class ofxLedRpi {
     vector<char> m_output;
 
 public:
-    static vector<string> getChannels() noexcept;
-    static size_t getMaxPixelsOut() noexcept;
+    vector<string> getChannels() noexcept;
+    size_t getMaxPixelsOut() noexcept;
 
     ofxLedRpi();
     ~ofxLedRpi();
+
     void setup(const string ip, const int port = RPI_PORT);
     bool resetup();
     void bindGui(ofxDatGui *gui);

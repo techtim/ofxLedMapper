@@ -20,13 +20,13 @@
  SOFTWARE.
  */
 
-#include "ofxLedController.h"
 #include "grab/ofxLedGrabXmlLoad.h"
 #include "ofxLedPixelGrab.h"
 
 namespace LedMapper {
 
-ofxLedController::ofxLedController(const int _id, const string &_path)
+template <class Out>
+ofxLedController<Out>::ofxLedController(const int _id, const string &_path)
     : m_id(_id)
     , m_path(_path)
     , m_bSelected(false)
@@ -44,7 +44,7 @@ ofxLedController::ofxLedController(const int _id, const string &_path)
     , m_statusChanged(nullptr)
     , m_currentChannelNum(0)
     , m_ledPoints(0)
-    , m_channelList(0)
+    , m_channelList({})
     , m_channelsTotalLeds(m_channelList.size(), 0)
     , m_maxPixInChannel(0)
 {
@@ -58,6 +58,10 @@ ofxLedController::ofxLedController(const int _id, const string &_path)
     ofClear(0, 0, 0, 255);
     m_fboLeds.end();
 
+    m_channelList = m_ledOut.getChannels();
+    m_channelsTotalLeds.resize(m_channelList.size());
+    m_maxPixInChannel = m_ledOut.getMaxPixelsOut() / m_channelList.size();
+
     load(m_path);
 
     setCurrentChannel(m_currentChannelNum);
@@ -68,8 +72,8 @@ ofxLedController::ofxLedController(const int _id, const string &_path)
     ofAddListener(ofEvents().keyPressed, this, &ofxLedController::keyPressed);
     ofAddListener(ofEvents().keyReleased, this, &ofxLedController::keyReleased);
 }
-
-ofxLedController::~ofxLedController()
+template <class Out>
+ofxLedController<Out>::~ofxLedController()
 {
     ofLogVerbose("[ofxLedController] Dtor: clear lines + remove event listeners + remove gui");
     disableEvents();
@@ -77,7 +81,8 @@ ofxLedController::~ofxLedController()
 }
 
 /// Disable mouse/key events to explicitly call from ofxLedMapper
-void ofxLedController::disableEvents()
+template <class Out>
+void ofxLedController<Out>::disableEvents()
 {
     ofRemoveListener(ofEvents().mousePressed, this, &ofxLedController::mousePressed);
     ofRemoveListener(ofEvents().mouseReleased, this, &ofxLedController::mouseReleased);
@@ -86,29 +91,32 @@ void ofxLedController::disableEvents()
     ofRemoveListener(ofEvents().keyReleased, this, &ofxLedController::keyReleased);
 }
 
-void ofxLedController::setOutput(OutputWrapper &&out) {
-    m_channelList = getChannels(out);
-    m_channelsTotalLeds.resize(m_channelList.size());
-    m_maxPixInChannel = getMaxPixelsOut(out) / m_channelList.size();
 
-    m_fboLeds.allocate(500, getMaxPixelsOut(out) / 500.f), GL_RGB);
-    m_fboLeds.begin();
-    ofClear(0, 0, 0, 255);
-    m_fboLeds.end();
-
-    m_ledOut = move(out);
-    m_ledOut.setup(m_ip);
-}
+//void ofxLedController<Out>::setOutput(OutputWrapper &&out) {
+//    m_channelList = getChannels(out);
+//    m_channelsTotalLeds.resize(m_channelList.size());
+//    m_maxPixInChannel = getMaxPixelsOut(out) / m_channelList.size();
+//
+//    m_fboLeds.allocate(500, getMaxPixelsOut(out) / 500.f), GL_RGB);
+//    m_fboLeds.begin();
+//    ofClear(0, 0, 0, 255);
+//    m_fboLeds.end();
+//
+//    m_ledOut = move(out);
+//    m_ledOut.setup(m_ip);
+//}
 
 /// callback from ofxLedMapper to notify Controllers List to check color on violated connection
-void ofxLedController::setOnControllerStatusChange(function<void(void)> callback)
+template <class Out>
+void ofxLedController<Out>::setOnControllerStatusChange(function<void(void)> callback)
 {
     m_statusChanged = callback;
 }
 
 #ifndef LED_MAPPER_NO_GUI
 /// Bing generated GUI to controller
-void ofxLedController::bindGui(ofxDatGui *gui)
+template <class Out>
+void ofxLedController<Out>::bindGui(ofxDatGui *gui)
 {
     gui->clear();
 
@@ -149,7 +157,8 @@ void ofxLedController::bindGui(ofxDatGui *gui)
 #endif
 
 /// Draw all controllers grab objects
-void ofxLedController::draw()
+template <class Out>
+void ofxLedController<Out>::draw()
 {
     int chanNum = 0;
 
@@ -179,7 +188,8 @@ void ofxLedController::draw()
 }
 
 /// Send by UDP grab points data updated with grabbedImg
-void ofxLedController::send(const ofTexture &texIn)
+template <class Out>
+void ofxLedController<Out>::send(const ofTexture &texIn)
 {
     updateGrabPoints();
 
@@ -201,7 +211,8 @@ void ofxLedController::send(const ofTexture &texIn)
 }
 
 /// Update grab points from grab objects and put them to VBO
-void ofxLedController::updateGrabPoints()
+template <class Out>
+void ofxLedController<Out>::updateGrabPoints()
 {
     if (!m_bDirtyPoints)
         return;
@@ -213,7 +224,7 @@ void ofxLedController::updateGrabPoints()
     m_vboLeds.clear();
     m_vboLeds.setMode(OF_PRIMITIVE_POINTS);
     m_vboLeds.setUsage(GL_DYNAMIC_DRAW);
-
+    assert(m_channelsTotalLeds.size() == m_channelGrabObjects.size());
     for (size_t i = 0; i < m_channelGrabObjects.size(); ++i) {
         m_channelsTotalLeds[i] = 0;
         for (auto &object : m_channelGrabObjects[i]) {
@@ -243,7 +254,8 @@ void ofxLedController::updateGrabPoints()
 
 /// Update color for grab points, draw vbo mesh of points, grab texIn pixels in points positions
 /// put grabbed in fbo by mesh vertex id
-ChannelsToPix ofxLedController::updatePixels(const ofTexture &texIn)
+template <class Out>
+ChannelsToPix ofxLedController<Out>::updatePixels(const ofTexture &texIn)
 {
     m_fboLeds.begin();
     ofClear(0, 0, 0, 255);
@@ -282,35 +294,11 @@ ChannelsToPix ofxLedController::updatePixels(const ofTexture &texIn)
     return output;
 }
 
-/// Make controllers grab objects highligted and editable
-void ofxLedController::setSelected(bool state)
-{
-    if (m_bSelected == state)
-        return;
-
-    m_bSelected = state;
-    for (auto &channelGrabs : m_channelGrabObjects)
-        for (auto &grab : channelGrabs)
-            grab->setActive(m_bSelected);
-}
-
-void ofxLedController::setGrabsSelected(bool state)
-{
-    for (auto &channelGrabs : m_channelGrabObjects)
-        for (auto &grab : channelGrabs)
-            grab->setSelected(state);
-}
-
-void ofxLedController::setFps(float fps)
-{
-    m_fps = fps;
-    m_msecInFrame = 1000 / m_fps;
-}
-
 //
 // --- Load & Save ---
 //
-void ofxLedController::save(const string &path)
+template <class Out>
+void ofxLedController<Out>::save(const string &path)
 {
     ofJson config;
     config["colorType"] = s_grabColorTypes[m_colorType];
@@ -332,7 +320,8 @@ void ofxLedController::save(const string &path)
     ofLogNotice() << "[ofxLedController] Save config to " << path << LCFileName << m_id << ".json";
 }
 
-void ofxLedController::load(const string &path)
+template <class Out>
+void ofxLedController<Out>::load(const string &path)
 {
     m_channelGrabObjects.clear();
     m_channelGrabObjects.resize(m_channelList.size());
@@ -349,17 +338,17 @@ void ofxLedController::load(const string &path)
 
     m_ledOut.loadJson(json);
 
-    setColorType(GetColorType(json.count("colorType") ? json.at("colorType").get<string>() : ""));
+    setColorType(GetColorType(json.count("colorType") ? json.at("colorType").template get<string>() : ""));
 
-    m_pixelsInLed = json.count("pixInLed") ? json.at("pixInLed").get<float>() : 2.0;
-    m_fps = json.count("fps") ? json.at("fps").get<int>() : 25;
-    m_bSend = json.count("bSend") ? json.at("bSend").get<bool>() : false;
+    m_pixelsInLed = json.count("pixInLed") ? json.at("pixInLed").template get<float>() : 2.0;
+    m_fps = json.count("fps") ? json.at("fps").template get<int>() : 25;
+    m_bSend = json.count("bSend") ? json.at("bSend").template get<bool>() : false;
 
     if (!json.count("grabs"))
         return;
 
     vector<unique_ptr<ofxLedGrab>> jsonGrabs;
-    jsonGrabs = json.at("grabs").get<vector<unique_ptr<ofxLedGrab>>>();
+    jsonGrabs = json.at("grabs").template get<vector<unique_ptr<ofxLedGrab>>>();
 
     unordered_map<size_t, size_t> chanIdCntr;
     for (auto &grab : jsonGrabs) {
@@ -380,7 +369,8 @@ void ofxLedController::load(const string &path)
 //
 // --- Event handlers ---
 //
-void ofxLedController::mousePressed(ofMouseEventArgs &args)
+template <class Out>
+void ofxLedController<Out>::mousePressed(ofMouseEventArgs &args)
 {
     if (!m_bSelected)
         return;
@@ -413,7 +403,8 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
     }
 }
 
-void ofxLedController::mouseDragged(ofMouseEventArgs &args)
+template <class Out>
+void ofxLedController<Out>::mouseDragged(ofMouseEventArgs &args)
 {
     if (!m_bSelected || m_currentChannel->empty())
         return;
@@ -424,7 +415,8 @@ void ofxLedController::mouseDragged(ofMouseEventArgs &args)
     }
 }
 
-void ofxLedController::mouseReleased(ofMouseEventArgs &args)
+template <class Out>
+void ofxLedController<Out>::mouseReleased(ofMouseEventArgs &args)
 {
     if (m_currentChannel->empty())
         return;
@@ -439,7 +431,8 @@ void ofxLedController::mouseReleased(ofMouseEventArgs &args)
                   [&args](const auto &grab) { return grab->mouseReleased(args); });
 }
 
-void ofxLedController::keyPressed(ofKeyEventArgs &data)
+template <class Out>
+void ofxLedController<Out>::keyPressed(ofKeyEventArgs &data)
 {
     switch (data.key) {
         case '1':
@@ -459,39 +452,17 @@ void ofxLedController::keyPressed(ofKeyEventArgs &data)
     }
 }
 
-void ofxLedController::keyReleased(ofKeyEventArgs &data)
+template <class Out>
+void ofxLedController<Out>::keyReleased(ofKeyEventArgs &data)
 { /* no-op */
 }
 
-void ofxLedController::setPixInLed(const float pixInled)
+template <class Out>
+void ofxLedController<Out>::addGrab(unique_ptr<ofxLedGrab> &&object)
 {
-    m_pixelsInLed = pixInled;
-    for (auto &channelGrabs : m_channelGrabObjects)
-        for (auto &grab : channelGrabs)
-            grab->setPixelsInLed(m_pixelsInLed);
+    /// deselect currently selected
+    setGrabsSelected(false);
 
-    /// TODO call only when change objects
-    markDirtyGrabPoints();
-}
-
-unique_ptr<ofxLedGrab> ofxLedController::GetUniqueTypedGrab(const ofxLedGrab *grab)
-{
-    switch (grab->getType()) {
-        case LMGrabType::GRAB_LINE:
-            return make_unique<ofxLedGrabLine>(*(dynamic_cast<const ofxLedGrabLine *>(grab)));
-        case LMGrabType::GRAB_MATRIX:
-            return make_unique<ofxLedGrabMatrix>(*(dynamic_cast<const ofxLedGrabMatrix *>(grab)));
-        case LMGrabType::GRAB_CIRCLE:
-            return make_unique<ofxLedGrabCircle>(*(dynamic_cast<const ofxLedGrabCircle *>(grab)));
-        default:
-            break;
-    }
-    assert(false);
-    return nullptr;
-}
-
-void ofxLedController::addGrab(unique_ptr<ofxLedGrab> &&object)
-{
     object->setObjectId(m_currentChannel->size());
     object->setChannel(m_currentChannelNum);
     object->setActive(true);
@@ -500,7 +471,8 @@ void ofxLedController::addGrab(unique_ptr<ofxLedGrab> &&object)
     markDirtyGrabPoints();
 }
 
-void ofxLedController::deleteSelectedGrabs()
+template <class Out>
+void ofxLedController<Out>::deleteSelectedGrabs()
 {
     /// remove selected if has
     auto it = std::remove_if(begin(*m_currentChannel), end(*m_currentChannel),
@@ -516,19 +488,6 @@ void ofxLedController::deleteSelectedGrabs()
 
     markDirtyGrabPoints();
     return;
-}
-
-void ofxLedController::setColorType(GRAB_COLOR_TYPE type)
-{
-    m_colorType = type;
-    m_shaderGrab = GetShaderForColorGrab(m_colorType);
-}
-
-void ofxLedController::setCurrentChannel(int chan)
-{
-    /// get mod from chan to be in bounds
-    m_currentChannelNum = chan % m_channelList.size();
-    m_currentChannel = &m_channelGrabObjects[m_currentChannelNum];
 }
 
 } // namespace LedMapper
