@@ -7,7 +7,6 @@
 #include "ofMain.h"
 #include "ofxDatGui.h"
 #include "ofxNetwork.h"
-#include "ofxLedOutputBase.h"
 
 namespace LedMapper {
 

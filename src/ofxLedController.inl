@@ -91,21 +91,6 @@ void ofxLedController<Out>::disableEvents()
     ofRemoveListener(ofEvents().keyReleased, this, &ofxLedController::keyReleased);
 }
 
-
-//void ofxLedController<Out>::setOutput(OutputWrapper &&out) {
-//    m_channelList = getChannels(out);
-//    m_channelsTotalLeds.resize(m_channelList.size());
-//    m_maxPixInChannel = getMaxPixelsOut(out) / m_channelList.size();
-//
-//    m_fboLeds.allocate(500, getMaxPixelsOut(out) / 500.f), GL_RGB);
-//    m_fboLeds.begin();
-//    ofClear(0, 0, 0, 255);
-//    m_fboLeds.end();
-//
-//    m_ledOut = move(out);
-//    m_ledOut.setup(m_ip);
-//}
-
 /// callback from ofxLedMapper to notify Controllers List to check color on violated connection
 template <class Out>
 void ofxLedController<Out>::setOnControllerStatusChange(function<void(void)> callback)
