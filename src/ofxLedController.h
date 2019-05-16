@@ -67,7 +67,6 @@ public:
     void disableEvents();
 
 #ifndef LED_MAPPER_NO_GUI
-    static unique_ptr<ofxDatGui> GenerateGui();
     void bindGui(ofxDatGui *gui);
     ofVec2f getGuiSize() const { return ofVec2f(LM_GUI_WIDTH, 100); }
 #endif

@@ -103,15 +103,22 @@ static void FboCopyTo(ofFbo &fbo, ofBufferObject & buffer, GLint internalformat,
         return;
 
     int glFormat = ofGetGLFormatFromInternal(internalformat);
+
+#if !defined(TARGET_OPENGLES)
     if (buffer.size() <= ofGetNumChannelsFromGLFormat(glFormat))
         buffer.allocate(width * height * ofGetNumChannelsFromGLFormat(glFormat), GL_STATIC_READ);
-
+	
     fbo.bind();
     buffer.bind(GL_PIXEL_PACK_BUFFER);
     glReadPixels(0, 0, width, height, ofGetGLFormatFromInternal(internalformat),
                  ofGetGLTypeFromInternal(internalformat), NULL);
     buffer.unbind(GL_PIXEL_PACK_BUFFER);
     fbo.unbind();
+#else
+    if (buffer.size() <= ofGetNumChannelsFromGLFormat(glFormat))
+        buffer.allocate(width * height * ofGetNumChannelsFromGLFormat(glFormat));
+    
+#endif
 }
 
 
