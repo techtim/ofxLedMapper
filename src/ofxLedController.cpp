@@ -349,11 +349,13 @@ void ofxLedController::load(const string &path)
     m_fps = json.count("fps") ? json.at("fps").get<int>() : 25;
     m_bSend = json.count("bSend") ? json.at("bSend").get<bool>() : false;
 
-    if (!json.count("grabs"))
+    if (!json.count("grabs") || !json.at("grabs").is_array())
         return;
-
+    ofLogNotice() << json.dump();
     vector<unique_ptr<ofxLedGrab>> jsonGrabs;
     jsonGrabs = json.at("grabs").get<vector<unique_ptr<ofxLedGrab>>>();
+    jsonGrabs.erase(std::remove_if(jsonGrabs.begin(), jsonGrabs.end(), [](unique_ptr<ofxLedGrab> &grab) {
+        return grab == nullptr;}), jsonGrabs.end());
 
     unordered_map<size_t, size_t> chanIdCntr;
     for (auto &grab : jsonGrabs) {
@@ -367,8 +369,6 @@ void ofxLedController::load(const string &path)
 
     markDirtyGrabPoints();
     updateGrabPoints();
-
-    return;
 }
 
 //
