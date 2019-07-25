@@ -47,6 +47,7 @@ ofxLedController::ofxLedController(const int _id, const string &_path)
     , m_channelsTotalLeds(m_channelList.size(), 0)
     , m_ledPoints(0)
     , m_maxPixInChannel(m_ledOut.getMaxPixelsOut() / m_channelList.size())
+    , m_selectionRect(0, 0, 0, 0)
 {
     m_channelGrabObjects.resize(m_channelList.size());
 
@@ -158,6 +159,11 @@ void ofxLedController::draw()
 
     if (!m_bSelected)
         return;
+
+    if (!m_selectionRect.isEmpty()) {
+        ofSetColor(200, 200, 200, 50);
+        ofDrawRectangle(m_selectionRect);
+    }
 
     /// draw grabbed texture
     ofSetColor(255);
@@ -354,8 +360,9 @@ void ofxLedController::load(const string &path)
     ofLogNotice() << json.dump();
     vector<unique_ptr<ofxLedGrab>> jsonGrabs;
     jsonGrabs = json.at("grabs").get<vector<unique_ptr<ofxLedGrab>>>();
-    jsonGrabs.erase(std::remove_if(jsonGrabs.begin(), jsonGrabs.end(), [](unique_ptr<ofxLedGrab> &grab) {
-        return grab == nullptr;}), jsonGrabs.end());
+    jsonGrabs.erase(std::remove_if(jsonGrabs.begin(), jsonGrabs.end(),
+                                   [](unique_ptr<ofxLedGrab> &grab) { return grab == nullptr; }),
+                    jsonGrabs.end());
 
     unordered_map<size_t, size_t> chanIdCntr;
     for (auto &grab : jsonGrabs) {
@@ -387,6 +394,8 @@ void ofxLedController::mousePressed(ofMouseEventArgs &args)
     switch (m_currentGrabType) {
         case LMGrabType::GRAB_EMPTY:
         case LMGrabType::GRAB_SELECT:
+            /// set position of selection rectangle
+            m_selectionRect.set(args, 0, 0);
             break;
         case LMGrabType::GRAB_LINE: {
             /// deselect previous active grabs
@@ -416,12 +425,23 @@ void ofxLedController::mouseDragged(ofMouseEventArgs &args)
                       [&args](const auto &grab) { return grab->mouseDragged(args); })) {
         markDirtyGrabPoints();
     }
+    else {
+        updateSelectionRect(m_selectionRect, args);
+    }
 }
 
 void ofxLedController::mouseReleased(ofMouseEventArgs &args)
 {
     if (m_currentChannel->empty())
         return;
+
+    if (!m_selectionRect.isEmpty()) {
+        std::for_each(begin(*m_currentChannel), end(*m_currentChannel), [this](const auto &grab) {
+            if (m_selectionRect.intersects(grab->getFrom(), grab->getTo()))
+                grab->setSelected(true);
+        });
+        m_selectionRect.set(0, 0, 0, 0);
+    }
 
     /// delete zero length grab, that was created with one click - not counted
     if (m_currentChannel->back()->points().empty()) {
@@ -523,6 +543,25 @@ void ofxLedController::setCurrentChannel(int chan)
     /// get mod from chan to be in bounds
     m_currentChannelNum = chan % m_channelList.size();
     m_currentChannel = &m_channelGrabObjects[m_currentChannelNum];
+}
+
+void ofxLedController::updateSelectionRect(ofRectangle &rect, const ofMouseEventArgs &args)
+{
+    if (args.x <= rect.x) {
+        rect.setWidth(rect.x + rect.width - args.x);
+        rect.setX(args.x);
+    }
+    else {
+        rect.setWidth(args.x - rect.x);
+    }
+
+    if (args.y <= rect.y) {
+        rect.setHeight(rect.y + rect.height - args.y);
+        rect.setY(args.y);
+    }
+    else {
+        rect.setHeight(args.y - rect.y);
+    }
 }
 
 } // namespace LedMapper

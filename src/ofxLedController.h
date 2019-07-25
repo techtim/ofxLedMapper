@@ -99,6 +99,8 @@ public:
     const ofRectangle &peekBounds() const { return m_grabBounds; }
 
 private:
+    void updateSelectionRect(ofRectangle &rect, const ofMouseEventArgs &args);
+
     unsigned int m_id;
     string m_path;
 
@@ -137,6 +139,7 @@ private:
     int m_fps;
 
     uint64_t m_lastFrameTime, m_msecInFrame;
+    ofRectangle m_selectionRect;
 };
 
 } // namespace LedMapper
