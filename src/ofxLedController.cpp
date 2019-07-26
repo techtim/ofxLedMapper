@@ -441,6 +441,7 @@ void ofxLedController::mouseReleased(ofMouseEventArgs &args)
                 grab->setSelected(true);
         });
         m_selectionRect.set(0, 0, 0, 0);
+        return;
     }
 
     /// delete zero length grab, that was created with one click - not counted
