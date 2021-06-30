@@ -114,8 +114,7 @@ public:
 
     virtual ofJson toJson() const
     {
-        return ofJson{ { "type", typeid(*this).name() },
-                       { "channel", m_channel },
+        return ofJson{ { "channel", m_channel },
                        { "fromX", m_from.x },
                        { "fromY", m_from.y },
                        { "toX", m_to.x },
@@ -202,8 +201,8 @@ public:
         sInput->bind(m_pixelsInLed);
         sInput->setValue(m_pixelsInLed);
         //        sInput = gui->addToggle("double line", m_isDoubleLine);
-//            ofxDatGuiToggle *tInput = gui->addToggle("double line", false);
-//            tInput->bind(m_isDoubleLine);
+        //            ofxDatGuiToggle *tInput = gui->addToggle("double line", false);
+        //            tInput->bind(m_isDoubleLine);
 
         sInput = gui->addSlider("from X", 0, 1000);
         sInput->bind(m_from.x);
@@ -368,6 +367,7 @@ public:
     ofJson toJson() const override
     {
         ofJson out = ofxLedGrab::toJson();
+        out["type"] = m_type;
         out["isDouble"] = m_isDoubleLine;
         return out;
     }
@@ -514,6 +514,7 @@ public:
     ofJson toJson() const override
     {
         ofJson out = ofxLedGrab::toJson();
+        out["type"] = m_type;
         out["startAngle"] = m_startAngle;
         out["isClockwise"] = m_isClockwise;
         return out;
@@ -716,6 +717,7 @@ public:
     ofJson toJson() const override
     {
         ofJson out = ofxLedGrab::toJson();
+        out["type"] = m_type;
         out["isVertical"] = m_isVertical;
         out["isZigzag"] = m_isZigzag;
         return out;
@@ -749,16 +751,21 @@ template <> struct adl_serializer<std::unique_ptr<LedMapper::ofxLedGrab>> {
         if (j.is_null()) {
             return grab;
         }
-        else {
-            auto type = j.at("type").get<string>();
-            if (type == typeid(LedMapper::ofxLedGrabLine).name())
+        else if (j.count("type") > 0 && j.at("type").is_number()) {
+            auto type = j.at("type").get<LedMapper::LMGrabType>();
+            if (type == LedMapper::LMGrabType::GRAB_LINE)
                 grab = make_unique<LedMapper::ofxLedGrabLine>();
-            else if (type == typeid(LedMapper::ofxLedGrabMatrix).name())
+            else if (type == LedMapper::LMGrabType::GRAB_MATRIX)
                 grab = make_unique<LedMapper::ofxLedGrabMatrix>();
-            else if (type == typeid(LedMapper::ofxLedGrabCircle).name())
+            else if (type == LedMapper::LMGrabType::GRAB_CIRCLE)
                 grab = make_unique<LedMapper::ofxLedGrabCircle>();
 
-            grab->fromJson(j);
+            try {
+                grab->fromJson(j);
+            }
+            catch (std::exception &ex) {
+                ofLogError() << "Parse Grab json failed with:" << ex.what();
+            }
         }
 
         return grab;

@@ -402,6 +402,14 @@ bool ofxLedMapper::save()
     if (!m_dir.exists()) {
         m_dir.createDirectory(m_configFolderPath);
     }
+    else {
+        m_dir.listDir();
+        for (size_t i = 0; i < m_dir.size(); ++i) {
+            if (m_dir.getName(i).compare(0, LCFileName.size(), LCFileName) == 0)
+                std::filesystem::remove(m_dir.getPath(i));
+        }
+    }
+
     for (auto &ctrl : m_controllers) {
         ctrl.second->save(m_configFolderPath);
     }
@@ -415,10 +423,10 @@ void ofxLedMapper::copyGrabs()
 {
     m_copyPasteGrabs.clear();
 
-    for (const auto &grab : m_controllers.at(m_currentCtrl)->peekCurrentGrabs())
+    for (const auto &grab : m_controllers.at(m_currentCtrl)->peekCurrentGrabs()) {
         if (grab->isSelected())
             m_copyPasteGrabs.emplace_back(ofxLedController::GetUniqueTypedGrab(grab.get()));
-
+    }
     ofLogVerbose() << "Copied controller #" << m_currentCtrl
                    << " grabs, size=" << m_copyPasteGrabs.size();
 }
