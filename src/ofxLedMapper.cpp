@@ -433,7 +433,7 @@ void ofxLedMapper::copyGrabs()
 
 void ofxLedMapper::pasteGrabs()
 {
-    if (m_copyPasteGrabs.empty())
+    if (m_copyPasteGrabs.empty() || m_currentCtrl >= m_controllers.size())
         return;
     /// deselect currently selected
     m_controllers.at(m_currentCtrl)->setGrabsSelected(false);
@@ -455,7 +455,7 @@ void ofxLedMapper::pasteGrabs()
 
 void ofxLedMapper::mousePressed(ofMouseEventArgs &args)
 {
-    if (args.x > ofGetWidth() - LM_GUI_WIDTH)
+    if (args.x > ofGetWidth() - LM_GUI_WIDTH || m_currentCtrl >= m_controllers.size())
         return;
     m_controllers.at(m_currentCtrl)->setGrabType(m_grabTypeSelected);
     m_controllers.at(m_currentCtrl)->mousePressed(args);
@@ -463,13 +463,13 @@ void ofxLedMapper::mousePressed(ofMouseEventArgs &args)
 
 void ofxLedMapper::mouseDragged(ofMouseEventArgs &args)
 {
-    if (args.x > ofGetWidth() - LM_GUI_WIDTH)
+    if (args.x > ofGetWidth() - LM_GUI_WIDTH || m_currentCtrl >= m_controllers.size())
         return;
     m_controllers.at(m_currentCtrl)->mouseDragged(args);
 }
 void ofxLedMapper::mouseReleased(ofMouseEventArgs &args)
 {
-    if (args.x > ofGetWidth() - LM_GUI_WIDTH)
+    if (args.x > ofGetWidth() - LM_GUI_WIDTH || m_currentCtrl >= m_controllers.size())
         return;
     if (!args.hasModifier(OF_KEY_SHIFT)) {
         m_controllers.at(m_currentCtrl)->mouseReleased(args);
@@ -518,7 +518,8 @@ void ofxLedMapper::keyPressed(ofKeyEventArgs &data)
             }
             break;
         case OF_KEY_BACKSPACE:
-            m_controllers.at(m_currentCtrl)->deleteSelectedGrabs();
+            if (m_currentCtrl < m_controllers.size())
+                m_controllers.at(m_currentCtrl)->deleteSelectedGrabs();
             break;
         default:
             break;

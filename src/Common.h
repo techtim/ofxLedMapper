@@ -70,11 +70,6 @@ static const int RPI_CONF_PORT = 3002;
 /// type for output data stream
 using ChannelsToPix = vector<vector<char>>;
 
-/// include json in oF versions prior to 1.0
-#if (OF_VERSION_MINOR < 10)
-#include "ofJson.h"
-#endif
-
 namespace LedMapper {
 
 static const std::string APP_NAME = "LedMapper";

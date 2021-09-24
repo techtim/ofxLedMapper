@@ -319,12 +319,14 @@ void ofxLedController::save(const string &path)
     config["bSend"] = m_bSend;
     m_ledOut.saveJson(config);
 
-    ofJson grabs_array;
+    ofJson grabs_array = ofJson::array();
     for (auto &channelGrabs : m_channelGrabObjects)
         for (auto &grab : channelGrabs)
             grabs_array.emplace_back(grab);
 
-    config["grabs"] = grabs_array;
+    if (!grabs_array.empty())
+        config["grabs"] = grabs_array;
+
     ofstream jsonFile(path + LCFileName + ofToString(m_id) + ".json");
     jsonFile << config.dump(4);
     jsonFile.close();
