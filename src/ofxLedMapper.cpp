@@ -219,7 +219,7 @@ void ofxLedMapper::setupGui()
     m_listControllers = make_unique<ofxDatGuiScrollView>(LMGUIListControllers, 5);
     m_listControllers->setTheme(m_guiTheme.get());
     m_listControllers->onScrollViewEvent([this](ofxDatGuiScrollViewEvent e) {
-        this->setCurrentController(ofToInt(e.target->getName()));
+        setCurrentController(ofToInt(e.target->getName()));
     });
 
     m_listControllers->setWidth(LM_GUI_WIDTH);
@@ -416,6 +416,7 @@ bool ofxLedMapper::save()
 
     return true;
 }
+    
 //
 // ------------------------------ COPY / PASTE ------------------------------
 //
@@ -451,8 +452,6 @@ void ofxLedMapper::pasteGrabs()
 // ------------------------------ EVENTS ------------------------------
 //
 
-/// mouse and keyboard events
-
 void ofxLedMapper::mousePressed(ofMouseEventArgs &args)
 {
     if (args.x > ofGetWidth() - LM_GUI_WIDTH || m_currentCtrl >= m_controllers.size())
@@ -467,6 +466,7 @@ void ofxLedMapper::mouseDragged(ofMouseEventArgs &args)
         return;
     m_controllers.at(m_currentCtrl)->mouseDragged(args);
 }
+
 void ofxLedMapper::mouseReleased(ofMouseEventArgs &args)
 {
     if (args.x > ofGetWidth() - LM_GUI_WIDTH || m_currentCtrl >= m_controllers.size())

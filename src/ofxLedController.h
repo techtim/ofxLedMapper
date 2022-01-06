@@ -34,7 +34,7 @@ using OnControllerStatusChange = function<void(void)>;
 using ChannelsGrabObjects = vector<vector<unique_ptr<ofxLedGrab>>>;
 
 /// Class represents connection to one client recieving led data and
-/// control transmittion params like fps, pixel color order, LED IC Type
+/// control transmition params like fps, pixel color order, LED IC Type
 
 class ofxLedController {
 public:

@@ -128,8 +128,7 @@ void ofxLedController::bindGui(ofxDatGui *gui)
     dropdown->select(m_currentChannelNum);
     dropdown->onDropdownEvent(
         [this](ofxDatGuiDropdownEvent e) { this->setCurrentChannel(e.child); });
-
-    LedMapper::ofxDatGuiThemeLM theme;
+    
     unique_ptr<ofxDatGuiTheme> guiTheme = make_unique<LedMapper::ofxDatGuiThemeLM>();
     gui->setTheme(guiTheme.get(), true);
 }
