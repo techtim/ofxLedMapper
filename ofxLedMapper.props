@@ -5,7 +5,8 @@
   <PropertyGroup />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>addons/ofxLedMapper/src;addons/ofxLedMapper/EASTL/include;addons/ofxLedMapper/EASTL/source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>addons/ofxLedMapper/src;addons/ofxLedMapper/EASTL/include;addons/ofxLedMapper/EASTL/source;addons/ofxLedMapper/EASTL/test/packages/EABase/include/Common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>EASTL_OPENSOURCE=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup />
