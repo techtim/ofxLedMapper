@@ -34,7 +34,8 @@ static const string LMGUIListControllers = "Controllers";
 static const string LMGUIToggleDebug = "Debug controller";
 static const string LMGUITogglePlay = "Play";
 static const string LMGUISliderFps = "FPS";
-static const string LMGUIButtonAdd = "Add Controller";
+static const string LMGUIButtonAddLedmap = "Add LedMap Controller";
+static const string LMGUIButtonAddArtnet = "Add Artnet Controller";
 static const string LMGUIButtonDel = "Delete Controller";
 static const string LMGUIButtonSave = "Save";
 static const string LMGUIButtonLoad = "Load";
@@ -57,6 +58,7 @@ static const string LCGUIDropLedType = "LED IC Type";
 static const string LCGUIDropChannelNum = "Channel";
 static const string LCGUIButtonDmx = "DMX";
 static const string LCGUISliderUniInChan = "Uni in chan";
+static const string LCGUIStartUni = "Start Uni";
 static const string LCFileName = "Ctrl-";
 
 #endif
@@ -128,7 +130,19 @@ static bool ValidateIP(const string &ip)
     std::regex_match(ip, base_match, ip_addr);
     return base_match.size() > 0;
 }
-
+    
+static bool IsBroadcastIp(const string &ip) 
+{ 
+    std::smatch base_match;
+    std::regex ip_bcast(".+(.255)$");
+    std::regex_match(ip, base_match, ip_bcast);
+    return base_match.size() > 0;
+}
+    
+static bool IsNumber(const string &str){
+    return str.find_first_not_of("0123456789") == string::npos;
+}
+    
 /// COLORS
 static const int LM_COLOR_GREEN = 0x009688;
 static const int LM_COLOR_GREEN_DARK = 0x004d40;

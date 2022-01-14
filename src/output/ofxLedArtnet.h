@@ -14,13 +14,15 @@ class ofxLedArtnet {
     bool m_bSetup;
     string m_ip;
     size_t m_universesInChannel;
+    size_t m_startUniverse;
     ofxUDPManager m_frameConnection;
+    uint8_t m_seqNumber;
 
 public:
     ofxLedArtnet();
 
     void setup(const string ip);
-
+    void resetup() { setup(m_ip); }
     bool send(ChannelsToPix &&output);
     bool sendUniverse(vector<char> &pixels, size_t offset, size_t universe);
 

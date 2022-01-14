@@ -50,7 +50,7 @@ ofxLedMapper::ofxLedMapper()
     ofAddListener(ofEvents().windowResized, this, &ofxLedMapper::windowResized);
 
     /// add default ctrl
-    add(0, m_configFolderPath);
+    add(0, LedOutputTypeLedmap, m_configFolderPath);
 
     m_bSetup = true;
 }
@@ -130,19 +130,19 @@ void ofxLedMapper::send(const ofTexture &texIn)
     }
 }
 
-bool ofxLedMapper::add(string folder_path)
+bool ofxLedMapper::add(LedOutputType type, string folder_path)
 {
-    add(m_controllers.size(), folder_path);
+    add(m_controllers.size(), type, folder_path);
     return true;
 }
 
-bool ofxLedMapper::add(unsigned int _ctrlId, string folder_path)
+bool ofxLedMapper::add(unsigned int _ctrlId, LedOutputType type, const string &folder_path)
 {
     unsigned int ctrlId = _ctrlId;
     while (!checkUniqueId(ctrlId)) {
         ctrlId++;
     }
-    auto ctrl = make_unique<ofxLedController>(ctrlId, folder_path);
+    auto ctrl = make_unique<ofxLedController>(ctrlId, type, folder_path);
     ctrl->disableEvents();
 #ifndef LED_MAPPER_NO_GUI
     function<void(void)> fnc = [this](void) { this->updateControllersListGui(); };
@@ -209,8 +209,11 @@ void ofxLedMapper::setupGui()
 
     m_toggleDebugController = m_gui->addToggle(LMGUIToggleDebug, false);
 
-    m_gui->addButton(LMGUIButtonAdd)->onButtonEvent([this](ofxDatGuiButtonEvent) {
-        this->add(m_configFolderPath);
+    m_gui->addButton(LMGUIButtonAddLedmap)->onButtonEvent([this](ofxDatGuiButtonEvent) {
+        this->add(LedOutputTypeLedmap, m_configFolderPath);
+    });
+    m_gui->addButton(LMGUIButtonAddArtnet)->onButtonEvent([this](ofxDatGuiButtonEvent) {
+        this->add(LedOutputTypeArtnet, m_configFolderPath);
     });
     m_gui->addButton(LMGUIButtonDel)->onButtonEvent([this](ofxDatGuiButtonEvent) {
         this->remove(m_currentCtrl);
@@ -275,7 +278,7 @@ void ofxLedMapper::setGuiActive(bool active)
 void ofxLedMapper::setCurrentController(unsigned int _curCtrl)
 {
     if (m_controllers.empty()) {
-        add(m_configFolderPath);
+        add(LedOutputTypeLedmap, m_configFolderPath);
         return;
     }
 
@@ -374,7 +377,7 @@ bool ofxLedMapper::load()
         regex_match(pth, base_match, ctrl_name);
         if (base_match.size() > 1) {
             ofLogVerbose("[ofxLedMapper] Load: add controller " + base_match[1].str());
-            add(ofToInt(base_match[1].str()), m_configFolderPath);
+            add(ofToInt(base_match[1].str()), LedOutputTypeLedmap, m_configFolderPath);
         }
     }
     if (!m_controllers.empty()) {

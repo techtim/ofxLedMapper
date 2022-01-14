@@ -38,7 +38,7 @@ using ChannelsGrabObjects = vector<vector<unique_ptr<ofxLedGrab>>>;
 
 class ofxLedController {
 public:
-    ofxLedController(const int _id, const string &_path);
+    ofxLedController(int _id, LedOutputType outputType, const string &_path);
     ofxLedController() = delete;
     ofxLedController(const ofxLedController &) = delete;
     ofxLedController(ofxLedController &&) = delete;
@@ -78,7 +78,7 @@ public:
     bool isStatusOk() const { return m_statusOk; }
     bool isSending() const { return m_bSend; }
 
-    string getIP() const { return m_ledOut.getIP(); }
+    // string getIP() const { return m_ledOut.getIP(); }
     unsigned int getId() const { return m_id; }
     unsigned int getTotalLeds() const { return m_totalLeds; }
 
@@ -108,7 +108,7 @@ private:
 
     unsigned int m_totalLeds;
     vector<char> m_output;
-    ofxLedRpi m_ledOut;
+    LedOutput m_ledOut;
 
     ofVboMesh m_vboLeds;
     ofShader m_shaderGrab;

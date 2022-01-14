@@ -26,7 +26,7 @@
 
 namespace LedMapper {
 
-ofxLedController::ofxLedController(const int _id, const string &_path)
+ofxLedController::ofxLedController(int _id, LedOutputType outputType, const string &_path)
     : m_id(_id)
     , m_path(_path)
     , m_bSelected(false)
@@ -43,18 +43,20 @@ ofxLedController::ofxLedController(const int _id, const string &_path)
     , m_totalLeds(0)
     , m_statusChanged(nullptr)
     , m_currentChannelNum(0)
-    , m_channelList({ m_ledOut.getChannels() })
-    , m_channelsTotalLeds(m_channelList.size(), 0)
     , m_ledPoints(0)
-    , m_maxPixInChannel(m_ledOut.getMaxPixelsOut() / m_channelList.size())
     , m_selectionRect(0, 0, 0, 0)
 {
+    m_ledOut = CreateLedOutput(outputType);
+    m_channelList = LedOutputGetChannels(m_ledOut);
+    auto maxPixelsOut = LedOutputGetMaxPixels(m_ledOut);
+    m_maxPixInChannel = maxPixelsOut / m_channelList.size();
+    m_channelsTotalLeds.resize(m_channelList.size(), 0);
     m_channelGrabObjects.resize(m_channelList.size());
 
     setColorType(GRAB_COLOR_TYPE::RGB);
     setFps(m_fps);
 
-    m_fboLeds.allocate(500, ceil(m_ledOut.getMaxPixelsOut() / 500.f), GL_RGB);
+    m_fboLeds.allocate(500, ceil(maxPixelsOut / 500.f), GL_RGB);
     m_fboLeds.begin();
     ofClear(0, 0, 0, 255);
     m_fboLeds.end();
@@ -104,7 +106,7 @@ void ofxLedController::bindGui(ofxDatGui *gui)
     gui->addToggle(LCGUIButtonSend, m_bSend)->onToggleEvent([this](ofxDatGuiToggleEvent e) {
         m_bSend = e.checked;
         if (m_bSend)
-            m_ledOut.resetup();
+            LedOutputResetup(m_ledOut);
     });
 
     auto slider = gui->addSlider(LMGUISliderFps, 10, 60);
@@ -122,13 +124,13 @@ void ofxLedController::bindGui(ofxDatGui *gui)
     dropdown->onDropdownEvent(
         [this](ofxDatGuiDropdownEvent e) { this->setColorType(GetColorType(e.child)); });
 
-    m_ledOut.bindGui(gui);
+    LedOutputBindGui(m_ledOut, gui);
 
     dropdown = gui->addDropdown(LCGUIDropChannelNum, m_channelList);
     dropdown->select(m_currentChannelNum);
     dropdown->onDropdownEvent(
         [this](ofxDatGuiDropdownEvent e) { this->setCurrentChannel(e.child); });
-    
+
     unique_ptr<ofxDatGuiTheme> guiTheme = make_unique<LedMapper::ofxDatGuiThemeLM>();
     gui->setTheme(guiTheme.get(), true);
 }
@@ -185,7 +187,7 @@ void ofxLedController::send(const ofTexture &texIn)
 
     bool prevStatus = m_statusOk;
 
-    m_statusOk = m_ledOut.send(move(grabbedPixs));
+    m_statusOk = LedOutputSend(m_ledOut, move(grabbedPixs));
 
     if (m_statusOk != prevStatus && m_statusChanged != nullptr)
         m_statusChanged();
@@ -316,7 +318,8 @@ void ofxLedController::save(const string &path)
     config["pixInLed"] = m_pixelsInLed;
     config["fps"] = m_fps;
     config["bSend"] = m_bSend;
-    m_ledOut.saveJson(config);
+    config["outputType"] = GetLedOutputType(m_ledOut);
+    LedOutputSave(m_ledOut, config);
 
     ofJson grabs_array = ofJson::array();
     for (auto &channelGrabs : m_channelGrabObjects)
@@ -348,7 +351,11 @@ void ofxLedController::load(const string &path)
             return;
     }
 
-    m_ledOut.loadJson(json);
+    LedOutputType outputType = json.contains("outputType")
+                                   ? json.at("outputType").get<LedOutputType>()
+                                   : LedOutputTypeLedmap;
+    m_ledOut = CreateLedOutput(outputType);
+    LedOutputLoad(m_ledOut, json);
 
     setColorType(GetColorType(json.count("colorType") ? json.at("colorType").get<string>() : ""));
 
